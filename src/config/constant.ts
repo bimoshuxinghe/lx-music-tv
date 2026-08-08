@@ -24,7 +24,6 @@ export enum COMPONENT_IDS {
   home = 'home',
   playDetail = 'playDetail',
   songlistDetail = 'songlistDetail',
-  comment = 'comment',
 }
 
 export enum NAV_SHEAR_NATIVE_IDS {

@@ -1,5 +1,5 @@
 import { memo, useMemo, useEffect, useRef, useCallback } from 'react'
-import { View, FlatList, type FlatListProps, type NativeSyntheticEvent, type NativeScrollEvent, type LayoutChangeEvent } from 'react-native'
+import { View, FlatList, Animated, type FlatListProps, type NativeSyntheticEvent, type NativeScrollEvent, type LayoutChangeEvent } from 'react-native'
 // import { useLayout } from '@/utils/hooks'
 import { type Line, useLrcPlay, useLrcSet } from '@/plugins/lyric'
 import { createStyle } from '@/utils/tools'
@@ -7,6 +7,8 @@ import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
 import { useSettingValue } from '@/store/setting/hook'
 import { AnimatedColorText } from '@/components/common/Text'
+import KaraokeText from '@/components/lyric/KaraokeText'
+import { useLyricKaraokeProgress } from '@/utils/hooks/useLyricKaraokeProgress'
 import { setSpText } from '@/utils/pixelRatio'
 import playerState from '@/store/player/state'
 import { scrollTo } from '@/utils/scroll'
@@ -21,18 +23,20 @@ interface LineProps {
   line: Line
   lineNum: number
   activeLine: number
+  karaokeProgress: Animated.Value
   onLayout: (lineNum: number, height: number, width: number) => void
 }
-const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
+const LrcLine = memo(({ line, lineNum, activeLine, karaokeProgress, onLayout }: LineProps) => {
   const theme = useTheme()
   const lrcFontSize = useSettingValue('playDetail.horizontal.style.lrcFontSize')
   const textAlign = useSettingValue('playDetail.style.align')
   const size = lrcFontSize / 10
   const lineHeight = setSpText(size) * 1.3
 
+  const isActiveLine = activeLine == lineNum
+
   const colors = useMemo(() => {
-    const active = activeLine == lineNum
-    return active ? [
+    return isActiveLine ? [
       theme['c-primary'],
       theme['c-primary-alpha-200'],
       1,
@@ -41,7 +45,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
       theme['c-300'],
       0.6,
     ] as const
-  }, [activeLine, lineNum, theme])
+  }, [isActiveLine, theme])
 
   const handleLayout = ({ nativeEvent }: LayoutChangeEvent) => {
     onLayout(lineNum, nativeEvent.layout.height, nativeEvent.layout.width)
@@ -51,11 +55,14 @@ const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
   // https://stackoverflow.com/a/72822360
   return (
     <View style={styles.line} onLayout={handleLayout}>
-      <AnimatedColorText style={{
-        ...styles.lineText,
-        textAlign,
-        lineHeight,
-      }} textBreakStrategy="simple" color={colors[0]} opacity={colors[2]} size={size}>{line.text}</AnimatedColorText>
+      { isActiveLine
+        ? <KaraokeText text={line.text} progress={karaokeProgress} size={size} lineHeight={lineHeight} textAlign={textAlign} fontWeight="bold" inactiveColor={theme['c-350']} activeColor={theme['c-primary']} style={styles.lineText} />
+        : <AnimatedColorText style={{
+          ...styles.lineText,
+          textAlign,
+          lineHeight,
+        }} textBreakStrategy="simple" color={colors[0]} opacity={colors[2]} size={size}>{line.text}</AnimatedColorText>
+      }
       {
         line.extendedLyrics.map((lrc, index) => {
           return (<AnimatedColorText style={{
@@ -257,9 +264,11 @@ export default () => {
     global.app_event.setProgress(time)
   }, [])
 
+  const karaokeProgress = useLyricKaraokeProgress(lyricLines, line)
+
   const renderItem: FlatListType['renderItem'] = ({ item, index }) => {
     return (
-      <LrcLine line={item} lineNum={index} activeLine={line} onLayout={handleLineLayout} />
+      <LrcLine line={item} lineNum={index} activeLine={line} karaokeProgress={karaokeProgress} onLayout={handleLineLayout} />
     )
   }
   const getkey: FlatListType['keyExtractor'] = (item, index) => `${index}${item.text}`

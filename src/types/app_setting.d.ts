@@ -192,16 +192,6 @@ declare global {
       'player.isS2t': boolean
 
       /**
-       * 是否启用蓝牙歌词
-       */
-      'player.isShowBluetoothLyric': boolean
-
-      /**
-       * 是否启用蓝牙完整歌词
-       */
-      'player.isShowBluetoothFullLyric': boolean
-
-      /**
        * 播放详情页-是否缩放当前播放的歌词行
        */
       // 'playDetail.isZoomActiveLrc': boolean
@@ -230,81 +220,6 @@ declare global {
        * 播放详情页-是否允许通过歌词调整播放进度
        */
       'playDetail.isShowLyricProgressSetting': boolean
-
-      /**
-       * 是否启用桌面歌词
-       */
-      'desktopLyric.enable': boolean
-
-      /**
-       * 是否锁定桌面歌词
-       */
-      'desktopLyric.isLock': boolean
-
-      /**
-       * 桌面歌词窗口宽度
-       */
-      'desktopLyric.width': number
-
-      /**
-       * 桌面歌词最大行数
-       */
-      'desktopLyric.maxLineNum': number
-
-      /**
-       * 桌面歌词是否使用单行显示
-       */
-      'desktopLyric.isSingleLine': boolean
-
-      /**
-       * 桌面歌词是否启用歌词切换动画
-       */
-      'desktopLyric.showToggleAnima': boolean
-
-      /**
-       * 桌面歌词窗口x坐标
-       */
-      'desktopLyric.position.x': number
-
-      /**
-       * 桌面歌词窗口y坐标
-       */
-      'desktopLyric.position.y': number
-
-      /**
-       * 歌词水平对齐方式
-       */
-      'desktopLyric.textPosition.x': 'left' | 'center' | 'right'
-
-      /**
-       * 歌词垂直对齐方式
-       */
-      'desktopLyric.textPosition.y': 'top' | 'center' | 'bottom'
-
-      /**
-       * 桌面歌词字体大小
-       */
-      'desktopLyric.style.fontSize': number
-
-      /**
-       * 桌面歌词字体透明度
-       */
-      'desktopLyric.style.opacity': number
-
-      /**
-       * 桌面歌词未播放字体颜色
-       */
-      'desktopLyric.style.lyricUnplayColor': string
-
-      /**
-        * 桌面歌词已播放字体颜色
-        */
-      'desktopLyric.style.lyricPlayedColor': string
-
-      /**
-        * 桌面歌词字体阴影颜色
-        */
-      'desktopLyric.style.lyricShadowColor': string
 
       /**
        * 是否显示热门搜索

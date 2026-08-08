@@ -14,6 +14,10 @@ const KEYCODE_MEDIA_PLAY_PAUSE = 85
 const KEYCODE_MEDIA_NEXT = 87
 const KEYCODE_MEDIA_PREVIOUS = 88
 const KEYCODE_MEDIA_STOP = 86
+const KEYCODE_MEDIA_FAST_FORWARD = 90
+const KEYCODE_MEDIA_REWIND = 89
+
+const SEEK_STEP = 10
 
 
 export default () => {
@@ -164,6 +168,16 @@ export default () => {
         break
       case KEYCODE_MEDIA_STOP:
         void togglePlay()
+        break
+      case KEYCODE_MEDIA_FAST_FORWARD:
+        void getPosition().then((position) => {
+          global.app_event.setProgress(position + SEEK_STEP)
+        })
+        break
+      case KEYCODE_MEDIA_REWIND:
+        void getPosition().then((position) => {
+          global.app_event.setProgress(Math.max(0, position - SEEK_STEP))
+        })
         break
     }
   })

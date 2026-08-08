@@ -4,6 +4,8 @@ import {ScrollView, View} from 'react-native'
 import { useNavActiveId, useStatusbarHeight } from '@/store/common/hook'
 import { useTheme } from '@/store/theme/hook'
 import { Icon } from '@/components/common/Icon'
+import Text from '@/components/common/Text'
+import { useI18n } from '@/lang'
 import { confirmDialog, createStyle, exitApp as backHome } from '@/utils/tools'
 import { NAV_MENUS } from '@/config/constant'
 import type { InitState } from '@/store/common/state'
@@ -12,7 +14,7 @@ import { exitApp, setNavActiveId } from '@/core/common'
 import { BorderWidths } from '@/theme'
 import { useSettingValue } from '@/store/setting/hook'
 
-const NAV_WIDTH = 68
+const NAV_WIDTH = 220
 
 const styles = createStyle({
   container: {
@@ -47,15 +49,14 @@ const styles = createStyle({
     flexDirection: 'row',
     paddingTop: 15,
     paddingBottom: 15,
-    // paddingLeft: 25,
-    // paddingRight: 25,
-    justifyContent: 'center',
+    paddingLeft: 20,
+    paddingRight: 20,
+    justifyContent: 'flex-start',
     alignItems: 'center',
     // backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   iconContent: {
-    // width: 24,
-    // backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    width: 28,
     alignItems: 'center',
   },
   text: {
@@ -70,8 +71,8 @@ const Header = () => {
   return (
     <View style={{ paddingTop: statusBarHeight }}>
       <View style={styles.header}>
-        <Icon name="logo" color={theme['c-primary-dark-100-alpha-300']} size={22} />
-        {/* <Text style={styles.headerText} size={16} color={theme['c-primary-dark-100-alpha-300']}>LX Music</Text> */}
+        <Icon name="logo" color={theme['c-primary-dark-100-alpha-300']} size={26} />
+        <Text style={styles.headerText} size={16} color={theme['c-primary-dark-100-alpha-300']}>LX Music</Text>
       </View>
     </View>
   )
@@ -85,7 +86,7 @@ const MenuItem = ({ id, icon, onPress, isFirst }: {
   onPress: (id: IdType) => void
   isFirst?: boolean
 }) => {
-  // const t = useI18n()
+  const t = useI18n()
   const activeId = useNavActiveId()
   const theme = useTheme()
   const active = activeId == id
@@ -98,8 +99,9 @@ const MenuItem = ({ id, icon, onPress, isFirst }: {
       hasTVPreferredFocus={isFirst}
     >
       <View style={styles.iconContent}>
-        <Icon name={icon} size={20} color={active ? theme['c-primary-font-active'] : theme['c-font-label']} />
+        <Icon name={icon} size={22} color={active ? theme['c-primary-font-active'] : theme['c-font-label']} />
       </View>
+      <Text style={styles.text} size={16} color={active ? theme['c-primary-font-active'] : theme['c-font-label']}>{t(id)}</Text>
     </TouchableOpacity>
   )
 }

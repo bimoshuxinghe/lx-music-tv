@@ -3,6 +3,7 @@ import { View, PanResponder } from 'react-native'
 import { useDrag } from '@/utils/hooks'
 import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
+import { useTvSeek } from '@/utils/hooks/useTvSeek'
 // import { scaleSizeW } from '@/utils/pixelRatio'
 // import { AppColors } from '@/theme'
 
@@ -109,12 +110,17 @@ const Progress = ({ progress, duration, buffered, paddingTop }: {
   const progressStr: `${number}%` = `${progress * 100}%`
 
   const durationRef = useRef(duration)
+  const progressRef = useRef(progress)
   useEffect(() => {
     durationRef.current = duration
   }, [duration])
+  useEffect(() => {
+    progressRef.current = progress
+  }, [progress])
   const onSetProgress = useCallback((progress: number) => {
     global.app_event.setProgress(progress * durationRef.current)
   }, [])
+  const onKeyDown = useTvSeek(durationRef, progressRef)
 
   return (
     <View style={{ ...styles.progress, paddingTop }}>
@@ -134,6 +140,8 @@ const Progress = ({ progress, duration, buffered, paddingTop }: {
         }
       </View>
       <PreassBar onDragState={setDraging} setDragProgress={setDragProgress} onSetProgress={onSetProgress} />
+      {/* TV 遥控器：进度条可聚焦，左右方向键步进播放进度 */}
+      <View focusable={true} onKeyDown={onKeyDown as any} style={styles.tvKeyArea} />
       {/* <View style={{ ...styles.progressBar, height: '100%', width: progressStr }}><Pressable style={styles.progressDot}></Pressable></View> */}
     </View>
   )
@@ -158,6 +166,14 @@ const styles = createStyle({
     left: 0,
     top: 0,
     // height: progressContentPadding * 2 + progressHeight,
+    height: '100%',
+    width: '100%',
+    zIndex: 2,
+  },
+  tvKeyArea: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
     height: '100%',
     width: '100%',
   },

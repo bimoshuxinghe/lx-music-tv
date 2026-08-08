@@ -6,8 +6,6 @@ import PlayHighQuality from './PlayHighQuality'
 import IsHandleAudioFocus from './IsHandleAudioFocus'
 import IsEnableAudioOffload from './IsEnableAudioOffload'
 import IsAutoCleanPlayedList from './IsAutoCleanPlayedList'
-import IsShowBluetoothLyric from './IsShowBluetoothLyric'
-import IsShowBluetoothFullLyric from './IsShowBluetoothFullLyric'
 import IsShowNotificationImage from './IsShowNotificationImage'
 import IsShowLyricTranslation from './IsShowLyricTranslation'
 import IsShowLyricRoma from './IsShowLyricRoma'
@@ -25,8 +23,6 @@ export default memo(() => {
       <IsAutoCleanPlayedList />
       <IsHandleAudioFocus />
       <IsEnableAudioOffload />
-      <IsShowBluetoothLyric />
-      <IsShowBluetoothFullLyric />
       <IsShowNotificationImage />
       <IsShowLyricTranslation />
       <IsShowLyricRoma />

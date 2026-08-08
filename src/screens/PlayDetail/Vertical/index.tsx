@@ -9,7 +9,6 @@ import PagerView, { type PagerViewOnPageSelectedEvent } from 'react-native-pager
 import Pic from './Pic'
 import Lyric from './Lyric'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
-import commonState, { type InitState as CommonState } from '@/store/common/state'
 import { createStyle } from '@/utils/tools'
 // import { useTheme } from '@/store/theme/hook'
 
@@ -47,7 +46,7 @@ export default memo(({ componentId }: { componentId: string }) => {
     let appstateListener = AppState.addEventListener('change', (state) => {
       switch (state) {
         case 'active':
-          if (showLyricRef.current && !commonState.componentIds.comment) screenkeepAwake()
+          if (showLyricRef.current) screenkeepAwake()
           break
         case 'background':
           screenUnkeepAwake()
@@ -55,15 +54,7 @@ export default memo(({ componentId }: { componentId: string }) => {
       }
     })
 
-    const handleComponentIdsChange = (ids: CommonState['componentIds']) => {
-      if (ids.comment) screenUnkeepAwake()
-      else if (AppState.currentState == 'active') screenkeepAwake()
-    }
-
-    global.state_event.on('componentIdsUpdated', handleComponentIdsChange)
-
     return () => {
-      global.state_event.off('componentIdsUpdated', handleComponentIdsChange)
       appstateListener.remove()
       screenUnkeepAwake()
     }

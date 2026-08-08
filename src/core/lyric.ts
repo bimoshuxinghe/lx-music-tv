@@ -7,18 +7,8 @@ import {
   toggleRoma as lrcToggleRoma,
   init as lrcInit,
 } from '@/plugins/lyric'
-import {
-  playDesktopLyric,
-  setDesktopLyric,
-  pauseDesktopLyric,
-  setDesktopLyricPlaybackRate,
-  toggleDesktopLyricTranslation,
-  toggleDesktopLyricRoma,
-} from '@/core/desktopLyric'
 import { getPosition } from '@/plugins/player'
 import playerState from '@/store/player/state'
-import settingState from '@/store/setting/state'
-import { updateNowPlayingTitles } from '@/plugins/player/utils'
 
 /**
  * init lyric
@@ -34,12 +24,6 @@ export const init = async() => {
  */
 const handleSetLyric = async(lyric: string, translation = '', romalrc = '', lxlrc = '') => {
   lrcSetLyric(lyric, translation, romalrc, lxlrc)
-  await setDesktopLyric(lyric, translation, romalrc)
-  if (settingState.setting['player.isShowBluetoothFullLyric']) {
-    void updateNowPlayingTitles({
-      lyric,
-    })
-  }
 }
 
 /**
@@ -48,7 +32,6 @@ const handleSetLyric = async(lyric: string, translation = '', romalrc = '', lxlr
  */
 export const handlePlay = (time: number) => {
   lrcPlay(time)
-  void playDesktopLyric(time)
 }
 
 /**
@@ -56,7 +39,6 @@ export const handlePlay = (time: number) => {
  */
 export const pause = () => {
   lrcPause()
-  void pauseDesktopLyric()
 }
 
 /**
@@ -72,7 +54,6 @@ export const stop = () => {
  */
 export const setPlaybackRate = async(playbackRate: number) => {
   lrcSetPlaybackRate(playbackRate)
-  await setDesktopLyricPlaybackRate(playbackRate)
   if (playerState.isPlay) {
     setTimeout(() => {
       void getPosition().then((position) => {
@@ -88,7 +69,6 @@ export const setPlaybackRate = async(playbackRate: number) => {
  */
 export const toggleTranslation = async(isShowTranslation: boolean) => {
   lrcToggleTranslation(isShowTranslation)
-  await toggleDesktopLyricTranslation(isShowTranslation)
   if (playerState.isPlay) play()
 }
 
@@ -98,7 +78,6 @@ export const toggleTranslation = async(isShowTranslation: boolean) => {
  */
 export const toggleRoma = async(isShowLyricRoma: boolean) => {
   lrcToggleRoma(isShowLyricRoma)
-  await toggleDesktopLyricRoma(isShowLyricRoma)
   if (playerState.isPlay) play()
 }
 

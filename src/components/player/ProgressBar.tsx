@@ -5,6 +5,7 @@ import { useTheme } from '@/store/theme/hook'
 import { scaleSizeW, scaleSizeH } from '@/utils/pixelRatio'
 import { useDrag } from '@/utils/hooks'
 import { Icon } from '@/components/common/Icon'
+import { useTvSeek } from '@/utils/hooks/useTvSeek'
 // import { AppColors } from '@/theme'
 
 
@@ -84,12 +85,17 @@ const Progress = ({ progress, duration, buffered }: {
   }, [])
 
   const durationRef = useRef(duration)
+  const progressRef = useRef(progress)
   useEffect(() => {
     durationRef.current = duration
   }, [duration])
+  useEffect(() => {
+    progressRef.current = progress
+  }, [progress])
   const onSetProgress = useCallback((progress: number) => {
     global.app_event.setProgress(progress * durationRef.current)
   }, [])
+  const onKeyDown = useTvSeek(durationRef, progressRef)
 
   return (
     <View style={styles.progress}>
@@ -114,6 +120,8 @@ const Progress = ({ progress, duration, buffered }: {
 
       </View>
       <PreassBar onDragState={setDraging} setDragProgress={setDragProgress} onSetProgress={onSetProgress} />
+      {/* TV 遥控器：进度条可聚焦，左右方向键步进播放进度 */}
+      <View focusable={true} onKeyDown={onKeyDown as any} style={styles.tvKeyArea} />
       {/* <View style={{ ...styles.progressBar, height: '100%', width: progressStr }}><Pressable style={styles.progressDot}></Pressable></View> */}
     </View>
   )
@@ -148,6 +156,15 @@ const styles = createStyle({
     paddingBottom: progressContentPadding,
     width: '100%',
     zIndex: 6,
+  },
+  tvKeyArea: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    height: progressContentHeight,
+    paddingTop: progressContentPadding,
+    paddingBottom: progressContentPadding,
+    width: '100%',
   },
 })
 
