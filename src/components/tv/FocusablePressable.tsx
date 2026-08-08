@@ -12,7 +12,6 @@ export interface FocusablePressableProps extends PressableProps {
   hasTVPreferredFocus?: boolean
   focusStyle?: ViewStyle
 }
-
 /**
  * TV 遥控器可聚焦的 Pressable
  * 聚焦时自动应用高亮背景，完全兼容 Pressable API
@@ -21,6 +20,7 @@ const FocusablePressable = forwardRef<View, FocusablePressableProps>(({
   style,
   focusStyle,
   hasTVPreferredFocus,
+  focusable = true,
   onFocus,
   onBlur,
   children,
@@ -61,7 +61,7 @@ const FocusablePressable = forwardRef<View, FocusablePressableProps>(({
       onFocus={handleFocus as any}
       onBlur={handleBlur as any}
       {...props}
-      {...({ focusable: true } as any)}
+      focusable={focusable}
     >
       {children}
     </Pressable>

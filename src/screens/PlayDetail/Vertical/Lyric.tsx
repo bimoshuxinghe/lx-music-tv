@@ -1,5 +1,5 @@
 import { memo, useMemo, useEffect, useRef, useCallback } from 'react'
-import { View, FlatList, Animated, type FlatListProps, type LayoutChangeEvent, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
+import { View, FlatList, type FlatListProps, type LayoutChangeEvent, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 // import { useLayout } from '@/utils/hooks'
 import { type Line, useLrcPlay, useLrcSet } from '@/plugins/lyric'
 import { createStyle } from '@/utils/tools'
@@ -7,8 +7,6 @@ import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
 import { useSettingValue } from '@/store/setting/hook'
 import { AnimatedColorText } from '@/components/common/Text'
-import KaraokeText from '@/components/lyric/KaraokeText'
-import { useLyricKaraokeProgress } from '@/utils/hooks/useLyricKaraokeProgress'
 import { setSpText } from '@/utils/pixelRatio'
 import playerState from '@/store/player/state'
 import { scrollTo } from '@/utils/scroll'
@@ -62,10 +60,9 @@ interface LineProps {
   line: Line
   lineNum: number
   activeLine: number
-  karaokeProgress: Animated.Value
   onLayout: (lineNum: number, height: number, width: number) => void
 }
-const LrcLine = memo(({ line, lineNum, activeLine, karaokeProgress, onLayout }: LineProps) => {
+const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
   const theme = useTheme()
   const lrcFontSize = useSettingValue('playDetail.vertical.style.lrcFontSize')
   const textAlign = useSettingValue('playDetail.style.align')
@@ -95,14 +92,11 @@ const LrcLine = memo(({ line, lineNum, activeLine, karaokeProgress, onLayout }: 
   // https://stackoverflow.com/a/72822360
   return (
     <View style={styles.line} onLayout={handleLayout}>
-      { isActiveLine
-        ? <KaraokeText text={line.text} progress={karaokeProgress} size={size} lineHeight={lineHeight} textAlign={textAlign} inactiveColor={theme['c-350']} activeColor={theme['c-primary']} style={styles.lineText} />
-        : <AnimatedColorText style={{
-          ...styles.lineText,
-          textAlign,
-          lineHeight,
-        }} textBreakStrategy="simple" color={colors[0]} opacity={colors[2]} size={size}>{line.text}</AnimatedColorText>
-      }
+      <AnimatedColorText style={{
+        ...styles.lineText,
+        textAlign,
+        lineHeight,
+      }} textBreakStrategy="simple" color={colors[0]} opacity={colors[2]} size={size}>{line.text}</AnimatedColorText>
       {
         line.extendedLyrics.map((lrc, index) => {
           return (<AnimatedColorText style={{
@@ -304,11 +298,9 @@ export default () => {
     global.app_event.setProgress(time)
   }, [])
 
-  const karaokeProgress = useLyricKaraokeProgress(lyricLines, line)
-
   const renderItem: FlatListType['renderItem'] = ({ item, index }) => {
     return (
-      <LrcLine line={item} lineNum={index} activeLine={line} karaokeProgress={karaokeProgress} onLayout={handleLineLayout} />
+      <LrcLine line={item} lineNum={index} activeLine={line} onLayout={handleLineLayout} />
     )
   }
   const getkey: FlatListType['keyExtractor'] = (item, index) => `${index}${item.text}`

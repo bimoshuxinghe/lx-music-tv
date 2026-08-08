@@ -13,7 +13,6 @@ export interface FocusableTouchableOpacityProps extends TouchableOpacityProps {
   /** 聚焦时附加的样式（覆盖默认高亮） */
   focusStyle?: ViewStyle
 }
-
 /**
  * TV 遥控器可聚焦的 TouchableOpacity
  *
@@ -26,6 +25,7 @@ const FocusableTouchableOpacity = forwardRef<TouchableOpacity, FocusableTouchabl
   style,
   focusStyle,
   hasTVPreferredFocus,
+  focusable = true,
   onFocus,
   onBlur,
   children,
@@ -66,7 +66,7 @@ const FocusableTouchableOpacity = forwardRef<TouchableOpacity, FocusableTouchabl
       onFocus={handleFocus as any}
       onBlur={handleBlur as any}
       {...props}
-      {...({ focusable: true } as any)}
+      focusable={focusable}
     >
       {children}
     </TouchableOpacity>

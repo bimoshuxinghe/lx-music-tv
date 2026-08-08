@@ -14,7 +14,7 @@ import { exitApp, setNavActiveId } from '@/core/common'
 import { BorderWidths } from '@/theme'
 import { useSettingValue } from '@/store/setting/hook'
 
-const NAV_WIDTH = 220
+const NAV_WIDTH = 180
 
 const styles = createStyle({
   container: {
@@ -31,8 +31,9 @@ const styles = createStyle({
     paddingTop: 15,
     paddingBottom: 15,
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
+    paddingLeft: 20,
   },
   headerText: {
     textAlign: 'center',
