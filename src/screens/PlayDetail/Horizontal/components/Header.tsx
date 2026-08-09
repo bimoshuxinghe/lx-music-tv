@@ -1,5 +1,5 @@
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
-import { memo, useRef } from 'react'
+import { memo } from 'react'
 
 import {View, StyleSheet} from 'react-native'
 
@@ -11,8 +11,6 @@ import Text from '@/components/common/Text'
 import { scaleSizeH } from '@/utils/pixelRatio'
 import { HEADER_HEIGHT as _HEADER_HEIGHT, NAV_SHEAR_NATIVE_IDS } from '@/config/constant'
 import commonState from '@/store/common/state'
-import Btn from './Btn'
-import SettingPopup, { type SettingPopupType } from '../../components/SettingPopup'
 
 export const HEADER_HEIGHT = scaleSizeH(_HEADER_HEIGHT)
 
@@ -29,13 +27,8 @@ const Title = () => {
 }
 
 export default memo(() => {
-  const popupRef = useRef<SettingPopupType>(null)
-
   const back = () => {
     void pop(commonState.componentIds.playDetail!)
-  }
-  const showSetting = () => {
-    popupRef.current?.show()
   }
 
   return (
@@ -45,9 +38,7 @@ export default memo(() => {
           <Icon name="chevron-left" size={18} />
         </TouchableOpacity>
         <Title />
-        <Btn icon="slider" onPress={showSetting} />
       </View>
-      <SettingPopup ref={popupRef} position="left" direction="horizontal" />
     </View>
   )
 })
