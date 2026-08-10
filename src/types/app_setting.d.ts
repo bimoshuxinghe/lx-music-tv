@@ -222,6 +222,16 @@ declare global {
       'playDetail.isShowLyricProgressSetting': boolean
 
       /**
+       * 歌词动效样式
+       */
+      'playDetail.style.lrcAnimatedStyle': 'none' | 'zoom' | 'bounce' | 'fade' | 'random'
+
+      /**
+       * 按返回键两次时的行为：后台播放 / 退出软件
+       */
+      'common.backPressAction': 'background' | 'exit'
+
+      /**
        * 是否显示热门搜索
        */
       'search.isShowHotSearch': boolean

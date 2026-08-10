@@ -1,5 +1,5 @@
 import { memo, useMemo, useEffect, useRef, useCallback } from 'react'
-import { View, FlatList, type FlatListProps, type NativeSyntheticEvent, type NativeScrollEvent, type LayoutChangeEvent } from 'react-native'
+import { View, FlatList, Animated, Easing, type FlatListProps, type NativeSyntheticEvent, type NativeScrollEvent, type LayoutChangeEvent } from 'react-native'
 // import { useLayout } from '@/utils/hooks'
 import { type Line, useLrcPlay, useLrcSet } from '@/plugins/lyric'
 import { createStyle } from '@/utils/tools'
@@ -17,6 +17,47 @@ import PlayLine, { type PlayLineType } from '../components/PlayLine'
 
 type FlatListType = FlatListProps<Line>
 
+type LrcAnimatedStyle = LX.AppSetting['playDetail.style.lrcAnimatedStyle']
+
+const RANDOM_ANIMATED_STYLES: Array<Exclude<LrcAnimatedStyle, 'none' | 'random'>> = ['zoom', 'bounce', 'fade']
+
+const playActiveAnimated = (style: LrcAnimatedStyle, animScale: Animated.Value, animOpacity: Animated.Value, animTranslateY: Animated.Value) => {
+  if (style === 'none') return
+  let activeStyle: Exclude<LrcAnimatedStyle, 'none' | 'random'> = style as Exclude<LrcAnimatedStyle, 'none' | 'random'>
+  if (style === 'random') {
+    activeStyle = RANDOM_ANIMATED_STYLES[Math.floor(Math.random() * RANDOM_ANIMATED_STYLES.length)]
+  }
+  animScale.setValue(1)
+  animOpacity.setValue(1)
+  animTranslateY.setValue(0)
+  switch (activeStyle) {
+    case 'zoom':
+      animScale.setValue(0.6)
+      animOpacity.setValue(0.2)
+      Animated.parallel([
+        Animated.timing(animScale, { toValue: 1, duration: 320, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }),
+        Animated.timing(animOpacity, { toValue: 1, duration: 320, useNativeDriver: true }),
+      ]).start()
+      break
+    case 'bounce':
+      animScale.setValue(0.3)
+      animOpacity.setValue(0.4)
+      Animated.parallel([
+        Animated.spring(animScale, { toValue: 1, friction: 3, tension: 140, useNativeDriver: true }),
+        Animated.timing(animOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      ]).start()
+      break
+    case 'fade':
+      animOpacity.setValue(0)
+      animTranslateY.setValue(24)
+      Animated.parallel([
+        Animated.timing(animOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(animTranslateY, { toValue: 0, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start()
+      break
+  }
+}
+
 interface LineProps {
   line: Line
   lineNum: number
@@ -27,6 +68,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
   const theme = useTheme()
   const lrcFontSize = useSettingValue('playDetail.horizontal.style.lrcFontSize')
   const textAlign = useSettingValue('playDetail.style.align')
+  const animatedStyle = useSettingValue('playDetail.style.lrcAnimatedStyle')
   const size = lrcFontSize / 10
   const lineHeight = setSpText(size) * 1.3
 
@@ -44,6 +86,29 @@ const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
     ] as const
   }, [isActiveLine, theme])
 
+  const animScale = useRef(new Animated.Value(1)).current
+  const animOpacity = useRef(new Animated.Value(1)).current
+  const animTranslateY = useRef(new Animated.Value(0)).current
+  const prevActiveRef = useRef(false)
+  const isFirstRenderRef = useRef(true)
+
+  useEffect(() => {
+    const prevActive = prevActiveRef.current
+    prevActiveRef.current = isActiveLine
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false
+      return
+    }
+    if (!isActiveLine || prevActive) {
+      animScale.setValue(1)
+      animOpacity.setValue(1)
+      animTranslateY.setValue(0)
+      return
+    }
+    playActiveAnimated(animatedStyle, animScale, animOpacity, animTranslateY)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActiveLine, animatedStyle])
+
   const handleLayout = ({ nativeEvent }: LayoutChangeEvent) => {
     onLayout(lineNum, nativeEvent.layout.height, nativeEvent.layout.width)
   }
@@ -52,20 +117,25 @@ const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
   // https://stackoverflow.com/a/72822360
   return (
     <View style={styles.line} onLayout={handleLayout}>
-      <AnimatedColorText style={{
-        ...styles.lineText,
-        textAlign,
-        lineHeight,
-      }} textBreakStrategy="simple" color={colors[0]} opacity={colors[2]} size={size}>{line.text}</AnimatedColorText>
-      {
-        line.extendedLyrics.map((lrc, index) => {
-          return (<AnimatedColorText style={{
-            ...styles.lineTranslationText,
-            textAlign,
-            lineHeight: lineHeight * 0.8,
-          }} textBreakStrategy="simple" key={index} color={colors[1]} opacity={colors[2]} size={size * 0.8}>{lrc}</AnimatedColorText>)
-        })
-      }
+      <Animated.View style={{
+        transform: [{ scale: animScale }, { translateY: animTranslateY }],
+        opacity: animOpacity,
+      }}>
+        <AnimatedColorText style={{
+          ...styles.lineText,
+          textAlign,
+          lineHeight,
+        }} textBreakStrategy="simple" color={colors[0]} opacity={colors[2]} size={size}>{line.text}</AnimatedColorText>
+        {
+          line.extendedLyrics.map((lrc, index) => {
+            return (<AnimatedColorText style={{
+              ...styles.lineTranslationText,
+              textAlign,
+              lineHeight: lineHeight * 0.8,
+            }} textBreakStrategy="simple" key={index} color={colors[1]} opacity={colors[2]} size={size * 0.8}>{lrc}</AnimatedColorText>)
+          })
+        }
+      </Animated.View>
     </View>
   )
 }, (prevProps, nextProps) => {

@@ -116,6 +116,14 @@ public class UtilsModule extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
+  public void moveTaskToBack() {
+    Activity currentActivity = reactContext.getCurrentActivity();
+    if (currentActivity != null) {
+      currentActivity.moveTaskToBack(true);
+    }
+  }
+
+  @ReactMethod
   public void getSupportedAbis(Promise promise) {
     // https://github.com/react-native-device-info/react-native-device-info/blob/ff8f672cb08fa39a887567d6e23e2f08778e8340/android/src/main/java/com/learnium/RNDeviceInfo/RNDeviceModule.java#L877
     WritableArray array = new WritableNativeArray();

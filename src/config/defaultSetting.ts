@@ -39,6 +39,8 @@ const defaultSetting: LX.AppSetting = {
   'playDetail.vertical.style.lrcFontSize': 210,
   'playDetail.horizontal.style.lrcFontSize': 220,
   'playDetail.isShowLyricProgressSetting': false,
+  'playDetail.style.lrcAnimatedStyle': 'random',
+  'common.backPressAction': 'background',
 
   'search.isShowHotSearch': false,
   'search.isShowHistorySearch': false,

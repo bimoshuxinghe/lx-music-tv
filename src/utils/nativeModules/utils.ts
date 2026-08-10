@@ -4,6 +4,8 @@ const { UtilsModule } = NativeModules
 
 export const exitApp = UtilsModule.exitApp
 
+export const moveTaskToBack = UtilsModule.moveTaskToBack
+
 export const getSupportedAbis = UtilsModule.getSupportedAbis
 
 export const installApk = (filePath: string, fileProviderAuthority: string) => UtilsModule.installApk(filePath, fileProviderAuthority)
