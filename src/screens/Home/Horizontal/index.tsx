@@ -9,6 +9,8 @@ import { createStyle } from '@/utils/tools'
 import { moveTaskToBack } from '@/utils/nativeModules/utils'
 import { exitApp } from '@/core/common'
 import { useSettingValue } from '@/store/setting/hook'
+import { pop } from '@/navigation'
+import commonState from '@/store/common/state'
 
 const styles = createStyle({
   container: {
@@ -29,6 +31,11 @@ export default () => {
   useEffect(() => {
     lastBackPressed = 0
     const backAction = () => {
+      // 播放详情页在前时，一次返回键先关闭播放详情页回到主页
+      if (commonState.componentIds.playDetail) {
+        void pop(commonState.componentIds.playDetail)
+        return true
+      }
       const now = Date.now()
       if (now - lastBackPressed < 2000) {
         if (backPressAction == 'exit') {

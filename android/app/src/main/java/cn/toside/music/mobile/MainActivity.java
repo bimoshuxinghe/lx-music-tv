@@ -33,6 +33,9 @@ public class MainActivity extends NavigationActivity {
     /** TV 遥控器按键事件名（JS 侧通过 NativeEventEmitter 监听） */
     private static final String TV_REMOTE_EVENT = "tvRemoteKey";
 
+    /** 可调节控件（滑块/进度条）的 nativeID 前缀，命中则 D-pad 左右键被 JS 消费 */
+    private static final String TV_ADJUSTABLE_PREFIX = "tv_adjustable_";
+
     /** 焦点选择器资源 ID（在 onCreate 中解析） */
     private int focusSelectorResId = 0;
     /** 标记 View 已应用焦点选择器的 tag ID */
@@ -197,8 +200,45 @@ public class MainActivity extends NavigationActivity {
             }
         }
 
+        // D-pad 左右键：若焦点位于可调节控件（滑块/进度条）内，拦截并转发 JS 处理步进
+        if (isAdjustableDpadKey(keyCode)) {
+            View currentFocus = getCurrentFocus();
+            if (currentFocus != null) {
+                String adjustableId = findAdjustableNativeId(currentFocus);
+                if (adjustableId != null) {
+                    sendKeyToJS(keyCode, event, false, adjustableId);
+                    return true;
+                }
+            }
+        }
+
         // 其他按键走默认处理（D-pad 焦点导航由 RN 自动处理）
         return super.onKeyDown(keyCode, event);
+    }
+
+    /**
+     * 判断是否是 D-pad 左右方向键
+     */
+    private boolean isAdjustableDpadKey(int keyCode) {
+        return keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
+    }
+
+    /**
+     * 沿焦点 View 的祖先链查找带 `tv_adjustable_` 前缀 nativeID 的可调节控件。
+     * nativeID 由 JS 侧 View 的 nativeID prop 映射到 tag（R.id.view_tag_native_id）。
+     */
+    private String findAdjustableNativeId(View view) {
+        View v = view;
+        while (v != null) {
+            Object tag = v.getTag(com.facebook.react.R.id.view_tag_native_id);
+            if (tag instanceof String && ((String) tag).startsWith(TV_ADJUSTABLE_PREFIX)) {
+                return (String) tag;
+            }
+            Object parent = v.getParent();
+            if (!(parent instanceof View)) break;
+            v = (View) parent;
+        }
+        return null;
     }
 
     /**
@@ -281,10 +321,14 @@ public class MainActivity extends NavigationActivity {
      *   emitter.addListener('tvRemoteKey', (e) => console.log(e.keyCode, e.action, e.longPress))
      */
     private void sendKeyToJS(int keyCode, KeyEvent event) {
-        sendKeyToJS(keyCode, event, false);
+        sendKeyToJS(keyCode, event, false, null);
     }
 
     private void sendKeyToJS(int keyCode, KeyEvent event, boolean longPress) {
+        sendKeyToJS(keyCode, event, longPress, null);
+    }
+
+    private void sendKeyToJS(int keyCode, KeyEvent event, boolean longPress, String nativeId) {
         try {
             ReactInstanceManager rim = getReactInstanceManager();
             if (rim == null) return;
@@ -295,6 +339,7 @@ public class MainActivity extends NavigationActivity {
             params.putString("keyName", KeyEvent.keyCodeToString(keyCode));
             params.putInt("action", event != null ? event.getAction() : KeyEvent.ACTION_DOWN);
             params.putBoolean("longPress", longPress);
+            if (nativeId != null) params.putString("nativeId", nativeId);
             ctx.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
                     .emit(TV_REMOTE_EVENT, params);
         } catch (Throwable t) {

@@ -40,6 +40,7 @@ const defaultSetting: LX.AppSetting = {
   'playDetail.horizontal.style.lrcFontSize': 220,
   'playDetail.isShowLyricProgressSetting': false,
   'playDetail.style.lrcAnimatedStyle': 'random',
+  'playDetail.style.lrcColor': 'white',
   'common.backPressAction': 'background',
 
   'search.isShowHotSearch': false,

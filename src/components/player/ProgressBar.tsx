@@ -95,7 +95,7 @@ const Progress = ({ progress, duration, buffered }: {
   const onSetProgress = useCallback((progress: number) => {
     global.app_event.setProgress(progress * durationRef.current)
   }, [])
-  const onKeyDown = useTvSeek(durationRef, progressRef)
+  const nativeID = useTvSeek(durationRef, progressRef)
 
   return (
     <View style={styles.progress}>
@@ -121,7 +121,7 @@ const Progress = ({ progress, duration, buffered }: {
       </View>
       <PreassBar onDragState={setDraging} setDragProgress={setDragProgress} onSetProgress={onSetProgress} />
       {/* TV 遥控器：进度条可聚焦，左右方向键步进播放进度 */}
-      <View focusable={true} onKeyDown={onKeyDown as any} style={styles.tvKeyArea} />
+      <View nativeID={nativeID} focusable={true} style={styles.tvKeyArea} />
       {/* <View style={{ ...styles.progressBar, height: '100%', width: progressStr }}><Pressable style={styles.progressDot}></Pressable></View> */}
     </View>
   )

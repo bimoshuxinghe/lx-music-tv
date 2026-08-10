@@ -227,6 +227,11 @@ declare global {
       'playDetail.style.lrcAnimatedStyle': 'none' | 'zoom' | 'bounce' | 'fade' | 'random'
 
       /**
+       * 播放详情页-当前播放歌词行的颜色
+       */
+      'playDetail.style.lrcColor': 'white' | 'cyan' | 'pink' | 'green' | 'orange'
+
+      /**
        * 按返回键两次时的行为：后台播放 / 退出软件
        */
       'common.backPressAction': 'background' | 'exit'

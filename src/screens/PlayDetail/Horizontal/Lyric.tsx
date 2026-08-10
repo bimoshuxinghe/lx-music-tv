@@ -11,6 +11,7 @@ import { setSpText } from '@/utils/pixelRatio'
 import playerState from '@/store/player/state'
 import { scrollTo } from '@/utils/scroll'
 import PlayLine, { type PlayLineType } from '../components/PlayLine'
+import { LRC_ACTIVE_COLORS } from '../components/lrcColor'
 // import { screenkeepAwake } from '@/utils/nativeModules/utils'
 // import { log } from '@/utils/log'
 // import { toast } from '@/utils/tools'
@@ -71,6 +72,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
   const lrcFontSize = useSettingValue('playDetail.horizontal.style.lrcFontSize')
   const textAlign = useSettingValue('playDetail.style.align')
   const animatedStyle = useSettingValue('playDetail.style.lrcAnimatedStyle')
+  const lrcColor = useSettingValue('playDetail.style.lrcColor')
   const baseSize = lrcFontSize / 10
 
   const isActiveLine = activeLine == lineNum
@@ -79,7 +81,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
 
   const colors = useMemo(() => {
     return isActiveLine ? [
-      '#FFFFFF',
+      LRC_ACTIVE_COLORS[lrcColor],
       theme['c-primary-alpha-200'],
       1,
     ] as const : [
@@ -87,7 +89,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
       theme['c-300'],
       0.5,
     ] as const
-  }, [isActiveLine, theme])
+  }, [isActiveLine, theme, lrcColor])
 
   const animScale = useRef(new Animated.Value(1)).current
   const animOpacity = useRef(new Animated.Value(1)).current

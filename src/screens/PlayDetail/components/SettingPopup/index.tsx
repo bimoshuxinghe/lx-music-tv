@@ -8,6 +8,7 @@ import SettingVolume from './settings/SettingVolume'
 import SettingPlaybackRate from './settings/SettingPlaybackRate'
 import SettingLrcFontSize from './settings/SettingLrcFontSize'
 import SettingLrcAlign from './settings/SettingLrcAlign'
+import SettingLrcColor from './settings/SettingLrcColor'
 
 export interface SettingPopupProps extends Omit<PopupProps, 'children'> {
   direction: 'vertical' | 'horizontal'
@@ -40,13 +41,14 @@ export default forwardRef<SettingPopupType, SettingPopupProps>(({ direction, ...
     visible
       ? (
         <Popup ref={popupRef} title={t('play_detail_setting_title')} {...props}>
-          <ScrollView>
+          <ScrollView focusable={false}>
             <View onStartShouldSetResponder={() => true}>
               <SettingLyricProgress />
               <SettingVolume />
               <SettingPlaybackRate />
               <SettingLrcFontSize direction={direction} />
               <SettingLrcAlign />
+              <SettingLrcColor />
             </View>
           </ScrollView>
         </Popup>

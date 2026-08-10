@@ -1,18 +1,12 @@
-import { useCallback, type NativeSyntheticEvent } from 'react'
-
-const KEYCODE_DPAD_LEFT = 21
-const KEYCODE_DPAD_RIGHT = 22
-
-interface TvKeyEvent {
-  keyCode: number
-}
+import { useCallback } from 'react'
+import { useTvAdjustable } from './useTvAdjustable'
 
 /**
  * TV 遥控器进度条 D-pad 支持
  *
- * 返回的 onKeyDown 挂载到可聚焦 View 上：
- * - 左/右方向键：步进 ±SEEK_STEP 秒，并消费事件（阻止焦点移动）
- * - 其他按键：返回 false，交还默认焦点导航
+ * 返回唯一 nativeID，挂载到可聚焦 View（进度条区域）上：
+ * - 原生侧拦截 D-pad 左右方向键，聚焦时消费事件并转发到 JS
+ * - 收到左/右方向键：步进 ±SEEK_STEP 秒（基于最新的进度与总时长 ref）
  *
  * @param durationRef 歌曲总时长 ref（保持最新）
  * @param progressRef 当前进度 ref（0~1）
@@ -22,15 +16,14 @@ export const useTvSeek = (
   progressRef: React.RefObject<number>,
   seekStep = 10,
 ) => {
-  return useCallback((e: NativeSyntheticEvent<TvKeyEvent>) => {
-    const keyCode = e.nativeEvent.keyCode
-    if (keyCode != KEYCODE_DPAD_LEFT && keyCode != KEYCODE_DPAD_RIGHT) return false
-    const duration = durationRef.current || 0
-    const current = (progressRef.current || 0) * duration
-    const target = keyCode == KEYCODE_DPAD_LEFT
+  const handleStep = useCallback((step: 1 | -1) => {
+    const duration = durationRef.current ?? 0
+    const current = (progressRef.current ?? 0) * duration
+    const target = step < 0
       ? Math.max(0, current - seekStep)
       : Math.min(duration || current, current + seekStep)
     global.app_event.setProgress(target)
-    return true
-  }, [seekStep])
+  }, [durationRef, progressRef, seekStep])
+
+  return useTvAdjustable(handleStep)
 }
