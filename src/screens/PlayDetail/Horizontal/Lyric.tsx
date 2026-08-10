@@ -64,25 +64,28 @@ interface LineProps {
   activeLine: number
   onLayout: (lineNum: number, height: number, width: number) => void
 }
+const ACTIVE_FONT_SCALE = 1.4
+const INACTIVE_FONT_SCALE = 0.55
 const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
   const theme = useTheme()
   const lrcFontSize = useSettingValue('playDetail.horizontal.style.lrcFontSize')
   const textAlign = useSettingValue('playDetail.style.align')
   const animatedStyle = useSettingValue('playDetail.style.lrcAnimatedStyle')
-  const size = lrcFontSize / 10
-  const lineHeight = setSpText(size) * 1.3
+  const baseSize = lrcFontSize / 10
 
   const isActiveLine = activeLine == lineNum
+  const size = baseSize * (isActiveLine ? ACTIVE_FONT_SCALE : INACTIVE_FONT_SCALE)
+  const lineHeight = setSpText(size) * 1.3
 
   const colors = useMemo(() => {
     return isActiveLine ? [
-      theme['c-primary'],
+      '#FFFFFF',
       theme['c-primary-alpha-200'],
       1,
     ] as const : [
       theme['c-350'],
       theme['c-300'],
-      0.6,
+      0.5,
     ] as const
   }, [isActiveLine, theme])
 

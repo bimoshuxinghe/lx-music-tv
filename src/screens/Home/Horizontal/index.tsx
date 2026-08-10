@@ -7,6 +7,7 @@ import Header from './Header'
 import Main from './Main'
 import { createStyle } from '@/utils/tools'
 import { moveTaskToBack } from '@/utils/nativeModules/utils'
+import { exitApp } from '@/core/common'
 import { useSettingValue } from '@/store/setting/hook'
 
 const styles = createStyle({
@@ -31,7 +32,7 @@ export default () => {
       const now = Date.now()
       if (now - lastBackPressed < 2000) {
         if (backPressAction == 'exit') {
-          BackHandler.exitApp()
+          exitApp('Back Press Exit')
         } else {
           moveTaskToBack()
         }
