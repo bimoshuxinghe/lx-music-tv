@@ -2,20 +2,12 @@ import { forwardRef, useImperativeHandle, useMemo, useState } from 'react'
 
 import Basic from './settings/Basic'
 import Player from './settings/Player'
-import Search from './settings/Search'
-import List from './settings/List'
-import Sync from './settings/Sync'
-import Backup from './settings/Backup'
-import Other from './settings/Other'
+import About from './settings/About'
 
 export const SETTING_SCREENS = [
   'basic',
   'player',
-  'search',
-  'list',
-  'sync',
-  'backup',
-  'other',
+  'about',
 ] as const
 
 export type SettingScreenIds = typeof SETTING_SCREENS[number]
@@ -43,11 +35,7 @@ const Main = forwardRef<MainType, {}>((props, ref) => {
   const component = useMemo(() => {
     switch (id) {
       case 'player': return <Player />
-      case 'search': return <Search />
-      case 'list': return <List />
-      case 'sync': return <Sync />
-      case 'backup': return <Backup />
-      case 'other': return <Other />
+      case 'about': return <About />
       case 'basic':
       default: return <Basic />
     }

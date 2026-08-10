@@ -8,13 +8,12 @@ import { useLayout } from '@/utils/hooks'
 import { useTheme } from '@/store/theme/hook'
 import { useI18n } from '@/lang'
 import { scaleSizeW } from '@/utils/pixelRatio'
-import { createStyle } from '@/utils/tools'
+import { createStyle, isHorizontalMode } from '@/utils/tools'
+import { windowSizeTools } from '@/utils/windowSizeTools'
 import Text from '@/components/common/Text'
 
 type FlatListType = FlatListProps<ListInfoItem>
 
-// const MAX_WIDTH = scaleSizeW(110)
-const MIN_WIDTH = scaleSizeW(110)
 const GAP = scaleSizeW(20)
 
 export interface ListProps {
@@ -113,8 +112,14 @@ export default forwardRef<ListType, ListProps>(({ onRefresh, onLoadMore, onOpenD
   // console.log(itemWidth, MIN_WIDTH, GAP, width)
   const rowInfo = useMemo(() => {
     let w = width - GAP
-    let n = width / (MIN_WIDTH + GAP)
-    if (n > 10) n = 10
+    let n: number
+    const win = windowSizeTools.getSize()
+    if (isHorizontalMode(win.width, win.height)) {
+      n = 6
+    } else {
+      n = width / (scaleSizeW(110) + GAP)
+      if (n > 10) n = 10
+    }
     let computedItemWidth = Math.floor(w / n)
     const num = Math.max(Math.floor(width / computedItemWidth), 2)
     return {

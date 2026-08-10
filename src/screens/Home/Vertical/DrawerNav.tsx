@@ -83,11 +83,11 @@ const MenuItem = ({ id, icon, onPress }: {
   const theme = useTheme()
 
   return activeId == id
-    ? <View style={styles.menuItem}>
+    ? <View style={{ ...styles.menuItem, backgroundColor: theme['c-primary'], borderRadius: 6 }}>
         <View style={styles.iconContent}>
-          <Icon name={icon} size={20} color={theme['c-primary-font-active']} />
+          <Icon name={icon} size={20} color="#FFFFFF" />
         </View>
-        <Text style={styles.text} color={theme['c-primary-font']}>{t(id)}</Text>
+        <Text style={styles.text} color="#FFFFFF">{t(id)}</Text>
       </View>
     : <TouchableOpacity style={styles.menuItem} onPress={() => { onPress(id) }}>
         <View style={styles.iconContent}>

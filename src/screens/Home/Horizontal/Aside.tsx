@@ -1,6 +1,6 @@
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 import { memo } from 'react'
-import {ScrollView, View} from 'react-native'
+import { ScrollView, View } from 'react-native'
 import { useNavActiveId, useStatusbarHeight } from '@/store/common/hook'
 import { useTheme } from '@/store/theme/hook'
 import { Icon } from '@/components/common/Icon'
@@ -95,14 +95,14 @@ const MenuItem = ({ id, icon, onPress, isFirst }: {
   // active 态也保持可聚焦，避免 D-pad 无法重新选中当前菜单
   return (
     <TouchableOpacity
-      style={styles.menuItem}
+      style={{ ...styles.menuItem, ...(active ? { backgroundColor: theme['c-primary'], borderRadius: 6 } : {}) }}
       onPress={() => { onPress(id) }}
       hasTVPreferredFocus={isFirst}
     >
       <View style={styles.iconContent}>
-        <Icon name={icon} size={22} color={active ? theme['c-primary-font-active'] : theme['c-font-label']} />
+        <Icon name={icon} size={22} color={active ? '#FFFFFF' : theme['c-font-label']} />
       </View>
-      <Text style={styles.text} size={16} color={active ? theme['c-primary-font-active'] : theme['c-font-label']}>{t(id)}</Text>
+      <Text style={styles.text} size={16} color={active ? '#FFFFFF' : theme['c-font-label']}>{t(id)}</Text>
     </TouchableOpacity>
   )
 }

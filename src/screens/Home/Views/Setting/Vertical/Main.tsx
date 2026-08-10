@@ -3,11 +3,7 @@ import { FlatList, type FlatListProps } from 'react-native'
 
 import Basic from '../settings/Basic'
 import Player from '../settings/Player'
-import Search from '../settings/Search'
-import List from '../settings/List'
-import Sync from '../settings/Sync'
-import Backup from '../settings/Backup'
-import Other from '../settings/Other'
+import About from '../settings/About'
 import { createStyle } from '@/utils/tools'
 import { SETTING_SCREENS, type SettingScreenIds } from '../Main'
 
@@ -29,11 +25,7 @@ const ListItem = memo(({
 }: { id: SettingScreenIds }) => {
   switch (id) {
     case 'player': return <Player />
-    case 'search': return <Search />
-    case 'list': return <List />
-    case 'sync': return <Sync />
-    case 'backup': return <Backup />
-    case 'other': return <Other />
+    case 'about': return <About />
     case 'basic': return <Basic />
   }
 }, () => true)

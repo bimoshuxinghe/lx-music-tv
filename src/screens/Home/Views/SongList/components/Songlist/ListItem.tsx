@@ -1,6 +1,6 @@
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 import { memo } from 'react'
-import {View, Platform} from 'react-native'
+import { View, Platform } from 'react-native'
 import { createStyle } from '@/utils/tools'
 import { type ListInfoItem } from '@/store/songlist/state'
 import Text from '@/components/common/Text'
@@ -27,7 +27,7 @@ export default memo(({ item, index, width, showSource, onPress }: {
       ? (
           <View style={{ ...styles.listItem, width: itemWidth }}>
             <View style={{ ...styles.listItemImg, backgroundColor: theme['c-content-background'] }}>
-              <TouchableOpacity activeOpacity={0.5} onPress={handlePress}>
+              <TouchableOpacity activeOpacity={0.5} onPress={handlePress} focusStyle={styles.focusStyle}>
                 <Image url={item.img} nativeID={`${NAV_SHEAR_NATIVE_IDS.songlistDetail_pic}_from_${item.id}`} style={{ width: itemWidth, height: itemWidth, borderRadius: 4 }} />
                 { showSource ? <Text style={styles.sourceLabel} size={9} color="#fff" >{item.source}</Text> : null }
               </TouchableOpacity>
@@ -43,6 +43,13 @@ const styles = createStyle({
   listItem: {
     // width: 90,
     margin: 10,
+  },
+  focusStyle: {
+    backgroundColor: 'transparent',
+    borderColor: '#FFFFFF',
+    borderWidth: 3,
+    borderRadius: 6,
+    transform: [{ scale: 1.08 }],
   },
   listItemImg: {
     // backgroundColor: '#eee',
