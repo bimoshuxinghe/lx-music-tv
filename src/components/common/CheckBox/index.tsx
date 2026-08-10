@@ -84,9 +84,10 @@ export default ({ check, label, children, onChange, helpTitle, helpDesc, disable
       : (
           <View style={contentStyle}>
             <CheckBox status={check ? 'checked' : 'unchecked'} disabled={isDisabled} onPress={handleLabelPress} tintColors={tintColors} size={size} />
-            <TouchableOpacity style={labelStyle} activeOpacity={0.3} onPress={handleLabelPress} focusable={false}>
+            {/* 复选框文字仅作说明，不作为遥控器焦点目标（不可聚焦、不可点击），避免焦点落到文字上 */}
+            <View style={labelStyle} focusable={false}>
               {label ? <Text style={styles.name} size={15 * size}>{label}</Text> : children}
-            </TouchableOpacity>
+            </View>
             {helpComponent}
           </View>
         )

@@ -3,22 +3,36 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-  <!-- 光盘圆环 -->
-  <path
-      android:pathData="M54,24 a30,30 0 1,1 -0.001,0 Z"
-      android:strokeColor="#7EC8E3"
-      android:strokeWidth="4.5"
-      android:fillColor="#00000000"/>
-  <!-- 音符头 -->
-  <path
-      android:pathData="M34,70 a10,7.5 0 1,0 20,0 a10,7.5 0 1,0 -20,0 Z"
-      android:fillColor="#87CEEB"/>
-  <!-- 音符杆 -->
-  <path
-      android:pathData="M54,38 h4 a2,2 0 0,1 2,2 v30 a2,2 0 0,1 -2,2 h-4 a2,2 0 0,1 -2,-2 v-30 a2,2 0 0,1 2,-2 Z"
-      android:fillColor="#87CEEB"/>
-  <!-- 播放三角 -->
-  <path
-      android:pathData="M58,46 L70,52 L58,58 Z"
-      android:fillColor="#FFFFFF"/>
+    <!-- 音乐双音符（♫）前景 -->
+    <ellipse
+        android:cx="34"
+        android:cy="76"
+        android:rx="12"
+        android:ry="9"
+        android:rotation="-20"
+        android:fillColor="#FFFFFF"/>
+    <ellipse
+        android:cx="72"
+        android:cy="68"
+        android:rx="12"
+        android:ry="9"
+        android:rotation="-20"
+        android:fillColor="#FFFFFF"/>
+    <rect
+        android:x="44"
+        android:y="30"
+        android:width="4.5"
+        android:height="46"
+        android:rx="2.25"
+        android:fillColor="#FFFFFF"/>
+    <rect
+        android:x="82"
+        android:y="22"
+        android:width="4.5"
+        android:height="46"
+        android:rx="2.25"
+        android:fillColor="#FFFFFF"/>
+    <path
+        android:pathData="M44 30 L86.5 22 L86.5 30 L44 38 Z"
+        android:fillColor="#FFFFFF"/>
 </vector>

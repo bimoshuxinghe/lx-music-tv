@@ -63,21 +63,26 @@ interface LineProps {
   line: Line
   lineNum: number
   activeLine: number
+  fullScreen?: boolean
   onLayout: (lineNum: number, height: number, width: number) => void
 }
 const ACTIVE_FONT_SCALE = 1.4
 const INACTIVE_FONT_SCALE = 0.55
-const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
+const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, onLayout }: LineProps) => {
   const theme = useTheme()
   const lrcFontSize = useSettingValue('playDetail.horizontal.style.lrcFontSize')
   const textAlign = useSettingValue('playDetail.style.align')
   const animatedStyle = useSettingValue('playDetail.style.lrcAnimatedStyle')
   const lrcColor = useSettingValue('playDetail.style.lrcColor')
-  const baseSize = lrcFontSize / 10
+  // 全屏歌词：放大基础字号，并加大活跃行对比
+  const fsScale = fullScreen ? 1.6 : 1
+  const activeScale = fullScreen ? 1.6 : ACTIVE_FONT_SCALE
+  const inactiveScale = fullScreen ? 0.8 : INACTIVE_FONT_SCALE
+  const baseSize = (lrcFontSize / 10) * fsScale
 
   const isActiveLine = activeLine == lineNum
-  const size = baseSize * (isActiveLine ? ACTIVE_FONT_SCALE : INACTIVE_FONT_SCALE)
-  const lineHeight = setSpText(size) * 1.3
+  const size = baseSize * (isActiveLine ? activeScale : inactiveScale)
+  const lineHeight = setSpText(size) * (fullScreen ? 1.5 : 1.3)
 
   const colors = useMemo(() => {
     return isActiveLine ? [
@@ -150,7 +155,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
 })
 const wait = async() => new Promise(resolve => setTimeout(resolve, 100))
 
-export default () => {
+export default ({ fullScreen = false }: { fullScreen?: boolean }) => {
   const lyricLines = useLrcSet()
   const { line } = useLrcPlay()
   const flatListRef = useRef<FlatList>(null)
@@ -335,7 +340,7 @@ export default () => {
 
   const renderItem: FlatListType['renderItem'] = ({ item, index }) => {
     return (
-      <LrcLine line={item} lineNum={index} activeLine={line} onLayout={handleLineLayout} />
+      <LrcLine line={item} lineNum={index} activeLine={line} fullScreen={fullScreen} onLayout={handleLineLayout} />
     )
   }
   const getkey: FlatListType['keyExtractor'] = (item, index) => `${index}${item.text}`
@@ -350,7 +355,7 @@ export default () => {
         data={lyricLines}
         renderItem={renderItem}
         keyExtractor={getkey}
-        style={styles.container}
+        style={[styles.container, fullScreen && styles.containerFullScreen]}
         ref={flatListRef}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={spaceComponent}
@@ -373,6 +378,12 @@ const styles = createStyle({
     paddingLeft: 20,
     paddingRight: 20,
     // backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  containerFullScreen: {
+    paddingLeft: 60,
+    paddingRight: 60,
+    paddingTop: 40,
+    paddingBottom: 40,
   },
   space: {
     paddingTop: '100%',

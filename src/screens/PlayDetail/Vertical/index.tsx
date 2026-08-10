@@ -10,6 +10,7 @@ import Pic from './Pic'
 import Lyric from './Lyric'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import { createStyle } from '@/utils/tools'
+import { useSettingValue } from '@/store/setting/hook'
 // import { useTheme } from '@/store/theme/hook'
 
 const LyricPage = ({ activeIndex }: { activeIndex: number }) => {
@@ -31,6 +32,7 @@ export default memo(({ componentId }: { componentId: string }) => {
   // const theme = useTheme()
   const [pageIndex, setPageIndex] = useState(0)
   const showLyricRef = useRef(false)
+  const isLyricFullScreen = useSettingValue('playDetail.style.lyricFullScreen')
 
   const onPageSelected = ({ nativeEvent }: PagerViewOnPageSelectedEvent) => {
     setPageIndex(nativeEvent.position)
@@ -63,25 +65,29 @@ export default memo(({ componentId }: { componentId: string }) => {
 
   return (
     <>
-      <Header />
+      {!isLyricFullScreen && <Header />}
       <View style={styles.container}>
-        <PagerView
-          onPageSelected={onPageSelected}
-          // onPageScrollStateChanged={onPageScrollStateChanged}
-          style={styles.pagerView}
-        >
-          <View collapsable={false}>
-            <Pic componentId={componentId} />
-          </View>
-          <View collapsable={false}>
-            <LyricPage activeIndex={pageIndex} />
-          </View>
-        </PagerView>
+        {isLyricFullScreen
+          ? <Lyric fullScreen />
+          : (
+            <PagerView
+              onPageSelected={onPageSelected}
+              // onPageScrollStateChanged={onPageScrollStateChanged}
+              style={styles.pagerView}
+            >
+              <View collapsable={false}>
+                <Pic componentId={componentId} />
+              </View>
+              <View collapsable={false}>
+                <LyricPage activeIndex={pageIndex} />
+              </View>
+            </PagerView>
+          )}
         {/* <View style={styles.pageIndicator} nativeID={NAV_SHEAR_NATIVE_IDS.playDetail_pageIndicator}>
           <View style={{ ...styles.pageIndicatorItem, backgroundColor: pageIndex == 0 ? theme['c-primary-light-100-alpha-700'] : theme['c-primary-alpha-900'] }}></View>
           <View style={{ ...styles.pageIndicatorItem, backgroundColor: pageIndex == 1 ? theme['c-primary-light-100-alpha-700'] : theme['c-primary-alpha-900'] }}></View>
         </View> */}
-        <Player />
+        {!isLyricFullScreen && <Player />}
       </View>
     </>
   )

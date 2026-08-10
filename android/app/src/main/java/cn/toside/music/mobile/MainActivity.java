@@ -77,6 +77,11 @@ public class MainActivity extends NavigationActivity {
             public void onGlobalFocusChanged(View oldFocus, View newFocus) {
                 // 每次焦点变化都全量遍历一次（处理新增 View）
                 applyFocusSelectorToTree(rootView);
+                // Modal / Dialog（如播放页设置弹窗）是独立 Window，Activity content 树遍历不到，
+                // 需基于当前焦点向上找到 Dialog 根并全量遍历，保证弹窗内控件也能被应用焦点高亮
+                if (newFocus != null) {
+                    applyFocusToCurrentFocusView();
+                }
             }
         };
         rootView.getViewTreeObserver().addOnGlobalFocusChangeListener(focusListener);

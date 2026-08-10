@@ -60,14 +60,17 @@ interface LineProps {
   line: Line
   lineNum: number
   activeLine: number
+  fullScreen?: boolean
   onLayout: (lineNum: number, height: number, width: number) => void
 }
-const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
+const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, onLayout }: LineProps) => {
   const theme = useTheme()
   const lrcFontSize = useSettingValue('playDetail.vertical.style.lrcFontSize')
   const textAlign = useSettingValue('playDetail.style.align')
-  const size = lrcFontSize / 10
-  const lineHeight = setSpText(size) * 1.3
+  // 全屏歌词：放大基础字号
+  const fsScale = fullScreen ? 1.6 : 1
+  const size = (lrcFontSize / 10) * fsScale
+  const lineHeight = setSpText(size) * (fullScreen ? 1.5 : 1.3)
 
   const isActiveLine = activeLine == lineNum
 
@@ -115,7 +118,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, onLayout }: LineProps) => {
 })
 const wait = async() => new Promise(resolve => setTimeout(resolve, 100))
 
-export default () => {
+export default ({ fullScreen = false }: { fullScreen?: boolean }) => {
   const lyricLines = useLrcSet()
   const { line } = useLrcPlay()
   const flatListRef = useRef<FlatList>(null)
@@ -300,7 +303,7 @@ export default () => {
 
   const renderItem: FlatListType['renderItem'] = ({ item, index }) => {
     return (
-      <LrcLine line={item} lineNum={index} activeLine={line} onLayout={handleLineLayout} />
+      <LrcLine line={item} lineNum={index} activeLine={line} fullScreen={fullScreen} onLayout={handleLineLayout} />
     )
   }
   const getkey: FlatListType['keyExtractor'] = (item, index) => `${index}${item.text}`
@@ -315,7 +318,7 @@ export default () => {
         data={lyricLines}
         renderItem={renderItem}
         keyExtractor={getkey}
-        style={styles.container}
+        style={[styles.container, fullScreen && styles.containerFullScreen]}
         ref={flatListRef}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={spaceComponent}
@@ -338,6 +341,12 @@ const styles = createStyle({
     paddingLeft: 20,
     paddingRight: 20,
     // backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  containerFullScreen: {
+    paddingLeft: 60,
+    paddingRight: 60,
+    paddingTop: 40,
+    paddingBottom: 40,
   },
   space: {
     paddingTop: '100%',

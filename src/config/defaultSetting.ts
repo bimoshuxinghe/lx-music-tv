@@ -41,6 +41,7 @@ const defaultSetting: LX.AppSetting = {
   'playDetail.isShowLyricProgressSetting': false,
   'playDetail.style.lrcAnimatedStyle': 'random',
   'playDetail.style.lrcColor': 'white',
+  'playDetail.style.lyricFullScreen': false,
   'common.backPressAction': 'background',
 
   'search.isShowHotSearch': false,

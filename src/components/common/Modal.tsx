@@ -91,7 +91,8 @@ export default forwardRef<ModalType, ModalProps>(({
     >
       {/* <StatusBar /> */}
       {/* <View style={{ flex: 1, paddingTop: statusBarPadding ? StatusBar.currentHeight : 0 }}> */}
-      <TouchableWithoutFeedback style={{ flex: 1, paddingTop: statusBarPadding ? statusBarHeight : 0 }} onPress={handleBgClose}>
+      {/* focusable=false：避免占满全屏的背景层在 TV 上抢占遥控器焦点，导致弹窗内控件无法被聚焦 */}
+      <TouchableWithoutFeedback focusable={false} style={{ flex: 1, paddingTop: statusBarPadding ? statusBarHeight : 0 }} onPress={handleBgClose}>
         <View style={{ flex: 1, backgroundColor: bgColor }}>
           {memoChildren}
         </View>

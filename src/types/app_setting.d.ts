@@ -232,6 +232,11 @@ declare global {
       'playDetail.style.lrcColor': 'white' | 'cyan' | 'pink' | 'green' | 'orange'
 
       /**
+       * 播放详情页-歌词全屏模式（占满整个播放页的大字号歌词）
+       */
+      'playDetail.style.lyricFullScreen': boolean
+
+      /**
        * 按返回键两次时的行为：后台播放 / 退出软件
        */
       'common.backPressAction': 'background' | 'exit'
