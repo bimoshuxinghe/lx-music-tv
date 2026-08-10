@@ -26,7 +26,11 @@ let nativeIdCounter = 0
  * @returns 唯一 nativeID，挂载到可聚焦 View 上
  */
 export const useTvAdjustable = (onStep: (step: 1 | -1) => void) => {
-  const nativeID = useRef(`${TV_ADJUSTABLE_PREFIX}${++nativeIdCounter}`).current
+  const nativeIDRef = useRef<string | null>(null)
+  if (nativeIDRef.current === null) {
+    nativeIDRef.current = `${TV_ADJUSTABLE_PREFIX}${++nativeIdCounter}`
+  }
+  const nativeID = nativeIDRef.current
   const onStepRef = useRef(onStep)
   onStepRef.current = onStep
 
