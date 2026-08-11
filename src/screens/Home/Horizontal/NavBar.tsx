@@ -1,5 +1,5 @@
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
-import { forwardRef, memo, useImperativeHandle, useRef, type Ref } from 'react'
+import { memo } from 'react'
 import { ScrollView, View } from 'react-native'
 import { useNavActiveId, useStatusbarHeight } from '@/store/common/hook'
 import { useTheme } from '@/store/theme/hook'
@@ -11,7 +11,6 @@ import { NAV_MENUS } from '@/config/constant'
 import type { InitState } from '@/store/common/state'
 import { setNavActiveId } from '@/core/common'
 import { BorderWidths } from '@/theme'
-import SettingMenuPopup, { type SettingMenuPopupType } from './SettingMenuPopup'
 
 type IdType = Exclude<InitState['navActiveId'], 'nav_setting'>
 
@@ -40,16 +39,29 @@ const NavItem = ({ id, icon, onPress, isFirst }: {
   )
 }
 
-export default memo(forwardRef((props, ref: Ref<{ showSetting: () => void }>) => {
+const SettingBtn = () => {
+  const t = useI18n()
+  const theme = useTheme()
+  const activeId = useNavActiveId()
+  const active = activeId == 'nav_setting'
+
+  return (
+    <TouchableOpacity
+      style={{ ...styles.navItem, ...(active ? { backgroundColor: theme['c-primary'], borderRadius: 6 } : {}) }}
+      onPress={() => { setNavActiveId('nav_setting') }}
+      activeOpacity={0.5}
+    >
+      <View style={styles.iconContent}>
+        <Icon name="setting" size={20} color={active ? '#FFFFFF' : theme['c-font-label']} />
+      </View>
+      <Text style={styles.text} size={16} color={active ? '#FFFFFF' : theme['c-font-label']}>{t('nav_setting')}</Text>
+    </TouchableOpacity>
+  )
+}
+
+export default memo(() => {
   const theme = useTheme()
   const statusBarHeight = useStatusbarHeight()
-  const settingPopupRef = useRef<SettingMenuPopupType>(null)
-
-  useImperativeHandle(ref, () => ({
-    showSetting() {
-      settingPopupRef.current?.show()
-    },
-  }))
 
   const handlePress = (id: IdType) => {
     setNavActiveId(id)
@@ -67,22 +79,19 @@ export default memo(forwardRef((props, ref: Ref<{ showSetting: () => void }>) =>
         <Icon name="logo" color={theme['c-primary-dark-100-alpha-300']} size={24} />
         <Text style={styles.headerText} size={15} color={theme['c-primary-dark-100-alpha-300']}>LX Music</Text>
       </View>
-      <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps={'always'} style={styles.navScroll}>
-        <View style={styles.navList}>
-          {NAV_MENUS.filter(m => m.id != 'nav_setting').map((menu, i) => (
-            <NavItem key={menu.id} id={menu.id as IdType} icon={menu.icon} onPress={handlePress} isFirst={i === 0} />
-          ))}
-        </View>
-      </ScrollView>
       <View style={styles.right}>
-        <SettingMenuPopup ref={settingPopupRef} />
-        <TouchableOpacity style={styles.settingBtn} onPress={() => { settingPopupRef.current?.show() }} activeOpacity={0.5}>
-          <Icon name="setting" size={22} color={theme['c-font-label']} />
-        </TouchableOpacity>
+        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps={'always'} style={styles.navScroll}>
+          <View style={styles.navList}>
+            {NAV_MENUS.filter(m => m.id != 'nav_setting').map((menu, i) => (
+              <NavItem key={menu.id} id={menu.id as IdType} icon={menu.icon} onPress={handlePress} isFirst={i === 0} />
+            ))}
+            <SettingBtn />
+          </View>
+        </ScrollView>
       </View>
     </View>
   )
-}))
+})
 
 const styles = createStyle({
   container: {
@@ -104,8 +113,15 @@ const styles = createStyle({
     textAlign: 'center',
     marginLeft: 8,
   },
-  navScroll: {
+  right: {
     flexGrow: 1,
+    flexShrink: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  navScroll: {
+    flexGrow: 0,
     flexShrink: 1,
   },
   navList: {
@@ -128,18 +144,5 @@ const styles = createStyle({
   },
   text: {
     paddingLeft: 6,
-  },
-  right: {
-    flexGrow: 0,
-    flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: 10,
-  },
-  settingBtn: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 })

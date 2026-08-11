@@ -17,7 +17,7 @@ export default memo(({ panelWidth }: { panelWidth: number }) => {
   const theme = useTheme()
   const musicInfo = usePlayerMusicInfo()
 
-  const imgWidth = panelWidth > 0 ? Math.round(panelWidth * 0.86) : 0
+  const imgWidth = panelWidth > 0 ? Math.round(panelWidth * 0.6) : 0
 
   const handlePress = () => {
     if (!musicInfo.id) return

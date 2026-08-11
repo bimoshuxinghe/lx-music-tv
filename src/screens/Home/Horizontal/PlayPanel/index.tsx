@@ -24,7 +24,7 @@ export default memo(() => {
 
   return (
     <View
-      style={{ ...styles.container, backgroundColor: theme['c-content-background'] }}
+      style={{ ...styles.container, backgroundColor: theme['c-main-background'] }}
       onLayout={handleLayout}
     >
       <Pic panelWidth={panelWidth} />

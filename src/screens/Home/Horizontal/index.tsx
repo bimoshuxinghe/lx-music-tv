@@ -9,6 +9,7 @@ import { createStyle } from '@/utils/tools'
 import { moveTaskToBack } from '@/utils/nativeModules/utils'
 import { exitApp } from '@/core/common'
 import { useSettingValue } from '@/store/setting/hook'
+import { useNavActiveId } from '@/store/common/hook'
 import { pop } from '@/navigation'
 import commonState from '@/store/common/state'
 
@@ -32,6 +33,7 @@ let lastBackPressed = 0
 
 export default () => {
   const backPressAction = useSettingValue('common.backPressAction')
+  const navActiveId = useNavActiveId()
 
   useEffect(() => {
     lastBackPressed = 0
@@ -67,7 +69,7 @@ export default () => {
       <View style={styles.container}>
         <NavBar />
         <View style={styles.body}>
-          <PlayPanel />
+          { navActiveId == 'nav_setting' ? null : <PlayPanel /> }
           <View style={styles.content}>
             <Header />
             <Main />
