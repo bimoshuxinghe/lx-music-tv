@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { View, BackHandler, ToastAndroid } from 'react-native'
-import Aside from './Aside'
-import PlayerBar from '@/components/player/PlayerBar'
+import NavBar from './NavBar'
+import PlayPanel from './PlayPanel'
 import StatusBar from '@/components/common/StatusBar'
 import Header from './Header'
 import Main from './Main'
@@ -15,7 +15,12 @@ import commonState from '@/store/common/state'
 const styles = createStyle({
   container: {
     flex: 1,
+    flexDirection: 'column',
+  },
+  body: {
+    flex: 1,
     flexDirection: 'row',
+    overflow: 'hidden',
   },
   content: {
     flex: 1,
@@ -60,11 +65,13 @@ export default () => {
     <>
       <StatusBar />
       <View style={styles.container}>
-        <Aside />
-        <View style={styles.content}>
-          <Header />
-          <Main />
-          <PlayerBar isHome />
+        <NavBar />
+        <View style={styles.body}>
+          <PlayPanel />
+          <View style={styles.content}>
+            <Header />
+            <Main />
+          </View>
         </View>
       </View>
     </>
