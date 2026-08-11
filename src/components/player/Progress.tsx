@@ -106,6 +106,7 @@ const Progress = ({ progress, duration, buffered, paddingTop }: {
   const theme = useTheme()
   const [draging, setDraging] = useState(false)
   const [dragProgress, setDragProgress] = useState(0)
+  const [isFocused, setIsFocused] = useState(false)
   // console.log(progress)
   const progressStr: `${number}%` = `${progress * 100}%`
 
@@ -140,8 +141,15 @@ const Progress = ({ progress, duration, buffered, paddingTop }: {
         }
       </View>
       <PreassBar onDragState={setDraging} setDragProgress={setDragProgress} onSetProgress={onSetProgress} />
-      {/* TV 遥控器：进度条可聚焦，左右方向键步进播放进度 */}
-      <View nativeID={nativeID} focusable={true} style={styles.tvKeyArea} />
+      {/* TV 遥控器：进度条可聚焦，左右方向键步进播放进度，聚焦时显示高亮块 */}
+      { isFocused ? <View style={[styles.tvFocusBg, { backgroundColor: theme['c-primary-light-100-alpha-700'], borderColor: theme['c-primary'] }]} /> : null }
+      <View
+        nativeID={nativeID}
+        focusable={true}
+        onFocus={() => { setIsFocused(true) }}
+        onBlur={() => { setIsFocused(false) }}
+        style={styles.tvKeyArea}
+      />
       {/* <View style={{ ...styles.progressBar, height: '100%', width: progressStr }}><Pressable style={styles.progressDot}></Pressable></View> */}
     </View>
   )
@@ -176,6 +184,16 @@ const styles = createStyle({
     top: 0,
     height: '100%',
     width: '100%',
+  },
+  tvFocusBg: {
+    position: 'absolute',
+    left: -6,
+    right: -6,
+    top: -6,
+    bottom: -6,
+    borderRadius: 6,
+    borderWidth: 2,
+    zIndex: 99,
   },
 })
 

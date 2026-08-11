@@ -113,7 +113,8 @@ const styles = createStyle({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingTop: 0,
+    paddingBottom: 12,
   },
   cotrolBtn: {
     width: BTN_WH,

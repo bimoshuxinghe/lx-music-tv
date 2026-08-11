@@ -28,7 +28,7 @@ export default memo(() => {
         style={styles.text}
         size={fontInfo.fontSize}
         numberOfLines={fontInfo.lines}
-        color={theme['c-font-label']}
+        color={theme['c-font']}
         textBreakStrategy="simple"
       >
         {lyricText}
@@ -49,5 +49,6 @@ const styles = createStyle({
   },
   text: {
     textAlign: 'center',
+    fontWeight: 'bold',
   },
 })
