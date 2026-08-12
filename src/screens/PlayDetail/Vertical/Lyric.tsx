@@ -8,6 +8,7 @@ import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
 import { useSettingValue } from '@/store/setting/hook'
 import { AnimatedColorText } from '@/components/common/Text'
+import LrcWord from '../components/LrcWord'
 import { setSpText } from '@/utils/pixelRatio'
 import playerState from '@/store/player/state'
 import { scrollTo } from '@/utils/scroll'
@@ -93,7 +94,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
       } catch {}
     }
     void update()
-    const timer = setInterval(update, 100)
+    const timer = setInterval(update, 50)
     return () => { cancelled = true; clearInterval(timer) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActiveLine, words, line.time])
@@ -121,12 +122,9 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
     <View style={styles.line} onLayout={handleLayout}>
       {isActiveLine && words && words.length ? (
         <View style={[styles.wordLine, { justifyContent: wordAlign }]}>
-          {words.map((w, i) => {
-            const active = wordProgress >= w.time
-            return (
-              <AnimatedColorText key={i} size={size} color={active ? colors[0] : theme['c-350']} opacity={active ? colors[2] : 0.6} style={{ lineHeight }}>{w.text}</AnimatedColorText>
-            )
-          })}
+          {words.map((w, i) => (
+            <LrcWord key={i} word={w} active={wordProgress >= w.time} size={size} color={colors[0]} lineHeight={lineHeight} />
+          ))}
         </View>
       ) : (
         <AnimatedColorText style={{
