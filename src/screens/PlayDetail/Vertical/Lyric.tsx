@@ -1,7 +1,8 @@
-import { memo, useMemo, useEffect, useRef, useCallback } from 'react'
+import { memo, useMemo, useEffect, useRef, useCallback, useState } from 'react'
 import { View, FlatList, type FlatListProps, type LayoutChangeEvent, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 // import { useLayout } from '@/utils/hooks'
-import { type Line, useLrcPlay, useLrcSet } from '@/plugins/lyric'
+import { type Line, type Word, useLrcPlay, useLrcSet, useLrcWords } from '@/plugins/lyric'
+import { getPosition } from '@/plugins/player'
 import { createStyle } from '@/utils/tools'
 // import { useComponentIds } from '@/store/common/hook'
 import { useTheme } from '@/store/theme/hook'
@@ -61,9 +62,10 @@ interface LineProps {
   lineNum: number
   activeLine: number
   fullScreen?: boolean
+  words?: Word[]
   onLayout: (lineNum: number, height: number, width: number) => void
 }
-const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, onLayout }: LineProps) => {
+const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, onLayout }: LineProps) => {
   const theme = useTheme()
   const lrcFontSize = useSettingValue('playDetail.vertical.style.lrcFontSize')
   const textAlign = useSettingValue('playDetail.style.align')
@@ -73,6 +75,28 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, onLayout 
   const lineHeight = setSpText(size) * (fullScreen ? 1.5 : 1.3)
 
   const isActiveLine = activeLine == lineNum
+
+  // 逐字歌词：激活行按播放进度逐字高亮
+  const wordAlign = textAlign === 'left' ? 'flex-start' : textAlign === 'right' ? 'flex-end' : 'center'
+  const [wordProgress, setWordProgress] = useState(0)
+  useEffect(() => {
+    if (!isActiveLine || !words?.length) {
+      setWordProgress(0)
+      return
+    }
+    let cancelled = false
+    const update = async () => {
+      try {
+        const pos = await getPosition()
+        if (cancelled || pos == null) return
+        setWordProgress(Math.max(pos * 1000 - line.time, 0))
+      } catch {}
+    }
+    void update()
+    const timer = setInterval(update, 100)
+    return () => { cancelled = true; clearInterval(timer) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActiveLine, words, line.time])
 
   const colors = useMemo(() => {
     return isActiveLine ? [
@@ -95,11 +119,22 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, onLayout 
   // https://stackoverflow.com/a/72822360
   return (
     <View style={styles.line} onLayout={handleLayout}>
-      <AnimatedColorText style={{
-        ...styles.lineText,
-        textAlign,
-        lineHeight,
-      }} textBreakStrategy="simple" color={colors[0]} opacity={colors[2]} size={size}>{line.text}</AnimatedColorText>
+      {isActiveLine && words && words.length ? (
+        <View style={[styles.wordLine, { justifyContent: wordAlign }]}>
+          {words.map((w, i) => {
+            const active = wordProgress >= w.time
+            return (
+              <AnimatedColorText key={i} size={size} color={active ? colors[0] : theme['c-350']} opacity={active ? colors[2] : 0.6} style={{ lineHeight }}>{w.text}</AnimatedColorText>
+            )
+          })}
+        </View>
+      ) : (
+        <AnimatedColorText style={{
+          ...styles.lineText,
+          textAlign,
+          lineHeight,
+        }} textBreakStrategy="simple" color={colors[0]} opacity={colors[2]} size={size}>{line.text}</AnimatedColorText>
+      )}
       {
         line.extendedLyrics.map((lrc, index) => {
           return (<AnimatedColorText style={{
@@ -113,6 +148,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, onLayout 
   )
 }, (prevProps, nextProps) => {
   return prevProps.line === nextProps.line &&
+    prevProps.words === nextProps.words &&
     prevProps.activeLine != nextProps.lineNum &&
     nextProps.activeLine != nextProps.lineNum
 })
@@ -120,6 +156,7 @@ const wait = async() => new Promise(resolve => setTimeout(resolve, 100))
 
 export default ({ fullScreen = false }: { fullScreen?: boolean }) => {
   const lyricLines = useLrcSet()
+  const wordLinesMap = useLrcWords()
   const { line } = useLrcPlay()
   const flatListRef = useRef<FlatList>(null)
   const playLineRef = useRef<PlayLineType>(null)
@@ -303,7 +340,7 @@ export default ({ fullScreen = false }: { fullScreen?: boolean }) => {
 
   const renderItem: FlatListType['renderItem'] = ({ item, index }) => {
     return (
-      <LrcLine line={item} lineNum={index} activeLine={line} fullScreen={fullScreen} onLayout={handleLineLayout} />
+      <LrcLine line={item} lineNum={index} activeLine={line} fullScreen={fullScreen} words={wordLinesMap.get(item.time)} onLayout={handleLineLayout} />
     )
   }
   const getkey: FlatListType['keyExtractor'] = (item, index) => `${index}${item.text}`
@@ -363,6 +400,10 @@ const styles = createStyle({
     // paddingTop: 5,
     // paddingBottom: 5,
     // opacity: 0,
+  },
+  wordLine: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   lineTranslationText: {
     textAlign: 'center',
