@@ -17,11 +17,6 @@ const size = windowSizeTools.getSize()
 // console.log('size', size)
 let screenW = size.width
 let screenH = size.height
-if (screenW > screenH) {
-  const temp = screenW
-  screenW = screenH
-  screenH = temp
-}
 let fontScale = PixelRatio.getFontScale()
 let pixelRatio = PixelRatio.get()
 // 根据dp获取屏幕的px

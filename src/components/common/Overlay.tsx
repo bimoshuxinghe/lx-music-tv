@@ -26,6 +26,7 @@ export interface OverlayProps {
   statusBarPadding?: boolean
   /** z-index 层级，默认 9999 */
   zIndex?: number
+  children?: React.ReactNode
 }
 
 export interface OverlayType {
@@ -90,7 +91,7 @@ export default forwardRef<OverlayType, OverlayProps>(({
     const portalContent = (
       <View style={[StyleSheet.absoluteFill, { zIndex, elevation: zIndex, backgroundColor: bgColor }]}>
         <TouchableWithoutFeedback onPress={handleBgClose}>
-          <View style={{ flex: 1, paddingTop: statusBarPadding ? statusBarHeight : 0 }} />
+          <View focusable={false} style={{ flex: 1, paddingTop: statusBarPadding ? statusBarHeight : 0 }} />
         </TouchableWithoutFeedback>
         {memoChildren}
       </View>

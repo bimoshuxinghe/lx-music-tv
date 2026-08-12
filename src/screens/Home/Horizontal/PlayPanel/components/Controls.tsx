@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react'
 import { View } from 'react-native'
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
-import { Icon } from '@/components/common/Icon'
+import { IconMaterial as Icon } from '@/components/common/Icon'
 import { useIsPlay } from '@/store/player/hook'
 import { useTheme } from '@/store/theme/hook'
 import { playNext, playPrev, togglePlay } from '@/core/player/player'
@@ -11,14 +11,14 @@ import { useSettingValue } from '@/store/setting/hook'
 import { useI18n } from '@/lang'
 import { updateSetting } from '@/core/common'
 
-const BTN_SIZE = 26
+const BTN_SIZE = 30
 const BTN_WH = 52
 
 const PlayPrevBtn = () => {
   const theme = useTheme()
   return (
     <TouchableOpacity style={styles.cotrolBtn} activeOpacity={0.5} onPress={() => { void playPrev() }}>
-      <Icon name="prevMusic" color={theme['c-button-font']} size={BTN_SIZE} />
+      <Icon name="skip-previous" color={theme['c-button-font']} size={BTN_SIZE} />
     </TouchableOpacity>
   )
 }
@@ -27,7 +27,7 @@ const PlayNextBtn = () => {
   const theme = useTheme()
   return (
     <TouchableOpacity style={styles.cotrolBtn} activeOpacity={0.5} onPress={() => { void playNext() }}>
-      <Icon name="nextMusic" color={theme['c-button-font']} size={BTN_SIZE} />
+      <Icon name="skip-next" color={theme['c-button-font']} size={BTN_SIZE} />
     </TouchableOpacity>
   )
 }
@@ -37,7 +37,7 @@ const TogglePlayBtn = () => {
   const theme = useTheme()
   return (
     <TouchableOpacity style={styles.cotrolBtn} activeOpacity={0.5} onPress={togglePlay}>
-      <Icon name={isPlay ? 'pause' : 'play'} color={theme['c-button-font']} size={BTN_SIZE} />
+      <Icon name={isPlay ? 'pause-circle-filled' : 'play-circle-filled'} color={theme['c-button-font']} size={BTN_SIZE + 8} />
     </TouchableOpacity>
   )
 }
@@ -76,21 +76,21 @@ const PlayModeBtn = memo(() => {
   const playModeIcon = useMemo(() => {
     switch (togglePlayMethod) {
       case MUSIC_TOGGLE_MODE.listLoop:
-        return 'list-loop'
+        return 'repeat'
       case MUSIC_TOGGLE_MODE.random:
-        return 'list-random'
+        return 'shuffle'
       case MUSIC_TOGGLE_MODE.list:
-        return 'list-order'
+        return 'format-list-numbered'
       case MUSIC_TOGGLE_MODE.singleLoop:
-        return 'single-loop'
+        return 'repeat-one'
       default:
-        return 'single'
+        return 'music-note'
     }
   }, [togglePlayMethod])
 
   return (
     <TouchableOpacity style={styles.cotrolBtn} activeOpacity={0.5} onPress={handlePress}>
-      <Icon name={playModeIcon} color={theme['c-button-font']} size={BTN_SIZE} />
+      <Icon name={playModeIcon} color={theme['c-button-font']} size={BTN_SIZE - 2} />
     </TouchableOpacity>
   )
 })

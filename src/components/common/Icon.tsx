@@ -14,7 +14,7 @@ import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 // import IconFontisto from 'react-native-vector-icons/Fontisto'
 // import IconFoundation from 'react-native-vector-icons/Foundation'
 // import IconIonicons from 'react-native-vector-icons/Ionicons'
-// import IconMaterialIcons from 'react-native-vector-icons/MaterialIcons'
+import IconMaterialIcons from 'react-native-vector-icons/MaterialIcons'
 // import IconMaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons'
 // import IconOcticons from 'react-native-vector-icons/Octicons'
 // import IconZocial from 'react-native-vector-icons/Zocial'
@@ -43,6 +43,31 @@ export const Icon = memo(({ size = 15, rawSize, color, style, ...props }: IconPr
   }, style) : style
   return (
     <IcoMoon
+      size={rawSize ?? scaleSizeW(size)}
+      color={color ?? theme['c-font']}
+      // @ts-expect-error
+      style={newStyle}
+      {...props}
+    />
+  )
+})
+
+export type IconMaterialType = ComponentProps<typeof IconMaterialIcons>
+
+/**
+ * Material Icons 图标（Google Material Design 风格，更精致）
+ * 字体文件 MaterialIcons.ttf 已放入 android/app/src/main/assets/fonts/
+ */
+export const IconMaterial = memo(({ size = 15, rawSize, color, style, ...props }: Omit<IconMaterialType, 'style'> & { style?: StyleProp<TextStyle>, rawSize?: number }) => {
+  const theme = useTheme()
+  const textShadow = useTextShadow()
+  const newStyle = textShadow ? StyleSheet.compose({
+    textShadowColor: theme['c-primary-dark-300-alpha-800'],
+    textShadowOffset: { width: 0.2, height: 0.2 },
+    textShadowRadius: 2,
+  }, style) : style
+  return (
+    <IconMaterialIcons
       size={rawSize ?? scaleSizeW(size)}
       color={color ?? theme['c-font']}
       // @ts-expect-error

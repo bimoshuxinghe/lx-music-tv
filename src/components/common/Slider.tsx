@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 
 import Slider, { type SliderProps as _SliderProps } from '@react-native-community/slider'
@@ -18,6 +18,7 @@ export type SliderProps = Pick<_SliderProps,
 
 export default memo(({ value, minimumValue, maximumValue, onSlidingStart, onSlidingComplete, onValueChange, step }: SliderProps) => {
   const theme = useTheme()
+  const [isFocused, setIsFocused] = useState(false)
 
   const valueRef = useRef(value)
   useEffect(() => {
@@ -47,27 +48,36 @@ export default memo(({ value, minimumValue, maximumValue, onSlidingStart, onSlid
   const nativeID = useTvAdjustable(handleStep)
 
   return (
-    <View nativeID={nativeID} focusable={true} style={styles.focusArea}>
-      <Slider
-        value={value}
-        style={styles.slider}
-        minimumValue={minimumValue}
-        maximumValue={maximumValue}
-        minimumTrackTintColor={theme['c-primary-alpha-500']}
-        maximumTrackTintColor={theme['c-primary-alpha-500']}
-        thumbTintColor={theme['c-primary']}
-        onSlidingStart={onSlidingStart}
-        onSlidingComplete={onSlidingComplete}
-        onValueChange={handleValueChange}
-        step={step}
-        focusable={false}
-      />
+    <View style={styles.focusWrap}>
+      { isFocused ? <View style={[styles.tvFocusBg, { backgroundColor: theme['c-primary-light-100-alpha-700'], borderColor: theme['c-primary'] }]} /> : null }
+      <View nativeID={nativeID} focusable={true} onFocus={() => { setIsFocused(true) }} onBlur={() => { setIsFocused(false) }} style={styles.focusArea}>
+        <Slider
+          value={value}
+          style={styles.slider}
+          minimumValue={minimumValue}
+          maximumValue={maximumValue}
+          minimumTrackTintColor={theme['c-primary-alpha-500']}
+          maximumTrackTintColor={theme['c-primary-alpha-500']}
+          thumbTintColor={theme['c-primary']}
+          onSlidingStart={onSlidingStart}
+          onSlidingComplete={onSlidingComplete}
+          onValueChange={handleValueChange}
+          step={step}
+          focusable={false}
+        />
+      </View>
     </View>
   )
 })
 
 
 const styles = createStyle({
+  focusWrap: {
+    flexShrink: 0,
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
   focusArea: {
     flexShrink: 0,
     flexGrow: 1,
@@ -80,5 +90,15 @@ const styles = createStyle({
     // maxWidth: 300,
     height: 40,
     // backgroundColor: '#eee',
+  },
+  tvFocusBg: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: -6,
+    bottom: -6,
+    borderRadius: 6,
+    borderWidth: 2,
+    zIndex: 99,
   },
 })

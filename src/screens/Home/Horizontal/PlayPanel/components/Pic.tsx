@@ -1,8 +1,8 @@
-import { memo, useCallback } from 'react'
-import { View } from 'react-native'
+import { memo, useCallback, useEffect, useRef } from 'react'
+import { Animated, Easing, View } from 'react-native'
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 import { navigations } from '@/navigation'
-import { usePlayerMusicInfo } from '@/store/player/hook'
+import { usePlayerMusicInfo, useIsPlay } from '@/store/player/hook'
 import commonState from '@/store/common/state'
 import playerState from '@/store/player/state'
 import { LIST_IDS } from '@/config/constant'
@@ -16,8 +16,42 @@ const PIC_MARGIN = 4
 export default memo(({ panelWidth }: { panelWidth: number }) => {
   const theme = useTheme()
   const musicInfo = usePlayerMusicInfo()
+  const isPlay = useIsPlay()
 
   const imgWidth = panelWidth > 0 ? Math.round(panelWidth * 0.6) : 0
+  // 海报圆形半径：图片半径 + 边框内边距
+  const circleSize = imgWidth > 0 ? imgWidth + PIC_MARGIN * 2 + 2 : 0
+
+  // 旋转动画：播放时旋转，暂停时停止
+  const rotateAnim = useRef(new Animated.Value(0)).current
+  const animRef = useRef<Animated.CompositeAnimation | null>(null)
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    )
+    animRef.current = animation
+    return () => {
+      animation.stop()
+      animRef.current = null
+    }
+  }, [rotateAnim])
+  useEffect(() => {
+    if (isPlay) {
+      animRef.current?.start()
+    } else {
+      animRef.current?.stop()
+    }
+  }, [isPlay])
+
+  const rotate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  })
 
   const handlePress = () => {
     if (!musicInfo.id) return
@@ -46,11 +80,13 @@ export default memo(({ panelWidth }: { panelWidth: number }) => {
         {
           imgWidth > 0
             ? (
-                <Image
-                  url={musicInfo.pic}
-                  style={{ width: imgWidth, height: imgWidth, borderRadius: 4 }}
-                  onError={handleError}
-                />
+                <Animated.View style={{ width: circleSize, height: circleSize, transform: [{ rotate }] }}>
+                  <Image
+                    url={musicInfo.pic}
+                    style={{ width: imgWidth, height: imgWidth, borderRadius: imgWidth / 2 }}
+                    onError={handleError}
+                  />
+                </Animated.View>
               )
             : null
         }
@@ -68,8 +104,8 @@ const styles = createStyle({
     paddingVertical: PIC_MARGIN,
   },
   imageWrap: {
-    borderRadius: 6,
+    borderRadius: 999,
     borderWidth: 1,
-    padding: 4,
+    padding: PIC_MARGIN,
   },
 })
