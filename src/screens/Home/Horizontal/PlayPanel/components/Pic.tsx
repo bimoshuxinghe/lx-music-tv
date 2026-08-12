@@ -19,8 +19,6 @@ export default memo(({ panelWidth }: { panelWidth: number }) => {
   const isPlay = useIsPlay()
 
   const imgWidth = panelWidth > 0 ? Math.round(panelWidth * 0.6) : 0
-  // 海报圆形半径：图片半径 + 边框内边距
-  const circleSize = imgWidth > 0 ? imgWidth + PIC_MARGIN * 2 + 2 : 0
 
   // 旋转动画：播放时旋转，暂停时停止
   const rotateAnim = useRef(new Animated.Value(0)).current
@@ -80,7 +78,7 @@ export default memo(({ panelWidth }: { panelWidth: number }) => {
         {
           imgWidth > 0
             ? (
-                <Animated.View style={{ width: circleSize, height: circleSize, transform: [{ rotate }] }}>
+                <Animated.View style={{ width: imgWidth, height: imgWidth, transform: [{ rotate }] }}>
                   <Image
                     url={musicInfo.pic}
                     style={{ width: imgWidth, height: imgWidth, borderRadius: imgWidth / 2 }}
