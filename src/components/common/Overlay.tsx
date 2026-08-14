@@ -26,6 +26,12 @@ export interface OverlayProps {
   statusBarPadding?: boolean
   /** z-index 层级，默认 9999 */
   zIndex?: number
+  /**
+   * 弹窗内容的焦点锚点（第一个可聚焦元素）。
+   * 遮罩层会拦截 TV 遥控器焦点，防止焦点穿透到底层页面；
+   * 当焦点被遮罩捕获时，会自动移回该锚点元素。
+   */
+  focusAnchorRef?: React.RefObject<{ focus: () => void }>
   children?: React.ReactNode
 }
 
@@ -40,6 +46,7 @@ export default forwardRef<OverlayType, OverlayProps>(({
   bgColor = 'rgba(0,0,0,0)',
   statusBarPadding = true,
   zIndex = 9999,
+  focusAnchorRef,
   children,
 }: OverlayProps, ref) => {
   const [visible, setVisible] = useState(false)
@@ -91,7 +98,14 @@ export default forwardRef<OverlayType, OverlayProps>(({
     const portalContent = (
       <View style={[StyleSheet.absoluteFill, { zIndex, elevation: zIndex, backgroundColor: bgColor }]}>
         <TouchableWithoutFeedback onPress={handleBgClose}>
-          <View focusable={false} style={{ flex: 1, paddingTop: statusBarPadding ? statusBarHeight : 0 }} />
+          <View
+            focusable={true}
+            onFocus={() => {
+              // 遮罩层捕获焦点时，将焦点移回弹窗内容，避免焦点穿透到底层页面
+              focusAnchorRef?.current?.focus?.()
+            }}
+            style={{ flex: 1, paddingTop: statusBarPadding ? statusBarHeight : 0 }}
+          />
         </TouchableWithoutFeedback>
         {memoChildren}
       </View>

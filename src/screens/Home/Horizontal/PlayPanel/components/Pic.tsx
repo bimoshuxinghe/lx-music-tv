@@ -21,9 +21,11 @@ export default memo(({ panelWidth }: { panelWidth: number }) => {
   const imgWidth = panelWidth > 0 ? Math.round(panelWidth * 0.6) : 0
 
   // 旋转动画：播放时旋转，暂停时停止
+  // 每次 isPlay 变为 true 时重新创建动画并启动，避免复用已 stop 的动画实例导致旋转不稳定
   const rotateAnim = useRef(new Animated.Value(0)).current
-  const animRef = useRef<Animated.CompositeAnimation | null>(null)
   useEffect(() => {
+    if (!isPlay) return
+    rotateAnim.setValue(0)
     const animation = Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
@@ -32,19 +34,11 @@ export default memo(({ panelWidth }: { panelWidth: number }) => {
         useNativeDriver: true,
       }),
     )
-    animRef.current = animation
+    animation.start()
     return () => {
       animation.stop()
-      animRef.current = null
     }
-  }, [rotateAnim])
-  useEffect(() => {
-    if (isPlay) {
-      animRef.current?.start()
-    } else {
-      animRef.current?.stop()
-    }
-  }, [isPlay])
+  }, [isPlay, rotateAnim])
 
   const rotate = rotateAnim.interpolate({
     inputRange: [0, 1],

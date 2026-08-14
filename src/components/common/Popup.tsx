@@ -85,6 +85,7 @@ export default forwardRef<PopupType, PopupProps>(({
   const statusBarHeight = useStatusbarHeight()
 
   const overlayRef = useRef<OverlayType>(null)
+  const closeBtnRef = useRef<TouchableOpacity>(null)
 
   useImperativeHandle(ref, () => ({
     setVisible(visible: boolean) {
@@ -93,7 +94,7 @@ export default forwardRef<PopupType, PopupProps>(({
   }))
 
   const closeBtnComponent = useMemo(() => closeBtn
-    ? <TouchableOpacity style={styles.closeBtn} hasTVPreferredFocus onPress={() => overlayRef.current?.setVisible(false)}>
+    ? <TouchableOpacity ref={closeBtnRef} style={styles.closeBtn} hasTVPreferredFocus onPress={() => overlayRef.current?.setVisible(false)}>
         <Icon name="close" style={{ color: theme['c-font-label'] }} size={12} />
       </TouchableOpacity>
     : null, [closeBtn, theme])
@@ -179,7 +180,7 @@ export default forwardRef<PopupType, PopupProps>(({
   }, [position, statusBarHeight])
 
   return (
-    <Overlay onHide={onHide} keyHide={keyHide} bgHide={bgHide} bgColor="rgba(50,50,50,.2)" ref={overlayRef}>
+    <Overlay onHide={onHide} keyHide={keyHide} bgHide={bgHide} bgColor="rgba(50,50,50,.2)" ref={overlayRef} focusAnchorRef={closeBtnRef}>
       <View style={{ ...styles.centeredView, ...centeredViewStyle, paddingBottom: keyboardShown ? keyboardHeight : 0 }}>
         <View style={{ ...styles.modalView, ...modalViewStyle, backgroundColor: theme['c-content-background'] }} onStartShouldSetResponder={() => true}>
           <View style={styles.header}>

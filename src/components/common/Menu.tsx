@@ -61,6 +61,7 @@ interface Props<M extends Menus = Menus> {
   fontSize?: number
   center?: boolean
   activeId?: M[number]['action'] | null
+  firstItemRef?: React.RefObject<TouchableOpacity>
 }
 
 const Menu = ({
@@ -74,12 +75,13 @@ const Menu = ({
   activeId,
   fontSize = 15,
   center = false,
+  firstItemRef,
 }: Props) => {
   const theme = useTheme()
   const windowSize = useWindowSize()
   // const fadeAnim = useRef(new Animated.Value(0)).current
   // console.log(buttonPosition)
-  const firstItemRef = useRef<TouchableOpacity>(null)
+  // const firstItemRef = useRef<TouchableOpacity>(null)
 
   // 弹窗打开后自动聚焦第一个菜单项，确保 D-pad 可以从该项开始导航
   useEffect(() => {
@@ -193,6 +195,7 @@ export interface MenuType {
 const Component = <M extends Menus>({ menus, width, height, activeId, onHide, onPress, fontSize, center }: MenuProps<M>, ref: Ref<MenuType>) => {
   // console.log(visible)
   const overlayRef = useRef<OverlayType>(null)
+  const firstItemRef = useRef<TouchableOpacity>(null)
   const [position, setPosition] = useState<Position>({ w: 0, h: 0, x: 0, y: 0 })
   const [menuSize, setMenuSize] = useState<MenuSize>({ })
   const hide = () => {
@@ -210,8 +213,8 @@ const Component = <M extends Menus>({ menus, width, height, activeId, onHide, on
   }))
 
   return (
-    <Overlay onHide={onHide} ref={overlayRef}>
-      <Menu menus={menus} width={width} height={height} activeId={activeId} buttonPosition={position} menuSize={menuSize} onPress={onPress} onHide={hide} fontSize={fontSize} center={center} />
+    <Overlay onHide={onHide} ref={overlayRef} focusAnchorRef={firstItemRef}>
+      <Menu menus={menus} width={width} height={height} activeId={activeId} buttonPosition={position} menuSize={menuSize} onPress={onPress} onHide={hide} fontSize={fontSize} center={center} firstItemRef={firstItemRef} />
     </Overlay>
   )
 }
