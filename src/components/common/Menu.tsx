@@ -1,4 +1,4 @@
-import { useImperativeHandle, forwardRef, useMemo, useRef, useState, useEffect, type Ref } from 'react'
+import { useImperativeHandle, forwardRef, useMemo, useRef, useState, type Ref } from 'react'
 import { View, Animated } from 'react-native'
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 import { useWindowSize } from '@/utils/hooks'
@@ -83,18 +83,9 @@ const Menu = ({
   // console.log(buttonPosition)
   // const firstItemRef = useRef<TouchableOpacity>(null)
 
-  // 弹窗打开后自动聚焦第一个菜单项，确保 D-pad 可以从该项开始导航
-  useEffect(() => {
-    const t1 = setTimeout(() => {
-      const ref = firstItemRef.current as any
-      ref?.focus?.()
-    }, 100)
-    const t2 = setTimeout(() => {
-      const ref = firstItemRef.current as any
-      ref?.focus?.()
-    }, 300)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [])
+  // 注：弹窗打开后的初始焦点由 MainActivity 原生层负责：
+  // Overlay 出现时原生侧会自动把焦点移到弹窗内第一个可聚焦元素，
+  // 无需在 JS 侧调用 ref.focus()（RN 0.73 中普通 View 的 focus() 仅对 TextInput 有效）。
 
   const menuItemStyle = useMemo(() => {
     return {

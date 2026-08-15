@@ -36,6 +36,11 @@ public class MainActivity extends NavigationActivity {
     /** 可调节控件（滑块/进度条）的 nativeID 前缀，命中则 D-pad 左右键被 JS 消费 */
     private static final String TV_ADJUSTABLE_PREFIX = "tv_adjustable_";
 
+    /** Overlay 根容器 nativeID（JS 侧 Overlay.tsx 设置），用于弹窗焦点守门 */
+    private static final String TV_OVERLAY_ROOT_ID = "tv_overlay_root";
+    /** Overlay 遮罩层 nativeID（JS 侧 Overlay.tsx 设置），用于弹窗焦点守门 */
+    private static final String TV_OVERLAY_MASK_ID = "tv_overlay_mask";
+
     /** 焦点选择器资源 ID（在 onCreate 中解析） */
     private int focusSelectorResId = 0;
     /** 标记 View 已应用焦点选择器的 tag ID */
@@ -49,6 +54,8 @@ public class MainActivity extends NavigationActivity {
     private ViewTreeObserver.OnGlobalFocusChangeListener focusListener;
     /** 全局布局变化监听器，确保每次新页面/新弹窗出现时都能重新应用焦点高亮 */
     private ViewTreeObserver.OnGlobalLayoutListener layoutListener;
+    /** 当前活跃的 Overlay 根 View（弹窗焦点守门用），避免每次按键全量查找 */
+    private View activeOverlayRoot;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,6 +89,8 @@ public class MainActivity extends NavigationActivity {
                 if (newFocus != null) {
                     applyFocusToCurrentFocusView();
                 }
+                // 弹窗焦点守门：焦点被 Overlay 遮罩捕获或落在弹窗外时，强制拉回弹窗内容
+                guardOverlayFocus(newFocus);
             }
         };
         rootView.getViewTreeObserver().addOnGlobalFocusChangeListener(focusListener);
@@ -91,6 +100,8 @@ public class MainActivity extends NavigationActivity {
             @Override
             public void onGlobalLayout() {
                 applyFocusSelectorToTree(rootView);
+                // 布局变化后重新探测活跃 Overlay，弹窗打开/关闭时更新缓存
+                updateActiveOverlayRoot();
             }
         };
         rootView.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
@@ -100,6 +111,7 @@ public class MainActivity extends NavigationActivity {
             @Override
             public void run() {
                 applyFocusSelectorToTree(rootView);
+                updateActiveOverlayRoot();
             }
         }, 1000);
     }
@@ -297,6 +309,183 @@ public class MainActivity extends NavigationActivity {
     public boolean onKeyLongPress(int keyCode, KeyEvent event) {
         sendKeyToJS(keyCode, event, true);
         return true;
+    }
+
+    /**
+     * 探测当前屏幕上活跃的 Overlay 根容器并缓存。
+     * Overlay（弹窗）打开/关闭时会触发全局布局变化，这里重新查找，
+     * 供 guardOverlayFocus 使用，避免每次按键都全量遍历视图树。
+     */
+    private void updateActiveOverlayRoot() {
+        try {
+            View content = getWindow().getDecorView().findViewById(android.R.id.content);
+            if (content == null) {
+                activeOverlayRoot = null;
+                return;
+            }
+            View newRoot = findOverlayRoot(content);
+            View oldRoot = activeOverlayRoot;
+            activeOverlayRoot = newRoot;
+
+            // 弹窗刚打开时（新的 Overlay 出现），若当前焦点仍在弹窗外，
+            // 强制把焦点拉进弹窗内容，确保 D-pad 可以立刻操作弹窗。
+            // 注意：只有内容可聚焦时才拉入，避免纯展示弹窗抢焦点。
+            if (newRoot != null && newRoot != oldRoot && hasFocusableContent(newRoot)) {
+                final View overlay = newRoot;
+                final View anchor = findFirstFocusableInOverlay(overlay);
+                if (anchor != null && anchor != getCurrentFocus() && !isInsideOverlay(getCurrentFocus())) {
+                    // 延迟到布局稳定后再请求焦点，确保锚点 View 已 attached
+                    mainHandler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                if (overlay.isShown() && !anchor.hasFocus() && !isInsideOverlay(getCurrentFocus())) {
+                                    anchor.requestFocus();
+                                }
+                            } catch (Throwable t) {
+                                // ignore
+                            }
+                        }
+                    }, 80);
+                }
+            }
+        } catch (Throwable t) {
+            activeOverlayRoot = null;
+        }
+    }
+
+    /**
+     * 在视图树中查找最顶层的 Overlay 根容器（nativeID == tv_overlay_root）。
+     * Overlay 嵌套时返回最内层（最后挂载的）那个。
+     */
+    private View findOverlayRoot(View view) {
+        if (view == null) return null;
+        Object tag = view.getTag(com.facebook.react.R.id.view_tag_native_id);
+        View found = null;
+        if (TV_OVERLAY_ROOT_ID.equals(tag)) {
+            found = view;
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            int count = vg.getChildCount();
+            for (int i = 0; i < count; i++) {
+                View child = findOverlayRoot(vg.getChildAt(i));
+                if (child != null) found = child;
+            }
+        }
+        return found;
+    }
+
+    /**
+     * 判断给定 View 是否在某个 Overlay 根容器内。
+     */
+    private boolean isInsideOverlay(View view) {
+        if (view == null || activeOverlayRoot == null) return false;
+        if (activeOverlayRoot == view) return true;
+        View v = view;
+        while (v.getParent() != null && v.getParent() instanceof View) {
+            v = (View) v.getParent();
+            if (v == activeOverlayRoot) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 判断给定 View 是否是 Overlay 遮罩层（nativeID == tv_overlay_mask）。
+     */
+    private boolean isOverlayMask(View view) {
+        if (view == null) return false;
+        Object tag = view.getTag(com.facebook.react.R.id.view_tag_native_id);
+        return TV_OVERLAY_MASK_ID.equals(tag);
+    }
+
+    /**
+     * 弹窗焦点守门：防止 D-pad 焦点穿透 Overlay 弹窗到底层页面。
+     *
+     * 当焦点落在 Overlay 遮罩层上时，说明焦点试图离开弹窗内容，
+     * 此时需要把焦点移回弹窗内第一个可聚焦元素（锚点）。
+     *
+     * 注意：JS 侧 Overlay 遮罩的 onFocus 中通过 focusAnchorRef 回移锚点，
+     * 但 RN 0.73 中普通 View 的 ref.focus() 只走 TextInput 命令、对非输入框无效，
+     * 因此必须在原生层强制 requestFocus，才能可靠地把焦点拉回弹窗内容。
+     */
+    private void guardOverlayFocus(View newFocus) {
+        try {
+            if (newFocus == null) return;
+            if (activeOverlayRoot == null || !activeOverlayRoot.isShown()) return;
+
+            // 焦点落在遮罩层上：拉回弹窗内第一个可聚焦元素
+            if (isOverlayMask(newFocus)) {
+                View anchor = findFirstFocusableInOverlay(activeOverlayRoot);
+                if (anchor != null && anchor != newFocus) {
+                    anchor.requestFocus();
+                }
+                return;
+            }
+
+            // 焦点离开 Overlay（穿透到底层页面）：拉回弹窗内容
+            // 注意：仅当弹窗内容自身没有任何可聚焦元素时才允许穿透，
+            // 避免焦点永远困在弹窗里（如纯展示弹窗）。
+            if (!isInsideOverlay(newFocus) && hasFocusableContent(activeOverlayRoot)) {
+                View anchor = findFirstFocusableInOverlay(activeOverlayRoot);
+                if (anchor != null && anchor != newFocus) {
+                    anchor.requestFocus();
+                }
+            }
+        } catch (Throwable t) {
+            // ignore：不影响正常运行
+        }
+    }
+
+    /**
+     * 判断 Overlay 内容区域（不含遮罩层）是否有可聚焦元素。
+     * 遮罩层即使嵌套在 TouchableWithoutFeedback 内也会被排除。
+     */
+    private boolean hasFocusableContent(View view) {
+        if (view == null) return false;
+        // 遮罩层不算内容
+        if (isOverlayMask(view)) return false;
+        if (view.isFocusable()) return true;
+        if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            int count = vg.getChildCount();
+            for (int i = 0; i < count; i++) {
+                if (hasFocusableContent(vg.getChildAt(i))) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 在 Overlay 内查找第一个可聚焦元素（跳过遮罩层）。
+     */
+    private View findFirstFocusableInOverlay(View overlayRoot) {
+        if (overlayRoot == null) return null;
+        ViewGroup vg = (ViewGroup) overlayRoot;
+        int count = vg.getChildCount();
+        for (int i = 0; i < count; i++) {
+            View child = vg.getChildAt(i);
+            if (isOverlayMask(child)) continue;
+            View found = findFirstFocusable(child);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private View findFirstFocusable(View view) {
+        if (view == null) return null;
+        // 遮罩层本身是可聚焦的，但要排除，避免把焦点拉回遮罩
+        if (isOverlayMask(view)) return null;
+        if (view.isFocusable()) return view;
+        if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            int count = vg.getChildCount();
+            for (int i = 0; i < count; i++) {
+                View found = findFirstFocusable(vg.getChildAt(i));
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     /**

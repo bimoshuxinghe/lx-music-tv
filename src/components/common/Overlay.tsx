@@ -96,13 +96,19 @@ export default forwardRef<OverlayType, OverlayProps>(({
     }
 
     const portalContent = (
-      <View style={[StyleSheet.absoluteFill, { zIndex, elevation: zIndex, backgroundColor: bgColor }]}>
+      <View nativeID="tv_overlay_root" style={[StyleSheet.absoluteFill, { zIndex, elevation: zIndex, backgroundColor: bgColor }]}>
         <TouchableWithoutFeedback onPress={handleBgClose}>
           <View
+            nativeID="tv_overlay_mask"
             focusable={true}
             onFocus={() => {
-              // 遮罩层捕获焦点时，将焦点移回弹窗内容，避免焦点穿透到底层页面
-              focusAnchorRef?.current?.focus?.()
+              // 遮罩层捕获焦点时，将焦点移回弹窗内容，避免焦点穿透到底层页面。
+              // 注意：RN 0.73 中普通 View 的 ref.focus() 只走 TextInput 命令，对非输入框无效，
+              // 这里通过 setNativeProps 触发原生 hasTVPreferredFocus（requestFocus）作为兜底，
+              // 同时 MainActivity 也会拦截遮罩焦点并强制回移弹窗锚点。
+              const node = focusAnchorRef?.current as any
+              node?.setNativeProps?.({ hasTVPreferredFocus: true })
+              node?.focus?.()
             }}
             style={{ flex: 1, paddingTop: statusBarPadding ? statusBarHeight : 0 }}
           />
