@@ -566,5 +566,6 @@
   "setting_basic_theme_apply_wallpaper": "应用壁纸",
   "setting_basic_theme_apply_wallpaper_success": "壁纸已应用",
   "setting_basic_theme_wallpaper_mask": "壁纸遮罩不透明度",
-  "setting_basic_theme_wallpaper_mask_tip": "遮罩为黑色，值越大壁纸越暗、文字越清晰"
+  "setting_basic_theme_wallpaper_mask_tip": "遮罩为黑色，值越大壁纸越暗、文字越清晰",
+  "ai_search_not_found": "未找到「{name}」的歌曲"
 }

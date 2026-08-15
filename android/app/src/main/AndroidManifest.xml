@@ -10,6 +10,10 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- 夏杰语音对接权限 -->
+    <uses-permission android:name="com.peasun.aispeech.aiopen.control" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SHORT_SERVICE" />
 
     <!-- TV 应用声明：声明为 leanback（Android TV）设备可用，required=false 表示也允许在手机上安装 -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -100,6 +104,25 @@
           <data android:pathSuffix=".lxmc" tools:targetApi="s" />
         </intent-filter>
       </activity>
+
+      <!-- 夏杰语音音乐指令接收服务 -->
+      <service
+        android:name=".aiSharjeck.AISharjeckService"
+        android:exported="true"
+        android:foregroundServiceType="shortService">
+        <intent-filter>
+          <action android:name="com.peasun.aispeech.action.music" />
+        </intent-filter>
+      </service>
+
+      <!-- 夏杰语音注册请求接收器 -->
+      <receiver
+        android:name=".aiSharjeck.AISharjeckReceiver"
+        android:exported="true">
+        <intent-filter>
+          <action android:name="com.peasun.aispeech.action.app.register.require" />
+        </intent-filter>
+      </receiver>
 
       <!-- Define a FileProvider for API24+ -->
       <!-- note this is the authority name used by other modules like rn-fetch-blob, easy to have conflicts -->

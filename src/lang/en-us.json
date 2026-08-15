@@ -566,5 +566,6 @@
   "setting_basic_theme_apply_wallpaper": "Apply wallpaper",
   "setting_basic_theme_apply_wallpaper_success": "Wallpaper applied",
   "setting_basic_theme_wallpaper_mask": "Wallpaper mask opacity",
-  "setting_basic_theme_wallpaper_mask_tip": "The mask is black; higher value darkens the wallpaper and improves text readability"
+  "setting_basic_theme_wallpaper_mask_tip": "The mask is black; higher value darkens the wallpaper and improves text readability",
+  "ai_search_not_found": "No song found for \"{name}\""
 }

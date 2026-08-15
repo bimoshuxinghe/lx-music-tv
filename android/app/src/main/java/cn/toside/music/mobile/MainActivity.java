@@ -12,6 +12,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 
+import android.content.Intent;
+
+import cn.toside.music.mobile.aiSharjeck.AISharjeckService;
+import cn.toside.music.mobile.aiSharjeck.AISharjeckUtils;
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactInstanceManager;
 import com.facebook.react.ReactNativeHost;
@@ -61,6 +65,9 @@ public class MainActivity extends NavigationActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // 初始化夏杰语音对接：注册音乐应用、启动接收服务、动态注册接收器
+        initAISharjeck();
 
         // 获取焦点选择器资源 ID
         focusSelectorResId = getResources().getIdentifier(
@@ -119,6 +126,7 @@ public class MainActivity extends NavigationActivity {
 
     @Override
     protected void onDestroy() {
+        AISharjeckUtils.unregisterDynamicReceiver(this);
         if (focusListener != null || layoutListener != null) {
             View rootView = getWindow().getDecorView().findViewById(android.R.id.content);
             if (rootView != null) {
@@ -592,6 +600,27 @@ public class MainActivity extends NavigationActivity {
                     .emit(TV_REMOTE_EVENT, params);
         } catch (Throwable t) {
             // ignore：JS 侧未就绪或未注册监听器时静默失败
+        }
+    }
+
+    /**
+     * 初始化夏杰语音对接：
+     *  - 向夏杰语音注册音乐应用
+     *  - 启动指令接收服务
+     *  - 动态注册广播接收器（应用运行时接收 register.require）
+     */
+    private void initAISharjeck() {
+        try {
+            AISharjeckUtils.registerApp(this);
+            AISharjeckUtils.registerDynamicReceiver(this);
+            Intent serviceIntent = new Intent(this, AISharjeckService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+        } catch (Exception e) {
+            // 忽略：夏杰语音未安装或注册失败不影响主流程
         }
     }
 

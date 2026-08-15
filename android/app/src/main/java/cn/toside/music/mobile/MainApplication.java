@@ -9,6 +9,7 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
 import com.reactnativenavigation.react.NavigationReactNativeHost;
 import java.util.List;
 
+import cn.toside.music.mobile.aiSharjeck.AISharjeckPackage;
 import cn.toside.music.mobile.cache.CachePackage;
 import cn.toside.music.mobile.crypto.CryptoPackage;
 import cn.toside.music.mobile.lyric.LyricPackage;
@@ -37,6 +38,7 @@ public class MainApplication extends NavigationApplication {
           packages.add(new CryptoPackage());
           packages.add(new UserApiPackage());
           packages.add(new WallpaperPackage());
+          packages.add(new AISharjeckPackage());
           return packages;
         }
 

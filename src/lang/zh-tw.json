@@ -566,5 +566,6 @@
   "setting_basic_theme_apply_wallpaper": "套用桌布",
   "setting_basic_theme_apply_wallpaper_success": "桌布已套用",
   "setting_basic_theme_wallpaper_mask": "桌布遮罩不透明度",
-  "setting_basic_theme_wallpaper_mask_tip": "遮罩為黑色，數值越大桌布越暗、文字越清晰"
+  "setting_basic_theme_wallpaper_mask_tip": "遮罩為黑色，數值越大桌布越暗、文字越清晰",
+  "ai_search_not_found": "找不到「{name}」的歌曲"
 }
