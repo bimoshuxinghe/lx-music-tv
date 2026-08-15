@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import MusicList, { type MusicListType } from './MusicList'
 import PageContent from '@/components/PageContent'
@@ -8,6 +8,9 @@ import { COMPONENT_IDS } from '@/config/constant'
 import { type ListInfoItem } from '@/store/songlist/state'
 import PlayerBar from '@/components/player/PlayerBar'
 import { ListInfoContext } from './state'
+import { useBackHandler } from '@/utils/hooks/useBackHandler'
+import { pop } from '@/navigation'
+import commonState from '@/store/common/state'
 
 
 export default ({ componentId, info }: { componentId: string, info: ListInfoItem }) => {
@@ -27,6 +30,16 @@ export default ({ componentId, info }: { componentId: string, info: ListInfoItem
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useBackHandler(useCallback(() => {
+    if (commonState.componentIds.playDetail) {
+      void pop(commonState.componentIds.playDetail)
+    } else {
+      void pop(componentId)
+    }
+    return true
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []))
 
 
   return (

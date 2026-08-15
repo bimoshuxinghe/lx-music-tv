@@ -1,17 +1,11 @@
-import ChoosePath, { type ChoosePathType } from '@/components/common/ChoosePath'
 import { USER_API_SOURCE_FILE_EXT_RXP } from '@/config/constant'
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useImperativeHandle } from 'react'
 import { handleImportLocalFile } from './action'
-
-export interface SelectInfo {
-  // listInfo: LX.List.MyListInfo
-  // selectedList: LX.Music.MusicInfo[]
-  // index: number
-  // listId: string
-  // single: boolean
-  action: 'import'
-}
-const initSelectInfo = {}
+import { selectFile, unlink } from '@/utils/fs'
+import { toast, TEMP_FILE_PATH } from '@/utils/tools'
+import { useI18n } from '@/lang'
+import { log } from '@/utils/log'
+import { useUnmounted } from '@/utils/hooks'
 
 // export interface ScriptImportExportProps {
 //   // onRename: (listInfo: LX.List.UserListInfo) => void
@@ -26,73 +20,29 @@ export interface ScriptImportExportType {
 }
 
 export default forwardRef<ScriptImportExportType, {}>((props, ref) => {
-  const [visible, setVisible] = useState(false)
-  const choosePathRef = useRef<ChoosePathType>(null)
-  const selectInfoRef = useRef<SelectInfo>((initSelectInfo as SelectInfo))
-  // console.log('render import export')
+  const t = useI18n()
+  const isUnmounted = useUnmounted()
 
   useImperativeHandle(ref, () => ({
     import() {
-      selectInfoRef.current = {
-        action: 'import',
-      }
-      if (visible) {
-        choosePathRef.current?.show({
-          title: global.i18n.t('user_api_import_desc'),
-          dirOnly: false,
-          filter: USER_API_SOURCE_FILE_EXT_RXP,
-        })
-      } else {
-        setVisible(true)
-        requestAnimationFrame(() => {
-          choosePathRef.current?.show({
-            title: global.i18n.t('user_api_import_desc'),
-            dirOnly: false,
-            filter: USER_API_SOURCE_FILE_EXT_RXP,
-          })
-        })
-      }
+      void selectFile({
+        extTypes: USER_API_SOURCE_FILE_EXT_RXP,
+        toPath: TEMP_FILE_PATH,
+      }).then((file) => {
+        if (!file) return
+        if (!USER_API_SOURCE_FILE_EXT_RXP.some(ext => file.data.toLowerCase().endsWith('.' + ext))) {
+          toast(t('storage_file_no_match'), 'long')
+          void unlink(file.data)
+          return
+        }
+        handleImportLocalFile(file.data)
+      }).catch(err => {
+        if (isUnmounted.current) return
+        log.warn('open document failed: ' + err.message)
+        toast(t('storage_file_no_select_file_failed_tip'), 'long')
+      })
     },
-    // export(listInfo, index) {
-    //   selectInfoRef.current = {
-    //     action: 'export',
-    //     listInfo,
-    //     index,
-    //   }
-    //   if (visible) {
-    //     choosePathRef.current?.show({
-    //       title: global.i18n.t('list_export_part_desc'),
-    //       dirOnly: true,
-    //       filter: LXM_FILE_EXT_RXP,
-    //     })
-    //   } else {
-    //     setVisible(true)
-    //     requestAnimationFrame(() => {
-    //       choosePathRef.current?.show({
-    //         title: global.i18n.t('list_export_part_desc'),
-    //         dirOnly: true,
-    //         filter: LXM_FILE_EXT_RXP,
-    //       })
-    //     })
-    //   }
-    // },
   }))
 
-
-  const onConfirmPath = (path: string) => {
-    switch (selectInfoRef.current.action) {
-      case 'import':
-        handleImportLocalFile(path)
-        break
-      // case 'export':
-      //   handleExport(selectInfoRef.current.listInfo, path)
-      //   break
-    }
-  }
-
-  return (
-    visible
-      ? <ChoosePath ref={choosePathRef} onConfirm={onConfirmPath} />
-      : null
-  )
+  return null
 })
