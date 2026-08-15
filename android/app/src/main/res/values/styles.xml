@@ -4,6 +4,8 @@
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!-- 开屏启动画面：深色背景 + 居中显示启动图 -->
+        <item name="android:windowBackground">@drawable/launch_screen_bg</item>
     </style>
 
 </resources>
