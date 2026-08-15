@@ -107,6 +107,16 @@ declare global {
       'theme.fontShadow': boolean
 
       /**
+       * 用户上传的自定义壁纸（私有目录内的文件路径，空字符串表示未设置）
+       */
+      'theme.customBgImage': string
+
+      /**
+       * 用户选择的主文字颜色（空字符串表示使用主题默认颜色）
+       */
+      'theme.fontColor': string
+
+      /**
        * 启动时自动播放歌曲
        */
       'player.startupAutoPlay': boolean

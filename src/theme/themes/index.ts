@@ -68,13 +68,19 @@ export const buildActiveThemeColors = (theme: LX.Theme): LX.ActiveTheme => {
     theme.config.extInfo[k] = theme.config.themeColors[v.replace(varColorRxp, '$1') as ColorsKey]
   }
 
+  const customBgImage = settingState.setting['theme.customBgImage']
+  const fontColor = settingState.setting['theme.fontColor']
+
+  let bgImageSource: ImageSourcePropType | undefined = bgImg
+  if (customBgImage) bgImageSource = { uri: customBgImage } as ImageSourcePropType
+
   return {
     id: theme.id,
     name: theme.name,
     isDark: theme.isDark,
     ...theme.config.themeColors,
     ...theme.config.extInfo,
-    'c-font': theme.config.themeColors['c-850'],
+    'c-font': fontColor || theme.config.themeColors['c-850'],
     'c-font-label': theme.config.themeColors['c-450'],
     'c-primary-font': theme.config.themeColors['c-primary'],
     'c-primary-font-hover': theme.config.themeColors['c-primary-alpha-300'],
@@ -92,7 +98,7 @@ export const buildActiveThemeColors = (theme: LX.Theme): LX.ActiveTheme => {
     'c-list-header-border-bottom': theme.config.themeColors['c-primary-alpha-900'],
     'c-content-background': theme.config.themeColors['c-primary-light-1000'],
     'c-border-background': theme.config.themeColors['c-primary-light-100-alpha-700'],
-    'bg-image': bgImg,
+    'bg-image': bgImageSource,
   } as const
 }
 
