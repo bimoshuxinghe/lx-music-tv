@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.FocusFinder;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -204,6 +205,11 @@ public class MainActivity extends NavigationActivity {
 
         // D-pad / OK / Enter 键：多次延迟检查当前焦点（覆盖 Modal/Dialog 中的 View）
         if (isDpadOrOkKey(keyCode)) {
+            // 若焦点位于活跃 Overlay 弹窗内，将 D-pad 焦点导航限制在弹窗子树内，
+            // 防止遥控器焦点穿透弹窗落到底层页面
+            if (navigateFocusInsideOverlay(keyCode)) {
+                return true;
+            }
             // 多次检查，确保 Dialog/Modal 中的 View 也能被捕获
             // （Dialog 有独立 Window，Activity 的视图树遍历不到）
             long[] delays = { 30, 80, 150, 300 };
@@ -397,6 +403,54 @@ public class MainActivity extends NavigationActivity {
         if (view == null) return false;
         Object tag = view.getTag(com.facebook.react.R.id.view_tag_native_id);
         return TV_OVERLAY_MASK_ID.equals(tag);
+    }
+
+    /**
+     * 将 D-pad 方向键的焦点导航限制在活跃 Overlay 弹窗子树内。
+     *
+     * 当焦点位于弹窗内容内时，Android 默认的 focusSearch 基于几何位置，
+     * 弹窗内容较小（如排行榜下拉菜单）时，方向键可能直接跳到弹窗外的元素，
+     * 导致焦点穿透。这里用 FocusFinder 限定在 overlay 子树内查找下一个
+     * 可聚焦元素，找不到则保持当前焦点（不穿透）。
+     *
+     * @return true 表示已消费该按键（焦点位于弹窗内时）
+     */
+    private boolean navigateFocusInsideOverlay(int keyCode) {
+        try {
+            if (activeOverlayRoot == null || !activeOverlayRoot.isShown()) return false;
+            View currentFocus = getCurrentFocus();
+            if (currentFocus == null || !isInsideOverlay(currentFocus)) return false;
+
+            int direction = 0;
+            switch (keyCode) {
+                case KeyEvent.KEYCODE_DPAD_UP:
+                    direction = View.FOCUS_UP;
+                    break;
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                    direction = View.FOCUS_DOWN;
+                    break;
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                    direction = View.FOCUS_LEFT;
+                    break;
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    direction = View.FOCUS_RIGHT;
+                    break;
+                default:
+                    // OK / Enter 键不参与焦点导航
+                    return false;
+            }
+
+            // 在 overlay 子树内查找下一个可聚焦元素
+            View next = FocusFinder.getInstance().findNextFocus((ViewGroup) activeOverlayRoot, currentFocus, direction);
+            if (next != null && next != currentFocus && !isOverlayMask(next)) {
+                next.requestFocus();
+            }
+            // 无论是否找到，都消费掉 D-pad 按键，防止系统 focusSearch 把焦点带出弹窗
+            return true;
+        } catch (Throwable t) {
+            // ignore：不影响正常运行
+            return false;
+        }
     }
 
     /**

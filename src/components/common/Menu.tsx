@@ -136,7 +136,7 @@ const Menu = ({
   // console.log(menuItemStyle)
   return (
     <View style={{ ...styles.menu, ...menuStyle, backgroundColor: theme['c-content-background'] }}>
-      <Animated.ScrollView keyboardShouldPersistTaps={'always'}>
+      <Animated.ScrollView keyboardShouldPersistTaps={'always'} focusable={false}>
         {
           menus.map((menu, index) => (
             menu.disabled
