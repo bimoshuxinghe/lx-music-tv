@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 开屏启动画面：深色背景 + 启动图居中按比例显示，避免不同屏幕比例下拉伸变形 -->
+<!-- 开屏启动画面：深色背景 + 启动图铺满整个窗口。
+     minSdk 21 不支持 bitmap scaleType，应用强制横屏且 TV 屏幕与图片同为 16:9，
+     fill 铺满即等比例显示，不会变形 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
@@ -9,6 +11,6 @@
     <item>
         <bitmap
             android:src="@drawable/launch_screen"
-            android:gravity="center" />
+            android:gravity="fill" />
     </item>
 </layer-list>
