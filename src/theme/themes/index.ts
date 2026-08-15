@@ -72,7 +72,7 @@ export const buildActiveThemeColors = (theme: LX.Theme): LX.ActiveTheme => {
   const fontColor = settingState.setting['theme.fontColor']
 
   let bgImageSource: ImageSourcePropType | undefined = bgImg
-  if (customBgImage) bgImageSource = { uri: customBgImage } as ImageSourcePropType
+  if (customBgImage) bgImageSource = { uri: customBgImage.startsWith('/') ? `file://${customBgImage}` : customBgImage } as ImageSourcePropType
 
   return {
     id: theme.id,

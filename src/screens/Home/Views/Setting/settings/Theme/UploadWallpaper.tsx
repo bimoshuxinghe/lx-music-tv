@@ -3,6 +3,7 @@ import { ScrollView, View } from 'react-native'
 
 import Button from '../../components/Button'
 import Text from '@/components/common/Text'
+import Image from '@/components/common/Image'
 import Dialog, { type DialogType } from '@/components/common/Dialog'
 import { useI18n } from '@/lang'
 import { updateSetting } from '@/core/common'
@@ -112,14 +113,33 @@ export default memo(() => {
     requestAnimationFrame(refreshTheme)
   }, [customBgImage])
 
+  const handleApplyWallpaper = useCallback(() => {
+    requestAnimationFrame(refreshTheme)
+    toast(t('setting_basic_theme_apply_wallpaper_success'), 'short')
+  }, [t])
+
   return (
     <View style={styles.content}>
       <Text size={13} color={theme['c-font-label']}>{t('setting_basic_theme_upload_wallpaper_tip')}</Text>
+      {
+        customBgImage
+          ? (
+              <View style={styles.previewWrap}>
+                <Image url={customBgImage} style={styles.preview} resizeMode="cover" />
+              </View>
+            )
+          : null
+      }
       <View style={styles.btnGroup}>
         <Button onPress={() => { void handlePushWallpaper() }}>{t('setting_basic_theme_upload_wallpaper')}</Button>
         {
           customBgImage
-            ? <Button onPress={() => { void handleClearWallpaper() }}>{t('setting_basic_theme_clear_wallpaper')}</Button>
+            ? (
+                <>
+                  <Button onPress={handleApplyWallpaper}>{t('setting_basic_theme_apply_wallpaper')}</Button>
+                  <Button onPress={() => { void handleClearWallpaper() }}>{t('setting_basic_theme_clear_wallpaper')}</Button>
+                </>
+              )
             : null
         }
       </View>
@@ -150,6 +170,15 @@ const styles = createStyle({
   btnGroup: {
     flexDirection: 'row',
     marginTop: 8,
+  },
+  previewWrap: {
+    marginTop: 8,
+    alignItems: 'flex-start',
+  },
+  preview: {
+    width: 240,
+    height: 135,
+    borderRadius: 4,
   },
   modalContent: {
     paddingLeft: 15,

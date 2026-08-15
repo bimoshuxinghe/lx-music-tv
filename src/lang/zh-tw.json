@@ -562,5 +562,7 @@
   "version_title_latest": "🎉 目前版本已是最新 🎊",
   "version_title_new": "🌟 發現新版本 🌟",
   "version_title_unknown": "❓ 獲取最新版本資訊失敗 ❓",
-  "version_title_update": "🚀 軟體更新 🚀"
+  "version_title_update": "🚀 軟體更新 🚀",
+  "setting_basic_theme_apply_wallpaper": "套用桌布",
+  "setting_basic_theme_apply_wallpaper_success": "桌布已套用"
 }
