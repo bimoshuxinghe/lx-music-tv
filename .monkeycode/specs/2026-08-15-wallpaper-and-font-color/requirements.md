@@ -16,17 +16,19 @@ Created: 2026-08-15
 
 ## Requirements
 
-### Requirement 1: 上传壁纸
+### Requirement 1: 扫码推送壁纸
 
-**User Story:** AS 用户, I want 在设置中上传一张图片作为全局背景, so that 应用界面显示我选择的壁纸。
+**User Story:** AS 用户, I want 通过手机扫码推送一张图片作为全局背景, so that 在 TV 上不便操作文件选择时仍可设置壁纸。
 
 #### Acceptance Criteria
 
-1. WHEN 用户在设置-主题界面点击"上传壁纸", 系统 SHALL 弹出文件选择器且仅允许选择图片类型文件。
-2. WHEN 用户选择一个图片文件, 系统 SHALL 将所选图片复制到应用私有目录。
-3. WHEN 图片复制成功, 系统 SHALL 将该图片设置为全局背景并立即生效。
-4. WHEN 全局背景已设置, 系统 SHALL 在所有页面以 cover 模式展示该背景。
-5. IF 用户取消文件选择或选择失败, 系统 SHALL 保持原有背景不变。
+1. WHEN 用户在设置-主题界面点击"推送壁纸", 系统 SHALL 启动本地 HTTP 服务并生成二维码。
+2. WHEN 系统生成二维码, 系统 SHALL 将局域网访问地址（`http://<IP>:<端口>/`）编码进二维码。
+3. WHEN 手机扫描二维码, 系统 SHALL 在手机浏览器展示上传页面。
+4. WHEN 用户通过手机上传图片, 系统 SHALL 将图片保存到应用私有目录。
+5. WHEN 图片保存成功, 系统 SHALL 将该图片设置为全局背景并立即生效。
+6. WHEN 全局背景已设置, 系统 SHALL 在所有页面以 cover 模式展示该背景。
+7. IF 手机上传失败或传输中断, 系统 SHALL 保持原有背景不变。
 
 ### Requirement 2: 文字颜色选择
 
