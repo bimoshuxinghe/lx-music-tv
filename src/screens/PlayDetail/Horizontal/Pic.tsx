@@ -61,7 +61,7 @@ export default memo(({ componentId }: { componentId: string }) => {
 
   return (
     <View style={{ ...styles.container, height: contentHeight }}>
-      <View style={{ ...styles.content, elevation: animated ? 3 : 0 }}>
+      <View style={styles.content}>
         <Animated.View style={{ width: imgWidth, height: imgWidth, transform: [{ rotate }] }}>
           <Image url={pic} nativeID={NAV_SHEAR_NATIVE_IDS.playDetail_pic} style={{
             width: imgWidth,

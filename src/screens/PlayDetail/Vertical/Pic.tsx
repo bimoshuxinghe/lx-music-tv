@@ -64,7 +64,7 @@ export default ({ componentId }: { componentId: string }) => {
 
   return (
     <View style={styles.container}>
-      <View style={{ ...styles.content, elevation: animated ? 3 : 0 }}>
+      <View style={styles.content}>
         <Animated.View style={{ width: style.width, height: style.height, transform: [{ rotate }] }}>
           <Image url={pic} nativeID={NAV_SHEAR_NATIVE_IDS.playDetail_pic} style={style} />
         </Animated.View>
