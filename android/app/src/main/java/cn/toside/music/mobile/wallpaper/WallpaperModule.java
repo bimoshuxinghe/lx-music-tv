@@ -190,10 +190,14 @@ public class WallpaperModule extends ReactContextBaseJavaModule {
       sendWallpaperUploadedEvent(target.getAbsolutePath());
     } catch (JSONException e) {
       Log.e(TAG, "parse body failed", e);
-      writeResponse(out, "application/json", "{\"status\":\"error\",\"message\":\"invalid body\"}");
+      try {
+        writeResponse(out, "application/json", "{\"status\":\"error\",\"message\":\"invalid body\"}");
+      } catch (IOException ignored) {}
     } catch (Exception e) {
       Log.e(TAG, "save file failed", e);
-      writeResponse(out, "application/json", "{\"status\":\"error\",\"message\":\"save failed\"}");
+      try {
+        writeResponse(out, "application/json", "{\"status\":\"error\",\"message\":\"save failed\"}");
+      } catch (IOException ignored) {}
     }
   }
 
