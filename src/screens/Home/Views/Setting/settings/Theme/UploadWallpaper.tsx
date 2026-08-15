@@ -5,6 +5,7 @@ import Button from '../../components/Button'
 import Text from '@/components/common/Text'
 import Image from '@/components/common/Image'
 import Dialog, { type DialogType } from '@/components/common/Dialog'
+import Slider, { type SliderProps } from '@/components/common/Slider'
 import { useI18n } from '@/lang'
 import { updateSetting } from '@/core/common'
 import { useSettingValue } from '@/store/setting/hook'
@@ -118,15 +119,48 @@ export default memo(() => {
     toast(t('setting_basic_theme_apply_wallpaper_success'), 'short')
   }, [t])
 
+  const maskOpacity = useSettingValue('theme.wallpaperMask')
+  const [sliderMask, setSliderMask] = useState(maskOpacity)
+  const [isSliding, setSliding] = useState(false)
+  const handleSlidingStart: SliderProps['onSlidingStart'] = () => {
+    setSliding(true)
+  }
+  const handleMaskChange: SliderProps['onValueChange'] = value => {
+    setSliderMask(value)
+  }
+  const handleMaskComplete: SliderProps['onSlidingComplete'] = value => {
+    setSliding(false)
+    if (maskOpacity == value) return
+    updateSetting({ 'theme.wallpaperMask': value })
+    requestAnimationFrame(refreshTheme)
+  }
+
   return (
     <View style={styles.content}>
       <Text size={13} color={theme['c-font-label']}>{t('setting_basic_theme_upload_wallpaper_tip')}</Text>
       {
         customBgImage
           ? (
-              <View style={styles.previewWrap}>
-                <Image url={customBgImage} style={styles.preview} resizeMode="cover" />
-              </View>
+              <>
+                <View style={styles.previewWrap}>
+                  <Image url={customBgImage} style={styles.preview} resizeMode="cover" />
+                </View>
+                <View style={styles.maskWrap}>
+                  <Text size={13} color={theme['c-font-label']}>{t('setting_basic_theme_wallpaper_mask')}: {isSliding ? sliderMask : maskOpacity}</Text>
+                  <View style={styles.maskSlider}>
+                    <Slider
+                      minimumValue={0}
+                      maximumValue={100}
+                      onSlidingComplete={handleMaskComplete}
+                      onValueChange={handleMaskChange}
+                      onSlidingStart={handleSlidingStart}
+                      step={1}
+                      value={maskOpacity}
+                    />
+                  </View>
+                  <Text size={12} color={theme['c-600']}>{t('setting_basic_theme_wallpaper_mask_tip')}</Text>
+                </View>
+              </>
             )
           : null
       }
@@ -179,6 +213,12 @@ const styles = createStyle({
     width: 240,
     height: 135,
     borderRadius: 4,
+  },
+  maskWrap: {
+    marginTop: 8,
+  },
+  maskSlider: {
+    marginTop: 4,
   },
   modalContent: {
     paddingLeft: 15,

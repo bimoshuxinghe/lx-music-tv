@@ -112,6 +112,11 @@ declare global {
       'theme.customBgImage': string
 
       /**
+       * 自定义壁纸的黑色遮罩不透明度（0-100，0 表示全透明，100 表示全黑）
+       */
+      'theme.wallpaperMask': number
+
+      /**
        * 用户选择的主文字颜色（空字符串表示使用主题默认颜色）
        */
       'theme.fontColor': string

@@ -45,28 +45,6 @@ export type LocalTheme = typeof themes[number]
 type ColorsKey = keyof LX.Theme['config']['themeColors']
 type ExtInfoKey = keyof LX.Theme['config']['extInfo']
 const varColorRxp = /^var\((.+)\)$/
-const rgbaColorRxp = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)$/
-const hexColorRxp = /^#([0-9a-fA-F]{6})$/
-export const colorToRGBA = (color: string, alpha: number): string => {
-  let r = 255
-  let g = 255
-  let b = 255
-  const rgbaMatch = color.match(rgbaColorRxp)
-  if (rgbaMatch) {
-    r = Number(rgbaMatch[1])
-    g = Number(rgbaMatch[2])
-    b = Number(rgbaMatch[3])
-  } else {
-    const hexMatch = color.match(hexColorRxp)
-    if (hexMatch) {
-      const n = parseInt(hexMatch[1], 16)
-      r = (n >> 16) & 255
-      g = (n >> 8) & 255
-      b = n & 255
-    }
-  }
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
 export const buildActiveThemeColors = (theme: LX.Theme): LX.ActiveTheme => {
   let bgImg: ImageSourcePropType | undefined
   if (theme.isCustom) {
@@ -120,7 +98,9 @@ export const buildActiveThemeColors = (theme: LX.Theme): LX.ActiveTheme => {
     'c-list-header-border-bottom': theme.config.themeColors['c-primary-alpha-900'],
     'c-content-background': theme.config.themeColors['c-primary-light-1000'],
     'c-border-background': theme.config.themeColors['c-primary-light-100-alpha-700'],
-    'c-main-background': customBgImage ? colorToRGBA(theme.config.themeColors['c-main-background'] ?? 'rgba(255,255,255,1)', 0.3) : theme.config.themeColors['c-main-background'],
+    'c-main-background': customBgImage
+      ? `rgba(0, 0, 0, ${Math.min(1, Math.max(0, (settingState.setting['theme.wallpaperMask'] ?? 0) / 100))})`
+      : theme.config.themeColors['c-main-background'],
     'bg-image': bgImageSource,
   } as const
 }

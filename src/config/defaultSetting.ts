@@ -65,6 +65,7 @@ const defaultSetting: LX.AppSetting = {
   'theme.dynamicBg': false,
   'theme.fontShadow': false,
   'theme.customBgImage': '',
+  'theme.wallpaperMask': 0,
   'theme.fontColor': '',
 }
 
