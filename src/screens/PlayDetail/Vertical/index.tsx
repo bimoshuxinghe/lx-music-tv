@@ -1,16 +1,19 @@
 import { memo, useState, useRef, useMemo, useEffect } from 'react'
 import { View, AppState } from 'react-native'
 
-import Header from './components/Header'
+import Header, { HEADER_HEIGHT } from './components/Header'
 // import Aside from './components/Aside'
 // import Main from './components/Main'
 import Player from './Player'
 import PagerView, { type PagerViewOnPageSelectedEvent } from 'react-native-pager-view'
 import Pic from './Pic'
 import Lyric from './Lyric'
+import Btn from './components/Btn'
+import SettingPopup, { type SettingPopupType } from '../components/SettingPopup'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import { createStyle } from '@/utils/tools'
 import { useSettingValue } from '@/store/setting/hook'
+import { useStatusbarHeight } from '@/store/common/hook'
 // import { useTheme } from '@/store/theme/hook'
 
 const LyricPage = ({ activeIndex }: { activeIndex: number }) => {
@@ -30,9 +33,15 @@ const LyricPage = ({ activeIndex }: { activeIndex: number }) => {
 // global.iskeep = false
 export default memo(({ componentId }: { componentId: string }) => {
   // const theme = useTheme()
+  const statusBarHeight = useStatusbarHeight()
   const [pageIndex, setPageIndex] = useState(0)
   const showLyricRef = useRef(false)
   const isLyricFullScreen = useSettingValue('playDetail.style.lyricFullScreen')
+  const popupRef = useRef<SettingPopupType>(null)
+
+  const showSetting = () => {
+    popupRef.current?.show()
+  }
 
   const onPageSelected = ({ nativeEvent }: PagerViewOnPageSelectedEvent) => {
     setPageIndex(nativeEvent.position)
@@ -68,7 +77,15 @@ export default memo(({ componentId }: { componentId: string }) => {
       {!isLyricFullScreen && <Header />}
       <View style={styles.container}>
         {isLyricFullScreen
-          ? <Lyric fullScreen />
+          ? (
+            <>
+              <Lyric fullScreen />
+              <View style={{ ...styles.fullScreenBtnWrap, top: statusBarHeight + 8 }}>
+                <Btn icon="slider" onPress={showSetting} />
+              </View>
+              <SettingPopup ref={popupRef} direction="vertical" />
+            </>
+          )
           : (
             <PagerView
               onPageSelected={onPageSelected}
@@ -100,6 +117,13 @@ const styles = createStyle({
   },
   pagerView: {
     flex: 1,
+  },
+  fullScreenBtnWrap: {
+    position: 'absolute',
+    right: 8,
+    zIndex: 10,
+    height: HEADER_HEIGHT,
+    width: HEADER_HEIGHT,
   },
   // pageIndicator: {
   //   flex: 0,

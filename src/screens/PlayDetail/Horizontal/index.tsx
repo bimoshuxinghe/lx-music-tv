@@ -1,10 +1,12 @@
-import { memo, useEffect } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { View, AppState } from 'react-native'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import StatusBar from '@/components/common/StatusBar'
 import MoreBtn from './MoreBtn'
 
 import Header from './components/Header'
+import Btn from './components/Btn'
+import SettingPopup, { type SettingPopupType } from '../components/SettingPopup'
 import { setComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
 import PageContent from '@/components/PageContent'
@@ -22,6 +24,11 @@ import { useSettingValue } from '@/store/setting/hook'
 export default memo(({ componentId }: { componentId: string }) => {
   const statusBarHeight = useStatusbarHeight()
   const isLyricFullScreen = useSettingValue('playDetail.style.lyricFullScreen')
+  const popupRef = useRef<SettingPopupType>(null)
+
+  const showSetting = () => {
+    popupRef.current?.show()
+  }
 
   useEffect(() => {
     setComponentId(COMPONENT_IDS.playDetail, componentId)
@@ -65,6 +72,14 @@ export default memo(({ componentId }: { componentId: string }) => {
         <View style={[styles.right, isLyricFullScreen && styles.rightFullScreen]}>
           <Lyric fullScreen={isLyricFullScreen} />
         </View>
+        {isLyricFullScreen && (
+          <>
+            <View style={{ ...styles.fullScreenBtnWrap, top: statusBarHeight }}>
+              <Btn icon="slider" onPress={showSetting} />
+            </View>
+            <SettingPopup ref={popupRef} position="left" direction="horizontal" />
+          </>
+        )}
       </View>
     </PageContent>
   )
@@ -96,6 +111,11 @@ const styles = createStyle({
   },
   rightFullScreen: {
     width: '100%',
+  },
+  fullScreenBtnWrap: {
+    position: 'absolute',
+    right: 8,
+    zIndex: 10,
   },
   controlBtn: {
     flex: 1,

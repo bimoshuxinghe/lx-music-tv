@@ -77,15 +77,17 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
   const textAlign = useSettingValue('playDetail.style.align')
   const animatedStyle = useSettingValue('playDetail.style.lrcAnimatedStyle')
   const lrcColor = useSettingValue('playDetail.style.lrcColor')
-  // 全屏歌词：放大基础字号，并加大活跃行对比
+  // 全屏歌词：逐字歌词保持原字号，其他歌词（普通歌词、翻译）放大
   const fsScale = fullScreen ? 1.6 : 1
   const activeScale = fullScreen ? 1.6 : ACTIVE_FONT_SCALE
   const inactiveScale = fullScreen ? 0.8 : INACTIVE_FONT_SCALE
   const baseSize = (lrcFontSize / 10) * fsScale
 
   const isActiveLine = activeLine == lineNum
-  const size = baseSize * (isActiveLine ? activeScale : inactiveScale)
-  const lineHeight = setSpText(size) * (fullScreen ? 1.5 : 1.3)
+  const wordSize = (lrcFontSize / 10) * ACTIVE_FONT_SCALE
+  const normalSize = baseSize * (isActiveLine ? activeScale : inactiveScale)
+  const wordLineHeight = setSpText(wordSize) * (fullScreen ? 1.5 : 1.3)
+  const normalLineHeight = setSpText(normalSize) * (fullScreen ? 1.5 : 1.3)
 
   // 逐字歌词：激活行按播放进度逐字高亮
   const wordAlign = textAlign === 'left' ? 'flex-start' : textAlign === 'right' ? 'flex-end' : 'center'
@@ -159,23 +161,23 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
         {isActiveLine && words && words.length ? (
           <View style={[styles.wordLine, { justifyContent: wordAlign }]}>
             {words.map((w, i) => (
-              <LrcWord key={i} word={w} active={wordProgress >= w.time} size={size} color={colors[0]} lineHeight={lineHeight} />
+              <LrcWord key={i} word={w} active={wordProgress >= w.time} size={wordSize} color={colors[0]} lineHeight={wordLineHeight} />
             ))}
           </View>
         ) : (
           <AnimatedColorText style={{
             ...styles.lineText,
             textAlign,
-            lineHeight,
-          }} textBreakStrategy="simple" color={colors[0]} opacity={colors[2]} size={size}>{line.text}</AnimatedColorText>
+            lineHeight: normalLineHeight,
+          }} textBreakStrategy="simple" color={colors[0]} opacity={colors[2]} size={normalSize}>{line.text}</AnimatedColorText>
         )}
         {
           line.extendedLyrics.map((lrc, index) => {
             return (<AnimatedColorText style={{
               ...styles.lineTranslationText,
               textAlign,
-              lineHeight: lineHeight * 0.8,
-            }} textBreakStrategy="simple" key={index} color={colors[1]} opacity={colors[2]} size={size * 0.8}>{lrc}</AnimatedColorText>)
+              lineHeight: normalLineHeight * 0.8,
+            }} textBreakStrategy="simple" key={index} color={colors[1]} opacity={colors[2]} size={normalSize * 0.8}>{lrc}</AnimatedColorText>)
           })
         }
       </Animated.View>

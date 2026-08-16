@@ -13,6 +13,7 @@ import cn.toside.music.mobile.aiSharjeck.AISharjeckPackage;
 import cn.toside.music.mobile.cache.CachePackage;
 import cn.toside.music.mobile.crypto.CryptoPackage;
 import cn.toside.music.mobile.lyric.LyricPackage;
+import cn.toside.music.mobile.sourcePush.SourcePushPackage;
 import cn.toside.music.mobile.userApi.UserApiPackage;
 import cn.toside.music.mobile.utils.UtilsPackage;
 import cn.toside.music.mobile.wallpaper.WallpaperPackage;
@@ -39,6 +40,7 @@ public class MainApplication extends NavigationApplication {
           packages.add(new UserApiPackage());
           packages.add(new WallpaperPackage());
           packages.add(new AISharjeckPackage());
+          packages.add(new SourcePushPackage());
           return packages;
         }
 
