@@ -241,12 +241,13 @@ public class SourcePushModule extends ReactContextBaseJavaModule {
     "#btn:disabled{background:#bbb}" +
     "</style></head><body><div class=\"box\"><h1>推送音源文件到电视</h1>" +
     "<p class=\"tip\">选择要导入的音源脚本文件（.js），推送后电视将自动导入并应用</p>" +
-    "<input type=\"file\" id=\"fileInput\" accept=\".js,.lxmc,application/javascript,text/javascript,text/plain\">" +
+    "<input type=\"file\" id=\"fileInput\">" +
     "<button id=\"btn\">确认推送</button><div id=\"status\"></div></div><script>" +
     "var file=null,reader=new FileReader();var fileInput=document.getElementById('fileInput');" +
     "var btn=document.getElementById('btn');var statusEl=document.getElementById('status');" +
     "fileInput.addEventListener('change',function(e){" +
     "file=e.target.files[0];if(!file){return;}if(file.size>9*1024*1024){statusEl.textContent='文件不能超过 9MB';return;}" +
+    "if(!/\\.(js|lxmc)$/i.test(file.name)){fileInput.value='';statusEl.textContent='请选择 .js 或 .lxmc 音源文件';return;}" +
     "reader.onload=function(ev){btn.style.display='block';statusEl.textContent='已选择: '+file.name;};" +
     "reader.readAsText(file);});" +
     "btn.addEventListener('click',function(){" +
