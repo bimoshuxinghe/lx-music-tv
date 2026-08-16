@@ -4,7 +4,7 @@ import { View } from 'react-native'
 
 import SubTitle from '../../components/SubTitle'
 import CheckBox from '@/components/common/CheckBox'
-import { createStyle, tipDialog } from '@/utils/tools'
+import { createStyle, tipDialog, confirmDialog } from '@/utils/tools'
 import { setApiSource } from '@/core/apiSource'
 import { useI18n } from '@/lang'
 import apiSourceInfo from '@/utils/musicSdk/api-source-info'
@@ -16,7 +16,9 @@ import ScriptImportOnline, { type ScriptImportOnlineType } from './UserApiEditMo
 import Text from '@/components/common/Text'
 import { useTheme } from '@/store/theme/hook'
 import { state } from '@/store/userApi'
-// import { importUserApi, removeUserApi } from '@/core/userApi'
+import { removeUserApi } from '@/core/userApi'
+import { IconMaterial } from '@/components/common/Icon'
+import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 
 const apiSourceList = apiSourceInfo.map(api => ({
   id: api.id,
@@ -30,18 +32,25 @@ const useActive = (id: string) => {
   return isActive
 }
 
-const Item = ({ id, name, desc, statusLabel, change }: {
+const Item = ({ id, name, desc, statusLabel, change, onDelete }: {
   id: string
   name: string
   desc?: string
   statusLabel?: string
   change: (id: string) => void
+  onDelete?: (id: string) => void
 }) => {
   const isActive = useActive(id)
   const theme = useTheme()
   // const [toggleCheckBox, setToggleCheckBox] = useState(false)
   return (
-    <CheckBox marginBottom={5} check={isActive} onChange={() => { change(id) }} need>
+    <CheckBox marginBottom={5} check={isActive} onChange={() => { change(id) }} need rightComponent={onDelete
+      ? (
+        <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(id)}>
+          <IconMaterial name="delete" size={17} color={theme['c-600']} />
+        </TouchableOpacity>
+      )
+      : undefined}>
       <Text style={styles.sourceLabel}>
         {name}
         {
@@ -118,6 +127,23 @@ export default memo(() => {
     scriptImportOnlineRef.current?.show()
   }
 
+  const handleRemoveUserApi = useCallback(async(id: string) => {
+    const api = userApiListRaw.find(item => item.id == id)
+    const confirm = await confirmDialog({
+      message: t('user_api_remove_tip', { name: api?.name ?? '' }),
+      cancelButtonText: t('cancel_button_text_2'),
+      confirmButtonText: t('confirm_button_text'),
+      bgClose: false,
+    })
+    if (!confirm) return
+    await removeUserApi([id])
+    if (id == apiSourceSetting) {
+      let backApiId = apiSourceList.find(api => !api.disabled)?.id
+      if (!backApiId) backApiId = state.list.find(item => item.id != id)?.id
+      setApiSourceId(backApiId ?? '')
+    }
+  }, [apiSourceSetting, setApiSourceId, t, userApiListRaw])
+
   return (
     <SubTitle title={t('setting_basic_source')}>
       <View style={styles.list}>
@@ -125,7 +151,7 @@ export default memo(() => {
           list.map(({ id, name }) => <Item name={name} id={id} key={id} change={setApiSourceId} />)
         }
         {
-          userApiList.map(({ id, name, desc, statusLabel }) => <Item name={name} desc={desc} statusLabel={statusLabel} id={id} key={id} change={setApiSourceId} />)
+          userApiList.map(({ id, name, desc, statusLabel }) => <Item name={name} desc={desc} statusLabel={statusLabel} id={id} key={id} change={setApiSourceId} onDelete={handleRemoveUserApi} />)
         }
       </View>
       <View style={styles.importBtns}>
@@ -169,5 +195,10 @@ const styles = createStyle({
   },
   sourceStatus: {
 
+  },
+  deleteBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
   },
 })

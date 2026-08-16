@@ -19,12 +19,13 @@ export interface CheckBoxProps {
   size?: number
   marginRight?: number
   marginBottom?: number
+  rightComponent?: React.ReactNode
 
   helpTitle?: string
   helpDesc?: string
 }
 
-export default ({ check, label, children, onChange, helpTitle, helpDesc, disabled = false, need = false, marginRight = 0, marginBottom = 0, size = 1 }: CheckBoxProps) => {
+export default ({ check, label, children, onChange, helpTitle, helpDesc, disabled = false, need = false, marginRight = 0, marginBottom = 0, size = 1, rightComponent }: CheckBoxProps) => {
   const theme = useTheme()
   const [isDisabled, setDisabled] = useState(false)
   const tintColors = {
@@ -78,6 +79,7 @@ export default ({ check, label, children, onChange, helpTitle, helpDesc, disable
           <View style={contentStyle}>
             <CheckBox status={check ? 'checked' : 'unchecked'} disabled={true} tintColors={disabledTintColors} size={size} />
             <View style={labelStyle}>{label ? <Text style={styles.name} color={theme['c-500']} size={15 * size}>{label}</Text> : children}</View>
+            {rightComponent}
             {helpComponent}
           </View>
         )
@@ -88,6 +90,7 @@ export default ({ check, label, children, onChange, helpTitle, helpDesc, disable
             <View style={labelStyle} focusable={false}>
               {label ? <Text style={styles.name} size={15 * size}>{label}</Text> : children}
             </View>
+            {rightComponent}
             {helpComponent}
           </View>
         )
