@@ -231,26 +231,30 @@ public class SourcePushModule extends ReactContextBaseJavaModule {
   private static final String PUSH_PAGE =
     "<!DOCTYPE html><html lang=\"zh\"><head><meta charset=\"utf-8\">" +
     "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
-    "<title>推送音源</title><style>" +
+    "<title>推送音源文件</title><style>" +
     "body{font-family:sans-serif;background:#f5f5f5;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:16px}" +
-    "h1{font-size:20px;color:#333;margin:0 0 4px}.box{background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.1);max-width:680px;width:100%;text-align:center}" +
+    "h1{font-size:20px;color:#333;margin:0 0 4px}.box{background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.1);max-width:440px;width:100%;text-align:center}" +
     ".tip{font-size:14px;color:#888;margin:4px 0 16px}" +
-    "#scriptInput{width:100%;height:300px;padding:12px;border:2px solid #ddd;border-radius:8px;box-sizing:border-box;background:#fafafa;font-size:13px;resize:vertical;font-family:monospace}" +
+    "#fileInput{width:100%;padding:14px;border:2px dashed #bbb;border-radius:8px;box-sizing:border-box;background:#fafafa;font-size:14px}" +
     "#status{margin-top:14px;font-size:15px;color:#666;min-height:22px;word-break:break-all}" +
-    "#btn{margin-top:16px;width:100%;padding:12px;border:none;border-radius:8px;background:#4a90d9;color:#fff;font-size:16px;cursor:pointer}" +
+    "#btn{display:none;margin-top:16px;width:100%;padding:12px;border:none;border-radius:8px;background:#4a90d9;color:#fff;font-size:16px;cursor:pointer}" +
     "#btn:disabled{background:#bbb}" +
-    "</style></head><body><div class=\"box\"><h1>推送音源到电视</h1>" +
-    "<p class=\"tip\">将音源脚本内容粘贴到下方，点击推送，电视将自动导入并应用</p>" +
-    "<textarea id=\"scriptInput\" placeholder=\"在此粘贴音源脚本内容...\"></textarea>" +
-    "<button id=\"btn\">推送音源</button><div id=\"status\"></div></div><script>" +
-    "var btn=document.getElementById('btn');var statusEl=document.getElementById('status');var input=document.getElementById('scriptInput');" +
+    "</style></head><body><div class=\"box\"><h1>推送音源文件到电视</h1>" +
+    "<p class=\"tip\">选择要导入的音源脚本文件（.js），推送后电视将自动导入并应用</p>" +
+    "<input type=\"file\" id=\"fileInput\" accept=\".js,.lxmc,application/javascript,text/javascript,text/plain\">" +
+    "<button id=\"btn\">确认推送</button><div id=\"status\"></div></div><script>" +
+    "var file=null,reader=new FileReader();var fileInput=document.getElementById('fileInput');" +
+    "var btn=document.getElementById('btn');var statusEl=document.getElementById('status');" +
+    "fileInput.addEventListener('change',function(e){" +
+    "file=e.target.files[0];if(!file){return;}if(file.size>9*1024*1024){statusEl.textContent='文件不能超过 9MB';return;}" +
+    "reader.onload=function(ev){btn.style.display='block';statusEl.textContent='已选择: '+file.name;};" +
+    "reader.readAsText(file);});" +
     "btn.addEventListener('click',function(){" +
-    "var script=input.value;if(!script||!script.trim()){statusEl.textContent='请先粘贴音源脚本内容';return;}" +
+    "if(!file){return;}var script=reader.result;if(!script||!script.trim()){statusEl.textContent='文件内容为空';return;}" +
     "btn.disabled=true;statusEl.textContent='推送中...';" +
     "fetch('/push',{method:'POST',headers:{'Content-Type':'application/json'}," +
     "body:JSON.stringify({script:script})}).then(function(r){return r.json();}).then(function(res){" +
-    "if(res.status==='ok'){statusEl.textContent='推送成功，电视已自动应用音源';input.value='';}else{statusEl.textContent='推送失败: '+(res.message||'未知错误');}" +
-    "btn.disabled=false;" +
+    "if(res.status==='ok'){statusEl.textContent='推送成功，电视已自动导入并应用音源';btn.disabled=false;}else{statusEl.textContent='推送失败: '+(res.message||'未知错误');btn.disabled=false;}" +
     "}).catch(function(err){statusEl.textContent='推送失败，请检查网络';btn.disabled=false;});});" +
     "</script></body></html>";
 }
