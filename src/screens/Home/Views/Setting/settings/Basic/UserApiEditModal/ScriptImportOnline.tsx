@@ -6,7 +6,7 @@ import { createStyle, toast } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
 import { useI18n } from '@/lang'
 import { handleImportScript } from './action'
-import { getWIFIIPV4Address } from '@/utils/nativeModules/utils'
+import { getIPV4Address } from '@/utils/nativeModules/utils'
 import { startSourcePushServer, stopSourcePushServer, onSourcePushed } from '@/utils/nativeModules/sourcePush'
 import qrcode from 'qrcode-generator'
 import { log } from '@/utils/log'
@@ -55,7 +55,7 @@ export default forwardRef<ScriptImportOnlineType, {}>((props, ref) => {
   const [qrUrl, setQrUrl] = useState('')
 
   useEffect(() => {
-    const remove = onSourcePushed(script => {
+    const handleImportContent = (script: string) => {
       if (script.length > 9_000_000) {
         toast(t('user_api_import_failed_tip', { message: 'Too large script' }), 'long')
         return
@@ -64,6 +64,18 @@ export default forwardRef<ScriptImportOnlineType, {}>((props, ref) => {
       setTimeout(() => {
         dialogRef.current?.setVisible(false)
       }, 800)
+    }
+    const remove = onSourcePushed(({ script, url }) => {
+      if (script) {
+        handleImportContent(script)
+      } else if (url) {
+        void fetch(url).then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          return res.text()
+        }).then(handleImportContent).catch((err: any) => {
+          toast(t('user_api_import_failed_tip', { message: err.message ?? String(err) }), 'long')
+        })
+      }
     })
     return () => {
       remove()
@@ -79,7 +91,7 @@ export default forwardRef<ScriptImportOnlineType, {}>((props, ref) => {
     if (isStarting.current) return
     isStarting.current = true
     try {
-      const ip = await getWIFIIPV4Address()
+      const ip = await getIPV4Address()
       if (!ip || ip == '0.0.0.0') {
         toast(t('user_api_btn_import_online_qr_no_wifi'), 'long')
         return

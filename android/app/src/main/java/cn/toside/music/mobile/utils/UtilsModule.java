@@ -29,6 +29,10 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 
 import java.io.File;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -228,6 +232,49 @@ public class UtilsModule extends ReactContextBaseJavaModule {
     }).start();
   }
 
+  /**
+   Gets the device's LAN IPv4 address, prefers WiFi interface, falls back to any
+   connected interface (ethernet etc.)
+   @return LAN IPv4 if connected, else '0.0.0.0'
+   */
+  @ReactMethod
+  public void getIPV4Address(final Promise promise) {
+    new Thread(new Runnable() {
+      public void run() {
+        try {
+          WifiManager wifi = (WifiManager) reactContext.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+          WifiInfo info = wifi.getConnectionInfo();
+          int ipAddress = info.getIpAddress();
+          if (ipAddress != 0) {
+            @SuppressLint("DefaultLocale") String stringip = String.format("%d.%d.%d.%d", (ipAddress & 0xff), (ipAddress >> 8 & 0xff),
+              (ipAddress >> 16 & 0xff), (ipAddress >> 24 & 0xff));
+            promise.resolve(stringip);
+            return;
+          }
+        } catch (Exception ignored) {}
+        try {
+          Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+          while (interfaces.hasMoreElements()) {
+            NetworkInterface networkInterface = interfaces.nextElement();
+            if (networkInterface.isLoopback() || !networkInterface.isUp()) continue;
+            Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
+            while (addresses.hasMoreElements()) {
+              InetAddress addr = addresses.nextElement();
+              if (addr instanceof Inet4Address) {
+                String ip = addr.getHostAddress();
+                if (ip != null && !ip.startsWith("127.")) {
+                  promise.resolve(ip);
+                  return;
+                }
+              }
+            }
+          }
+        } catch (Exception ignored) {}
+        promise.resolve("0.0.0.0");
+      }
+    }).start();
+  }
+
   // https://stackoverflow.com/a/26117646
   @ReactMethod
   public void getDeviceName(final Promise promise) {
@@ -239,6 +286,7 @@ public class UtilsModule extends ReactContextBaseJavaModule {
       promise.resolve(capitalize(manufacturer) + " " + model);
     }
   }
+
   private String capitalize(String s) {
     if (s == null || s.isEmpty()) {
       return "";

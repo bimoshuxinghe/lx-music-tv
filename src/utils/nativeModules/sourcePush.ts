@@ -8,10 +8,13 @@ export const stopSourcePushServer = () => {
   SourcePushModule.stop()
 }
 
-export const onSourcePushed = (handler: (script: string) => void): () => void => {
+export const onSourcePushed = (handler: (data: { script?: string, url?: string }) => void): () => void => {
   const eventEmitter = new NativeEventEmitter(SourcePushModule)
   const eventListener = eventEmitter.addListener('source-pushed', event => {
-    handler(event.script)
+    handler({
+      script: event.script,
+      url: event.url,
+    })
   })
 
   return () => {

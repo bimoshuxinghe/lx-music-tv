@@ -158,13 +158,23 @@ public class SourcePushModule extends ReactContextBaseJavaModule {
         return;
       }
       JSONObject json = new JSONObject(new String(body, StandardCharsets.UTF_8));
+      String url = json.optString("url", "").trim();
+      if (!url.isEmpty()) {
+        if (!(url.startsWith("http://") || url.startsWith("https://"))) {
+          writeResponse(out, "application/json", "{\"status\":\"error\",\"message\":\"invalid url\"}");
+          return;
+        }
+        writeResponse(out, "application/json", "{\"status\":\"ok\"}");
+        sendSourcePushedEvent("", url);
+        return;
+      }
       String script = json.optString("script", "");
       if (script.isEmpty()) {
         writeResponse(out, "application/json", "{\"status\":\"error\",\"message\":\"empty script\"}");
         return;
       }
       writeResponse(out, "application/json", "{\"status\":\"ok\"}");
-      sendSourcePushedEvent(script);
+      sendSourcePushedEvent(script, "");
     } catch (JSONException e) {
       Log.e(TAG, "parse body failed", e);
       try {
@@ -178,9 +188,10 @@ public class SourcePushModule extends ReactContextBaseJavaModule {
     }
   }
 
-  private void sendSourcePushedEvent(String script) {
+  private void sendSourcePushedEvent(String script, String url) {
     WritableMap params = Arguments.createMap();
     params.putString("script", script);
+    params.putString("url", url);
     reactContext
       .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
       .emit(EVENT_SOURCE_PUSHED, params);
@@ -239,10 +250,19 @@ public class SourcePushModule extends ReactContextBaseJavaModule {
     "#status{margin-top:14px;font-size:15px;color:#666;min-height:22px;word-break:break-all}" +
     "#btn{display:none;margin-top:16px;width:100%;padding:12px;border:none;border-radius:8px;background:#4a90d9;color:#fff;font-size:16px;cursor:pointer}" +
     "#btn:disabled{background:#bbb}" +
+    "#urlArea{margin-top:20px;border-top:1px dashed #ccc;padding-top:14px}" +
+    "#urlLabel{font-size:13px;color:#666;margin:0 0 8px}" +
+    "#urlInput{width:100%;padding:12px;border:1px solid #bbb;border-radius:8px;box-sizing:border-box;font-size:14px}" +
+    "#urlBtn{width:100%;margin-top:10px;padding:12px;border:none;border-radius:8px;background:#48b06f;color:#fff;font-size:16px;cursor:pointer}" +
+    "#urlBtn:disabled{background:#bbb}" +
     "</style></head><body><div class=\"box\"><h1>推送音源文件到电视</h1>" +
     "<p class=\"tip\">选择要导入的音源脚本文件（.js），推送后电视将自动导入并应用</p>" +
     "<input type=\"file\" id=\"fileInput\">" +
-    "<button id=\"btn\">确认推送</button><div id=\"status\"></div></div><script>" +
+    "<button id=\"btn\">确认推送</button>" +
+    "<div id=\"urlArea\"><label id=\"urlLabel\">或者输入在线音源网址推送</label>" +
+    "<input type=\"text\" id=\"urlInput\" placeholder=\"https://example.com/api.js\">" +
+    "<button id=\"urlBtn\">推送网址</button></div>" +
+    "<div id=\"status\"></div></div><script>" +
     "var file=null,reader=new FileReader();var fileInput=document.getElementById('fileInput');" +
     "var btn=document.getElementById('btn');var statusEl=document.getElementById('status');" +
     "fileInput.addEventListener('change',function(e){" +
@@ -257,5 +277,12 @@ public class SourcePushModule extends ReactContextBaseJavaModule {
     "body:JSON.stringify({script:script})}).then(function(r){return r.json();}).then(function(res){" +
     "if(res.status==='ok'){statusEl.textContent='推送成功，电视已自动导入并应用音源';btn.disabled=false;}else{statusEl.textContent='推送失败: '+(res.message||'未知错误');btn.disabled=false;}" +
     "}).catch(function(err){statusEl.textContent='推送失败，请检查网络';btn.disabled=false;});});" +
+    "var urlInput=document.getElementById('urlInput');var urlBtn=document.getElementById('urlBtn');" +
+    "urlBtn.addEventListener('click',function(){" +
+    "var url=urlInput.value.trim();if(!url){statusEl.textContent='请输入在线音源网址';return;}" +
+    "urlBtn.disabled=true;statusEl.textContent='推送中...';" +
+    "fetch('/push',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url})}).then(function(r){return r.json();}).then(function(res){" +
+    "if(res.status==='ok'){statusEl.textContent='推送成功，电视已自动导入并应用音源';urlBtn.disabled=false;}else{statusEl.textContent='推送失败: '+(res.message||'未知错误');urlBtn.disabled=false;}" +
+    "}).catch(function(err){statusEl.textContent='推送失败，请检查网络';urlBtn.disabled=false;});});" +
     "</script></body></html>";
 }
