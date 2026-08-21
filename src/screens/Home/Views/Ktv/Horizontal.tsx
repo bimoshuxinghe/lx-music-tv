@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, TextInput, ScrollView, type NativeSyntheticEvent, type TextInputSubmitEditingEventData } from 'react-native'
-import Video from 'react-native-video'
+import Video, { SelectedTrackType } from 'react-native-video'
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 import Text from '@/components/common/Text'
 import { Icon } from '@/components/common/Icon'
@@ -23,14 +23,14 @@ interface KtvClass {
   type_id: string
   type_name: string
 }
-// react-native-video 的 onAudioTracks 回调里的单条音轨信息
+// react-native-video 的 onAudioTracks 回调里的单条音轨信息（字段均可选）
 interface KtvAudioTrack {
   index: number
-  title: string
-  language: string
-  type: string
-  bitrate: number
-  selected: boolean
+  title?: string
+  language?: string
+  type?: string
+  bitrate?: number
+  selected?: boolean
 }
 interface KtvPlayerInfo {
   url: string
@@ -69,6 +69,7 @@ export default () => {
   const theme = useTheme()
   const t = useI18n()
   const [keyword, setKeyword] = useState('')
+  const [activeClass, setActiveClass] = useState('')
   const [classes, setClasses] = useState<KtvClass[]>([])
   const [list, setList] = useState<KtvItem[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
@@ -168,13 +169,13 @@ export default () => {
     }
   }, [])
 
-  // 播放队列中第 index 首
-  const playAt = useCallback(async(index: number) => {
-    if (index < 0 || index >= queue.length) return
+  // 播放队列中第 index 首（list 显式传入，避免 setState 闭包读到旧队列）
+  const playAt = useCallback(async(list: KtvItem[], index: number) => {
+    if (index < 0 || index >= list.length) return
     if (loadingRef.current) return
     loadingRef.current = true
     setCurrentIndex(index)
-    const item = queue[index]
+    const item = list[index]
     try {
       const info = await fetchPlayer(item)
       if (!info) {
@@ -191,29 +192,27 @@ export default () => {
     } finally {
       loadingRef.current = false
     }
-  }, [queue, fetchPlayer])
+  }, [fetchPlayer])
 
   // 点歌：加入已点队列（去重）并立即播放
   const orderSong = useCallback(async(item: KtvItem) => {
-    setQueue(q => {
-      const exists = q.findIndex(i => i.vod_id === item.vod_id)
-      if (exists >= 0) {
-        void playAt(exists)
-        return q
-      }
-      const next = [...q, item]
-      void playAt(next.length - 1)
-      return next
-    })
-  }, [playAt])
+    const exists = queue.findIndex(i => i.vod_id === item.vod_id)
+    if (exists >= 0) {
+      void playAt(queue, exists)
+      return
+    }
+    const next = [...queue, item]
+    setQueue(next)
+    void playAt(next, next.length - 1)
+  }, [queue, playAt])
 
   const playNext = useCallback(() => {
-    if (currentIndex < queue.length - 1) void playAt(currentIndex + 1)
-  }, [currentIndex, queue.length, playAt])
+    void playAt(queue, currentIndex + 1)
+  }, [queue, currentIndex, playAt])
 
   const playPrev = useCallback(() => {
-    if (currentIndex > 0) void playAt(currentIndex - 1)
-  }, [currentIndex, playAt])
+    void playAt(queue, currentIndex - 1)
+  }, [queue, currentIndex, playAt])
 
   const replay = useCallback(() => {
     videoRef.current?.seek(0)
@@ -233,23 +232,20 @@ export default () => {
   }, [audioTracks.length])
 
   const onEnd = useCallback(() => {
-    if (currentIndex < queue.length - 1) void playAt(currentIndex + 1)
-  }, [currentIndex, queue.length, playAt])
+    void playAt(queue, currentIndex + 1)
+  }, [queue, currentIndex, playAt])
 
   const removeFromQueue = useCallback((vodId: string) => {
-    setQueue(q => {
-      const idx = q.findIndex(i => i.vod_id === vodId)
-      if (idx < 0) return q
-      const next = q.filter(i => i.vod_id !== vodId)
-      // 修正当前播放指针
-      if (idx < currentIndex) setCurrentIndex(currentIndex - 1)
-      else if (idx === currentIndex) {
-        if (next.length === 0) { setPlayer(null); setCurrentIndex(-1) }
-        else setCurrentIndex(Math.min(currentIndex, next.length - 1))
-      }
-      return next
-    })
-  }, [currentIndex])
+    const idx = queue.findIndex(i => i.vod_id === vodId)
+    if (idx < 0) return
+    const next = queue.filter(i => i.vod_id !== vodId)
+    if (idx < currentIndex) setCurrentIndex(currentIndex - 1)
+    else if (idx === currentIndex) {
+      if (next.length === 0) { setPlayer(null); setCurrentIndex(-1) }
+      else setCurrentIndex(Math.min(currentIndex, next.length - 1))
+    }
+    setQueue(next)
+  }, [queue, currentIndex])
 
   useEffect(() => {
     void loadHome()
@@ -257,6 +253,12 @@ export default () => {
 
   const currentTrackIndex = audioTracks.length ? (audioTracks[trackPos]?.index ?? 0) : 0
   const currentTrackLabel = audioTracks.length ? getTrackLabel(audioTracks[trackPos]) : ''
+  // 关键：source / selectedAudioTrack 必须保持稳定引用，否则进度条每 250ms 触发 re-render 会让 ExoPlayer 反复重载视频
+  const videoSource = useMemo(() => {
+    if (!player) return null
+    return { uri: player.url, ...(player.headers ? { headers: player.headers } : {}) }
+  }, [player])
+  const selectedTrack = useMemo(() => ({ type: SelectedTrackType.INDEX, value: currentTrackIndex }), [currentTrackIndex])
   const progressPct = progress.duration > 0 ? Math.min(100, (progress.time / progress.duration) * 100) : 0
   const fmt = (s: number) => {
     s = Math.max(0, Math.floor(s))
@@ -269,18 +271,18 @@ export default () => {
     void doSearch(e.nativeEvent.text)
   }
 
-  // ===== 视频窗口（小窗 / 全屏共用同一 Video 实例）=====
+  // ===== 视频层（挂在容器根层：小窗铺左列、全屏铺满整页，共用同一 Video 实例不中断播放）=====
   const renderVideo = () => (
-    <View style={fullscreen ? styles.videoBoxFull : styles.videoBoxSmall}>
-      {player ? (
+    <View style={fullscreen ? styles.videoLayerFull : styles.videoLayerSmall} pointerEvents="box-none">
+      {player && videoSource ? (
         <Video
           ref={videoRef}
-          source={{ uri: player.url, ...(player.headers ? { headers: player.headers } : {}) }}
+          source={videoSource}
           style={styles.video}
           resizeMode="contain"
           controls={false}
           paused={paused}
-          selectedAudioTrack={{ type: 'index', value: currentTrackIndex }}
+          selectedAudioTrack={selectedTrack}
           onAudioTracks={handleAudioTracks}
           onLoad={(e: any) => setProgress({ time: 0, duration: e?.duration ?? 0 })}
           onProgress={(e: any) => setProgress(p => ({ ...p, time: e?.currentTime ?? p.time }))}
@@ -334,7 +336,7 @@ export default () => {
             <Text style={styles.ctrlText} size={12}>下一首</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.ctrlBtn} onPress={() => setFullscreen(f => !f)} hasTVPreferredFocus={fullscreen}>
-            {fullscreen && <Icon name="exit2" size={18} color="#FFFFFF" />}
+            <Icon name={fullscreen ? 'exit2' : 'add-music'} size={18} color="#FFFFFF" />
             <Text style={styles.ctrlText} size={12}>{fullscreen ? '退出' : '全屏'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.ctrlBtn} onPress={() => setPaused(p => !p)}>
@@ -360,7 +362,7 @@ export default () => {
         {queue.length == 0 && <Text style={styles.queueEmpty} size={13}>还没有已点歌曲</Text>}
         {queue.map((item, i) => (
           <View key={`q_${item.vod_id}_${i}`} style={{ ...styles.queueItem, ...(i == currentIndex ? { borderLeftColor: GOLD, borderLeftWidth: 3 } : {}) }}>
-            <TouchableOpacity style={{ flexGrow: 1, flexShrink: 1 }} onPress={() => { void playAt(i) }}>
+            <TouchableOpacity style={{ flexGrow: 1, flexShrink: 1 }} onPress={() => { void playAt(queue, i) }}>
               <Text style={styles.queueName} size={14} numberOfLines={1}>{i == currentIndex ? '▶ ' : `${i + 1}. `}{item.vod_name}</Text>
               {(item.vod_singer || item.vod_actor) && <Text style={styles.queueSinger} size={11} numberOfLines={1}>{item.vod_singer || item.vod_actor}</Text>}
             </TouchableOpacity>
@@ -376,6 +378,9 @@ export default () => {
   // ===== 主体：左视频 + 右内容（点歌机分栏）=====
   return (
     <View style={styles.container}>
+      {/* 视频层（absolute：小窗覆盖左列、全屏覆盖整页） */}
+      {renderVideo()}
+
       {/* 顶部栏 */}
       <View style={styles.topBar}>
         <Icon name="add-music" size={22} color={ACCENT_RED} />
@@ -398,9 +403,9 @@ export default () => {
       </View>
 
       <View style={styles.splitRow}>
-        {/* 左列：视频小窗 + 当前歌信息 */}
+        {/* 左列：与小窗视频层对齐的占位 + 当前歌信息 */}
         <View style={styles.leftCol}>
-          {renderVideo()}
+          <View style={styles.videoSlot} />
           {player && (
             <View style={styles.nowPlaying}>
               <Text style={styles.nowPlayingName} size={15} numberOfLines={1}>{player.name}</Text>
@@ -519,15 +524,19 @@ const styles = createStyle({
     flex: 1,
     flexDirection: 'column',
   },
-  // 视频窗口
-  videoBoxSmall: {
-    width: '100%',
+  // 视频层（挂在容器根层）
+  videoLayerSmall: {
+    position: 'absolute',
+    top: 56,
+    left: 16,
+    width: '38%',
     aspectRatio: 16 / 9,
+    zIndex: 5,
     backgroundColor: '#000000',
     borderRadius: 8,
     overflow: 'hidden',
   },
-  videoBoxFull: {
+  videoLayerFull: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -535,6 +544,12 @@ const styles = createStyle({
     bottom: 0,
     zIndex: 50,
     backgroundColor: '#000000',
+  },
+  // 左列占位：与小窗视频层完全对齐（同 top/宽高）
+  videoSlot: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    marginBottom: 4,
   },
   video: {
     position: 'absolute',

@@ -4,6 +4,7 @@ import Search from '../Views/Search'
 import SongList from '../Views/SongList'
 import Mylist from '../Views/Mylist'
 import Leaderboard from '../Views/Leaderboard'
+import Ktv from '../Views/Ktv'
 import Setting from '../Views/Setting'
 import commonState, { type InitState as CommonState } from '@/store/common/state'
 import { createStyle } from '@/utils/tools'
@@ -183,13 +184,15 @@ const viewMap = {
   nav_songlist: 1,
   nav_love: 2,
   nav_top: 3,
-  nav_setting: 4,
+  nav_ktv: 4,
+  nav_setting: 5,
 }
 const indexMap = [
   'nav_search',
   'nav_songlist',
   'nav_love',
   'nav_top',
+  'nav_ktv',
   'nav_setting',
 ] as const
 
@@ -285,6 +288,9 @@ const Main = () => {
       </View>
       <View collapsable={false} key="nav_top" style={styles.pageStyle}>
         <LeaderboardPage />
+      </View>
+      <View collapsable={false} key="nav_ktv" style={styles.pageStyle}>
+        <Ktv />
       </View>
       <View collapsable={false} key="nav_setting" style={styles.pageStyle}>
         <SettingPage />

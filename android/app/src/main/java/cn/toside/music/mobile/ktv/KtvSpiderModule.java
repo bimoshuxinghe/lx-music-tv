@@ -26,17 +26,17 @@ import dalvik.system.DexClassLoader;
 /**
  * KTV 桥接模块
  *
- * 通过 catvod 框架（你提供的 spider.zip，内含 wexguard 保护）加载
+ * 通过 catvod 框架（你提供的 spider.jar，内含 wexguard 保护）加载
  * com.github.catvod.spider.MusicAiIKtv，并把其标准方法暴露给 JS：
  *   initSpider / homeContent / categoryContent / searchContent / detailContent / playerContent / destroy
  *
- * spider.zip 放在 android/app/src/main/assets/spider/spider.zip，
+ * spider.jar 放在 android/app/src/main/assets/spider/spider.jar，
  * 运行时拷贝到缓存目录后由 DexClassLoader 加载。DexNative 静态块会自动从
  * assets/wexguard_v8.so（或 v7）解密并 System.load，getLoader 再解密 .guard 得到可实例化类。
  */
 public class KtvSpiderModule extends ReactContextBaseJavaModule {
     private static final String TAG = "KtvSpiderModule";
-    private static final String SPIDER_ASSET = "spider/spider.zip";
+    private static final String SPIDER_ASSET = "spider/spider.jar";
     private static final String SPIDER_ID = "MusicAiIKtv";
 
     private final ReactApplicationContext reactContext;
@@ -61,10 +61,10 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
     public void removeListeners(Integer count) {
     }
 
-    private File ensureSpiderZip() throws Exception {
+    private File ensureSpiderJar() throws Exception {
         File outDir = new File(reactContext.getCacheDir(), "spider");
         if (!outDir.exists()) outDir.mkdirs();
-        File outFile = new File(outDir, "spider.zip");
+        File outFile = new File(outDir, "spider.jar");
         if (outFile.exists() && outFile.length() > 0) return outFile;
         AssetManager am = reactContext.getAssets();
         InputStream in = am.open(SPIDER_ASSET);
@@ -84,12 +84,12 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
                 promise.resolve("already");
                 return;
             }
-            File spiderZip = ensureSpiderZip();
+            File spiderJar = ensureSpiderJar();
             File optDir = new File(reactContext.getCacheDir(), "spider_opt");
             if (!optDir.exists()) optDir.mkdirs();
             ClassLoader parent = getClass().getClassLoader();
             spiderClassLoader = new DexClassLoader(
-                    spiderZip.getAbsolutePath(),
+                    spiderJar.getAbsolutePath(),
                     optDir.getAbsolutePath(),
                     null,
                     parent);
