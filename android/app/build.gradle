@@ -196,6 +196,8 @@ dependencies {
     implementation 'wang.harlon.quickjs:wrapper-android:2.4.0'
     // ZXing core 用于二维码生成（手机扫码导入功能）
     implementation 'com.google.zxing:core:3.5.3'
+    // KTV 曲库 xz 压缩包解压（约 90KB，用于下载 18MB 的 ktv_song.db.xz）
+    implementation 'org.tukaani:xz:1.9'
 
   if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

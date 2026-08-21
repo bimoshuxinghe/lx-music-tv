@@ -8,21 +8,15 @@ import { useTheme } from '@/store/theme/hook'
 import { useI18n } from '@/lang'
 import { createStyle, toast } from '@/utils/tools'
 import { BorderWidths } from '@/theme'
-import { initKtvSpider, ktvHome, ktvCategory, ktvSearch, ktvDetail, ktvPlayer } from '@/utils/nativeModules/ktvSpider'
+import { initKtvSpider, ktvDetail, ktvPlayer } from '@/utils/nativeModules/ktvSpider'
+import {
+  ensureKtvDb, getKtvDbStatus, onKtvDbProgress, KTV_DB_DOWNLOAD_URL,
+  searchKtvSongs, getHotKtvSongs, getKtvSongsByType,
+  getKtvSongsBySinger, getKtvSingers, getKtvCategories,
+  type KtvDbSong, type KtvDbSinger, type KtvDbCategory,
+} from '@/utils/nativeModules/ktvDb'
 
 // ============ 类型 ============
-interface KtvItem {
-  vod_id: string
-  vod_name: string
-  vod_singer?: string
-  vod_actor?: string
-  vod_pic?: string
-  vod_remarks?: string
-}
-interface KtvClass {
-  type_id: string
-  type_name: string
-}
 interface KtvAudioTrack {
   index: number
   title?: string
@@ -37,6 +31,10 @@ interface KtvPlayerInfo {
   singer: string
   headers?: Record<string, string>
 }
+
+type MainTab = 'hot' | 'category' | 'singer'
+
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 // ============ 工具 ============
 // 音轨标题 -> 原唱 / 伴唱
@@ -72,14 +70,34 @@ export default () => {
   // ===== KTV 页面状态 =====
   const [visible, setVisible] = useState(true)
   const [keyword, setKeyword] = useState('')
-  const [activeClass, setActiveClass] = useState('')
-  const [classes, setClasses] = useState<KtvClass[]>([])
-  const [list, setList] = useState<KtvItem[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
+  // 数据库就绪/下载进度
+  const [dbReady, setDbReady] = useState(false)
+  const [dbChecking, setDbChecking] = useState(true)
+  const [dbProgress, setDbProgress] = useState(0)
+  const progressSubRef = useRef<{ remove: () => void } | null>(null)
+
+  // 主 Tab
+  const [activeTab, setActiveTab] = useState<MainTab>('hot')
+
+  // 推荐 / 通用歌曲列表（推荐、分类、歌手、搜索结果都写入这里）
+  const [list, setList] = useState<KtvDbSong[]>([])
+  const [listTitle, setListTitle] = useState('')
+
+  // 分类
+  const [categories, setCategories] = useState<KtvDbCategory[]>([])
+  const [activeCategoryId, setActiveCategoryId] = useState(0)
+  const [activeTypeId, setActiveTypeId] = useState(0)
+
+  // 歌手
+  const [singers, setSingers] = useState<KtvDbSinger[]>([])
+  const [activeLetter, setActiveLetter] = useState('')
+  const [activeSinger, setActiveSinger] = useState<KtvDbSinger | null>(null)
+
   // 已点队列
-  const [queue, setQueue] = useState<KtvItem[]>([])
+  const [queue, setQueue] = useState<KtvDbSong[]>([])
   const [currentIndex, setCurrentIndex] = useState(-1)
   const [showQueue, setShowQueue] = useState(false)
 
@@ -92,68 +110,134 @@ export default () => {
 
   const searchInputRef = useRef<TextInput>(null)
   const videoRef = useRef<any>(null)
-  const initedRef = useRef(false)
+  const spiderInitedRef = useRef(false)
   const loadingRef = useRef(false)
+  const pageRef = useRef(1)
+
+  // ===== 数据库就绪检查 =====
+  useEffect(() => {
+    progressSubRef.current = onKtvDbProgress(({ progress }) => {
+      setDbProgress(Math.round(progress))
+    })
+    void (async() => {
+      setDbChecking(true)
+      try {
+        const st = await getKtvDbStatus()
+        if (st.exists) { setDbReady(true); return }
+        await ensureKtvDb(KTV_DB_DOWNLOAD_URL, false)
+        setDbReady(true)
+      } catch (err) {
+        toast(`曲库下载失败：${(err as Error).message ?? err}`)
+      } finally {
+        setDbChecking(false)
+      }
+    })()
+    return () => { progressSubRef.current?.remove() }
+  }, [])
+
+  // 数据就绪后加载推荐
+  useEffect(() => {
+    if (dbReady) void loadHot(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbReady])
 
   // ===== 数据加载 =====
-  const ensureInit = useCallback(async() => {
-    if (initedRef.current) return
-    initedRef.current = true
+  const loadList = useCallback(async(fn: () => Promise<KtvDbSong[]>, title: string) => {
+    setStatus('loading')
     try {
-      await initKtvSpider()
+      const arr = await fn()
+      setList(arr)
+      setListTitle(title)
+      setStatus('idle')
     } catch (err) {
-      initedRef.current = false
-      throw err
+      setStatus('error')
+      setErrorMsg((err as Error).message ?? String(err))
     }
   }, [])
 
-  const loadHome = useCallback(async() => {
-    setStatus('loading')
-    try {
-      await ensureInit()
-      const json = JSON.parse(await ktvHome())
-      setClasses(Array.isArray(json.class) ? json.class : [])
-      setList(Array.isArray(json.list) ? json.list : [])
-      setStatus('idle')
-    } catch (err) {
-      setStatus('error')
-      setErrorMsg((err as Error).message ?? String(err))
-    }
-  }, [ensureInit])
+  const loadHot = useCallback(async(page: number) => {
+    pageRef.current = page
+    await loadList(() => getHotKtvSongs(page), page > 1 ? `热门推荐 · 第${page}页` : '热门推荐')
+  }, [loadList])
 
-  const loadCategory = useCallback(async(tid: string) => {
+  const loadType = useCallback(async(typeId: number, page: number) => {
+    pageRef.current = page
+    await loadList(() => getKtvSongsByType(typeId, page), `分类歌单`)
+  }, [loadList])
+
+  const loadSingerSongs = useCallback(async(singer: string, page: number) => {
+    pageRef.current = page
+    await loadList(() => getKtvSongsBySinger(singer, page), `歌手 · ${singer}`)
+  }, [loadList])
+
+  const loadSingers = useCallback(async(letter: string) => {
+    setActiveLetter(letter)
+    setActiveSinger(null)
+    setList([])
     setStatus('loading')
     try {
-      await ensureInit()
-      const json = JSON.parse(await ktvCategory(tid, 1))
-      setList(Array.isArray(json.list) ? json.list : [])
+      const arr = await getKtvSingers(letter)
+      setSingers(arr)
       setStatus('idle')
     } catch (err) {
       setStatus('error')
       setErrorMsg((err as Error).message ?? String(err))
     }
-  }, [ensureInit])
+  }, [])
+
+  const loadCategories = useCallback(async() => {
+    try {
+      const arr = await getKtvCategories()
+      setCategories(arr)
+      if (arr.length > 0) {
+        const firstCat = arr[0]
+        setActiveCategoryId(firstCat.id)
+        if (firstCat.types.length > 0) {
+          setActiveTypeId(firstCat.types[0].id)
+          void loadType(firstCat.types[0].id, 1)
+        }
+      }
+    } catch (err) {
+      setStatus('error')
+      setErrorMsg((err as Error).message ?? String(err))
+    }
+  }, [loadType])
+
+  const switchTab = useCallback((tab: MainTab) => {
+    setActiveTab(tab)
+    if (tab === 'hot') void loadHot(1)
+    else if (tab === 'category') {
+      if (categories.length === 0) void loadCategories()
+    } else if (tab === 'singer') {
+      if (singers.length === 0) void loadSingers('')
+    }
+  }, [categories.length, singers.length, loadCategories, loadHot, loadSingers])
 
   const doSearch = useCallback(async(kw: string) => {
     const k = kw.trim()
     if (!k) return
-    setStatus('loading')
-    try {
-      await ensureInit()
-      const json = JSON.parse(await ktvSearch(k))
-      setList(Array.isArray(json.list) ? json.list : [])
-      setStatus('idle')
-    } catch (err) {
-      setStatus('error')
-      setErrorMsg((err as Error).message ?? String(err))
-    }
-  }, [ensureInit])
+    setActiveTab('hot')
+    await loadList(() => searchKtvSongs(k), `搜索 "${k}"`)
+  }, [loadList])
+
+  const loadMore = useCallback(async() => {
+    const next = pageRef.current + 1
+    if (activeTab === 'hot') { pageRef.current = next; await loadHot(next) }
+    else if (activeTab === 'category' && activeTypeId > 0) await loadType(activeTypeId, next)
+    else if (activeTab === 'singer' && activeSinger) await loadSingerSongs(activeSinger.name, next)
+  }, [activeTab, activeTypeId, activeSinger, loadHot, loadType, loadSingerSongs])
 
   // ===== 播放 =====
-  // catvod 多源：vod_play_from 用 $$$ 分隔源；vod_play_url 对应地址 $$$ 分隔源、源内 # 分隔集
-  // playerContent(flag, id, vodUrls) 的 id 必须是【选中那一集的播放地址】
-  const fetchPlayer = useCallback(async(item: KtvItem): Promise<KtvPlayerInfo | null> => {
-    const detailJson = JSON.parse(await ktvDetail([item.vod_id]))
+  const ensureSpider = useCallback(async() => {
+    if (spiderInitedRef.current) return
+    spiderInitedRef.current = true
+    try { await initKtvSpider() } catch (err) { spiderInitedRef.current = false; throw err }
+  }, [])
+
+  // 本地 db 提供歌曲元数据，播放地址由 MusicAiIKtv 按 number 解析生成
+  const fetchPlayer = useCallback(async(item: KtvDbSong): Promise<KtvPlayerInfo | null> => {
+    await ensureSpider()
+    const detailJson = JSON.parse(await ktvDetail([String(item.number)]))
     const detail = Array.isArray(detailJson.list) ? detailJson.list[0] : null
     if (!detail) return null
     const fromParts: string[] = String(detail.vod_play_from ?? '').split('$$$').filter(Boolean)
@@ -166,13 +250,13 @@ export default () => {
     if (!url) return null
     return {
       url,
-      name: item.vod_name || '未知歌曲',
-      singer: item.vod_singer || item.vod_actor || '',
+      name: item.name || '未知歌曲',
+      singer: item.singer || '',
       headers: parseHeaders(playerJson.header),
     }
-  }, [])
+  }, [ensureSpider])
 
-  const playAt = useCallback(async(list: KtvItem[], index: number) => {
+  const playAt = useCallback(async(list: KtvDbSong[], index: number) => {
     if (index < 0 || index >= list.length) return
     if (loadingRef.current) return
     loadingRef.current = true
@@ -197,8 +281,8 @@ export default () => {
   }, [fetchPlayer])
 
   // 点歌：去重入队 + 立即播放
-  const orderSong = useCallback(async(item: KtvItem) => {
-    const exists = queue.findIndex(i => i.vod_id === item.vod_id)
+  const orderSong = useCallback(async(item: KtvDbSong) => {
+    const exists = queue.findIndex(i => i.number === item.number)
     if (exists >= 0) { void playAt(queue, exists); return }
     const next = [...queue, item]
     setQueue(next)
@@ -217,15 +301,19 @@ export default () => {
 
   const switchTrack = useCallback(() => {
     if (audioTracks.length < 2) return
-    setTrackPos(p => (p + 1) % audioTracks.length)
-  }, [audioTracks.length])
+    setTrackPos(p => {
+      const next = (p + 1) % audioTracks.length
+      toast(`已切换：${getTrackLabel(audioTracks[next])}`)
+      return next
+    })
+  }, [audioTracks])
 
   const onEnd = useCallback(() => { void playAt(queue, currentIndex + 1) }, [queue, currentIndex, playAt])
 
-  const removeFromQueue = useCallback((vodId: string) => {
-    const idx = queue.findIndex(i => i.vod_id === vodId)
+  const removeFromQueue = useCallback((number: number) => {
+    const idx = queue.findIndex(i => i.number === number)
     if (idx < 0) return
-    const next = queue.filter(i => i.vod_id !== vodId)
+    const next = queue.filter(i => i.number !== number)
     if (idx < currentIndex) setCurrentIndex(currentIndex - 1)
     else if (idx === currentIndex) {
       if (next.length === 0) { setPlayer(null); setCurrentIndex(-1) }
@@ -233,8 +321,6 @@ export default () => {
     }
     setQueue(next)
   }, [queue, currentIndex])
-
-  useEffect(() => { void loadHome() }, [loadHome])
 
   const currentTrackIndex = audioTracks.length ? (audioTracks[trackPos]?.index ?? 0) : 0
   const currentTrackLabel = audioTracks.length ? getTrackLabel(audioTracks[trackPos]) : ''
@@ -338,12 +424,12 @@ export default () => {
       <ScrollView style={styles.queueScroll}>
         {queue.length == 0 && <Text style={styles.queueEmpty} size={13}>还没有已点歌曲</Text>}
         {queue.map((item, i) => (
-          <View key={`q_${item.vod_id}_${i}`} style={{ ...styles.queueItem, ...(i == currentIndex ? { borderLeftColor: GOLD, borderLeftWidth: 3 } : {}) }}>
+          <View key={`q_${item.number}_${i}`} style={{ ...styles.queueItem, ...(i == currentIndex ? { borderLeftColor: GOLD, borderLeftWidth: 3 } : {}) }}>
             <TouchableOpacity style={{ flexGrow: 1, flexShrink: 1 }} onPress={() => { void playAt(queue, i) }}>
-              <Text style={styles.queueName} size={14} numberOfLines={1}>{i == currentIndex ? '▶ ' : `${i + 1}. `}{item.vod_name}</Text>
-              {(item.vod_singer || item.vod_actor) && <Text style={styles.queueSinger} size={11} numberOfLines={1}>{item.vod_singer || item.vod_actor}</Text>}
+              <Text style={styles.queueName} size={14} numberOfLines={1}>{i == currentIndex ? '▶ ' : `${i + 1}. `}{item.name}</Text>
+              {item.singer && <Text style={styles.queueSinger} size={11} numberOfLines={1}>{item.singer}</Text>}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.queueRemove} onPress={() => removeFromQueue(item.vod_id)}>
+            <TouchableOpacity style={styles.queueRemove} onPress={() => removeFromQueue(item.number)}>
               <Icon name="close" size={14} color="#FFFFFF99" />
             </TouchableOpacity>
           </View>
@@ -364,7 +450,7 @@ export default () => {
       <TextInput
         ref={searchInputRef}
         style={styles.searchInput}
-        placeholder="搜索歌曲 / 歌手"
+        placeholder="搜索歌曲 / 拼音 / 歌手"
         placeholderTextColor={theme['c-font-label']}
         value={keyword}
         onChangeText={setKeyword}
@@ -379,50 +465,140 @@ export default () => {
     </View>
   )
 
-  // ===== 分类 + 歌单（右侧 / 下方共用）=====
+  // ===== 主 Tab 栏 =====
+  const renderTabs = () => (
+    <View style={styles.tabBar}>
+      {([
+        ['hot', '热门'],
+        ['category', '分类'],
+        ['singer', '歌手'],
+      ] as [MainTab, string][]).map(([id, label]) => (
+        <TouchableOpacity key={id} style={{ ...styles.tabItem, ...(activeTab == id ? styles.tabItemActive : {}) }} onPress={() => switchTab(id)}>
+          <Text style={styles.tabText} size={13} color={activeTab == id ? '#FFFFFF' : theme['c-font-label']}>{label}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  )
+
+  // ===== 分类 Tab（一级大类）=====
+  const renderCategoryBar = () => {
+    const cat = categories.find(c => c.id == activeCategoryId)
+    return (
+      <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.subScroll}>
+        <View style={styles.classList}>
+          {categories.map(c => (
+            <TouchableOpacity key={c.id} style={{ ...styles.subItem, ...(activeCategoryId == c.id ? { backgroundColor: theme['c-primary'] } : {}) }} onPress={() => { setActiveCategoryId(c.id); if (c.types.length > 0) { setActiveTypeId(c.types[0].id); void loadType(c.types[0].id, 1) } }}>
+              <Text style={styles.subText} size={12} color={activeCategoryId == c.id ? '#FFFFFF' : theme['c-font-label']}>{c.name}</Text>
+            </TouchableOpacity>
+          ))}
+          {cat && cat.types.map(tp => (
+            <TouchableOpacity key={tp.id} style={{ ...styles.subItem, ...(activeTypeId == tp.id ? { backgroundColor: ACCENT_RED } : {}) }} onPress={() => { setActiveTypeId(tp.id); void loadType(tp.id, 1) }}>
+              <Text style={styles.subText} size={12} color={activeTypeId == tp.id ? '#FFFFFF' : theme['c-font-label']}>{tp.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    )
+  }
+
+  // ===== 歌手字母键盘 =====
+  const renderLetterKeys = () => (
+    <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.letterScroll}>
+      <View style={styles.letterList}>
+        <TouchableOpacity style={{ ...styles.letterKey, ...(activeLetter == '' ? { backgroundColor: theme['c-primary'] } : {}) }} onPress={() => void loadSingers('')}>
+          <Text style={styles.letterKeyText} size={12} color={activeLetter == '' ? '#FFFFFF' : theme['c-font-label']}>全部</Text>
+        </TouchableOpacity>
+        {LETTERS.map(ch => (
+          <TouchableOpacity key={ch} style={{ ...styles.letterKey, ...(activeLetter == ch ? { backgroundColor: theme['c-primary'] } : {}) }} onPress={() => void loadSingers(ch)}>
+            <Text style={styles.letterKeyText} size={13} color={activeLetter == ch ? '#FFFFFF' : theme['c-font-label']}>{ch}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  )
+
+  // ===== 内容区 =====
   const renderContent = () => (
     <View style={styles.contentCol}>
-      {classes.length > 0 && (
-        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.classScroll}>
-          <View style={styles.classList}>
-            <TouchableOpacity style={{ ...styles.classItem, ...(activeClass == '' ? { backgroundColor: theme['c-primary'] } : {}) }} onPress={() => { setActiveClass(''); void loadHome() }}>
-              <Text style={styles.classText} size={13} color={activeClass == '' ? '#FFFFFF' : theme['c-font-label']}>推荐</Text>
-            </TouchableOpacity>
-            {classes.map(cls => (
-              <TouchableOpacity key={cls.type_id} style={{ ...styles.classItem, ...(activeClass == cls.type_id ? { backgroundColor: theme['c-primary'] } : {}) }} onPress={() => { setActiveClass(cls.type_id); void loadCategory(cls.type_id) }}>
-                <Text style={styles.classText} size={13} color={activeClass == cls.type_id ? '#FFFFFF' : theme['c-font-label']}>{cls.type_name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-      )}
+      {renderTabs()}
+
+      {activeTab == 'category' && categories.length > 0 && renderCategoryBar()}
+      {activeTab == 'singer' && renderLetterKeys()}
 
       <View style={styles.listWrap}>
         {status == 'loading' && <Text style={styles.tip} size={15}>加载中…</Text>}
         {status == 'error' && <Text style={styles.tip} size={15} color="#FF6B6B">加载失败：{errorMsg}</Text>}
-        {status == 'idle' && list.length == 0 && <Text style={styles.tip} size={15}>暂无内容，试试搜索或切换分类</Text>}
-        <ScrollView style={styles.listScroll} keyboardShouldPersistTaps={'always'}>
-          {list.map((item, index) => {
-            const ordered = queue.some(i => i.vod_id === item.vod_id)
-            return (
-              <TouchableOpacity
-                key={`${item.vod_id}_${index}`}
-                style={{ ...styles.songItem, ...(ordered ? { borderLeftColor: GOLD, borderLeftWidth: 3 } : {}) }}
-                onPress={() => { void orderSong(item) }}
-                hasTVPreferredFocus={index == 0}
-              >
-                <Icon name="add-music" size={15} color={ordered ? GOLD : theme['c-primary']} />
-                <View style={styles.songText}>
-                  <Text style={styles.songName} size={14} numberOfLines={1}>{item.vod_name}</Text>
-                  {(item.vod_singer || item.vod_actor) && <Text style={styles.songSinger} size={11} numberOfLines={1}>{item.vod_singer || item.vod_actor}</Text>}
-                </View>
-                {ordered && <Text style={styles.orderedTag} size={11}>已点</Text>}
-                {item.vod_remarks ? <Text style={styles.songRemark} size={11}>{item.vod_remarks}</Text> : null}
-              </TouchableOpacity>
-            )
-          })}
-        </ScrollView>
+
+        {/* 歌手视图：未选歌手时展示歌手网格 */}
+        {status == 'idle' && activeTab == 'singer' && !activeSinger && singers.length == 0 && <Text style={styles.tip} size={15}>该字母暂无歌手</Text>}
+        {status == 'idle' && activeTab == 'singer' && !activeSinger && singers.length > 0 && (
+          <ScrollView style={styles.listScroll} keyboardShouldPersistTaps={'always'}>
+            <View style={styles.singerGrid}>
+              {singers.map((sg, i) => (
+                <TouchableOpacity
+                  key={`${sg.id}_${i}`}
+                  style={styles.singerItem}
+                  onPress={() => { setActiveSinger(sg); void loadSingerSongs(sg.name, 1) }}
+                  hasTVPreferredFocus={i == 0}
+                >
+                  <Text style={styles.singerName} size={14} numberOfLines={1}>{sg.name}</Text>
+                  <Text style={styles.singerAcronym} size={11}>{sg.acronym}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        )}
+
+        {/* 歌曲列表 */}
+        {status == 'idle' && (activeTab != 'singer' || activeSinger) && (
+          <>
+            {listTitle ? <Text style={styles.listTitle} size={12} color="#FFFFFF88">{listTitle}</Text> : null}
+            {status == 'idle' && list.length == 0 && <Text style={styles.tip} size={15}>暂无内容，试试搜索或切换分类</Text>}
+            <ScrollView style={styles.listScroll} keyboardShouldPersistTaps={'always'} onScroll={({ nativeEvent }) => {
+              const { layoutMeasurement, contentOffset, contentSize } = nativeEvent
+              if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 60) void loadMore()
+            }} scrollEventThrottle={200}>
+              {list.map((item, index) => {
+                const ordered = queue.some(i => i.number === item.number)
+                return (
+                  <TouchableOpacity
+                    key={`${item.number}_${index}`}
+                    style={{ ...styles.songItem, ...(ordered ? { borderLeftColor: GOLD, borderLeftWidth: 3 } : {}) }}
+                    onPress={() => { void orderSong(item) }}
+                    hasTVPreferredFocus={index == 0 && activeTab == 'hot'}
+                  >
+                    <Icon name="add-music" size={15} color={ordered ? GOLD : theme['c-primary']} />
+                    <View style={styles.songText}>
+                      <Text style={styles.songName} size={14} numberOfLines={1}>{item.name}</Text>
+                      {item.singer && <Text style={styles.songSinger} size={11} numberOfLines={1}>{item.singer}</Text>}
+                    </View>
+                    {item.mtvOrVcd ? <Text style={styles.songRemark} size={11}>{item.mtvOrVcd}</Text> : null}
+                    {ordered && <Text style={styles.orderedTag} size={11}>已点</Text>}
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
+          </>
+        )}
       </View>
+    </View>
+  )
+
+  // ===== 曲库下载界面 =====
+  const renderDbLoading = () => (
+    <View style={styles.dbLoading}>
+      <Icon name="add-music" size={40} color={ACCENT_RED} />
+      <Text style={styles.dbLoadingTitle} size={16}>正在下载 KTV 曲库</Text>
+      <Text style={styles.dbLoadingSub} size={12} color="#FFFFFF88">首次使用需下载约 19MB 曲库数据，请稍候</Text>
+      <View style={styles.dbProgressTrack}>
+        <View style={{ ...styles.dbProgressFill, width: `${dbProgress}%` }} />
+      </View>
+      <Text style={styles.dbProgressText} size={12}>{dbProgress}%</Text>
+      {!dbChecking && !dbReady && (
+        <TouchableOpacity style={styles.dbRetry} onPress={() => { setDbChecking(true); void ensureKtvDb(KTV_DB_DOWNLOAD_URL, false).then(() => setDbReady(true)).catch(e => { toast(`失败：${(e as Error).message ?? e}`) }).finally(() => setDbChecking(false)) }}>
+          <Text style={styles.dbRetryText} size={13}>重试下载</Text>
+        </TouchableOpacity>
+      )}
     </View>
   )
 
@@ -438,10 +614,26 @@ export default () => {
       <View style={styles.container}>
         {renderTopBar()}
 
-        {landscape ? (
-          // 横屏：左视频 + 右列表
-          <View style={styles.splitRow}>
-            <View style={styles.leftCol}>
+        {!dbReady ? renderDbLoading() : (
+          landscape ? (
+            // 横屏：左视频 + 右列表
+            <View style={styles.splitRow}>
+              <View style={styles.leftCol}>
+                {renderVideo()}
+                {player && (
+                  <View style={styles.nowPlaying}>
+                    <Text style={styles.nowPlayingName} size={15} numberOfLines={1}>{player.name}</Text>
+                    <Text style={styles.nowPlayingSinger} size={12} numberOfLines={1}>{player.singer}{audioTracks.length > 1 ? ` · ${currentTrackLabel}` : ''}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.rightCol}>
+                {renderContent()}
+              </View>
+            </View>
+          ) : (
+            // 竖屏：上视频 + 下列表
+            <View style={styles.portraitCol}>
               {renderVideo()}
               {player && (
                 <View style={styles.nowPlaying}>
@@ -449,25 +641,11 @@ export default () => {
                   <Text style={styles.nowPlayingSinger} size={12} numberOfLines={1}>{player.singer}{audioTracks.length > 1 ? ` · ${currentTrackLabel}` : ''}</Text>
                 </View>
               )}
-            </View>
-            <View style={styles.rightCol}>
-              {renderContent()}
-            </View>
-          </View>
-        ) : (
-          // 竖屏：上视频 + 下列表
-          <View style={styles.portraitCol}>
-            {renderVideo()}
-            {player && (
-              <View style={styles.nowPlaying}>
-                <Text style={styles.nowPlayingName} size={15} numberOfLines={1}>{player.name}</Text>
-                <Text style={styles.nowPlayingSinger} size={12} numberOfLines={1}>{player.singer}{audioTracks.length > 1 ? ` · ${currentTrackLabel}` : ''}</Text>
+              <View style={styles.portraitContent}>
+                {renderContent()}
               </View>
-            )}
-            <View style={styles.portraitContent}>
-              {renderContent()}
             </View>
-          </View>
+          )
         )}
 
         {showQueue && renderQueuePanel()}
@@ -683,34 +861,100 @@ const styles = createStyle({
     marginTop: 2,
     color: '#FFFFFF99',
   },
-  // 内容列（分类 + 列表）
+  // 内容列
   contentCol: {
     flex: 1,
     flexDirection: 'column',
   },
-  classScroll: {
+  // 主 Tab
+  tabBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  tabItem: {
+    paddingHorizontal: 18,
+    paddingVertical: 7,
+    borderRadius: 6,
+    marginRight: 10,
+    backgroundColor: '#44444488',
+  },
+  tabItemActive: {
+    backgroundColor: '#2A6BE0',
+  },
+  tabText: {},
+  // 子分类（一级大类 + 二级类型）
+  subScroll: {
     flexGrow: 0,
     flexShrink: 0,
-    maxHeight: 46,
+    maxHeight: 40,
     marginBottom: 8,
   },
   classList: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  classItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+  subItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 6,
-    marginRight: 10,
-    backgroundColor: '#44444488',
+    marginRight: 8,
+    backgroundColor: '#44444466',
   },
-  classText: {},
+  subText: {},
+  // 歌手字母键盘
+  letterScroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+    maxHeight: 40,
+    marginBottom: 8,
+  },
+  letterList: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  letterKey: {
+    width: 34,
+    height: 30,
+    borderRadius: 5,
+    marginRight: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#44444466',
+  },
+  letterKeyText: {},
+  // 歌手网格
+  singerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+  },
+  singerItem: {
+    width: '23%',
+    marginRight: '2%',
+    marginBottom: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF0D',
+    alignItems: 'center',
+  },
+  singerName: {
+    color: '#FFFFFF',
+  },
+  singerAcronym: {
+    marginTop: 3,
+    color: '#FFFFFF77',
+  },
+  // 列表
   listWrap: {
     flex: 1,
   },
   listScroll: {
     flex: 1,
+  },
+  listTitle: {
+    marginBottom: 6,
   },
   tip: {
     paddingVertical: 20,
@@ -796,5 +1040,47 @@ const styles = createStyle({
   queueRemove: {
     padding: 6,
     marginLeft: 8,
+  },
+  // 曲库下载界面
+  dbLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  dbLoadingTitle: {
+    marginTop: 14,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  dbLoadingSub: {
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  dbProgressTrack: {
+    marginTop: 18,
+    width: '60%',
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF22',
+    overflow: 'hidden',
+  },
+  dbProgressFill: {
+    height: 6,
+    backgroundColor: GOLD,
+  },
+  dbProgressText: {
+    marginTop: 8,
+    color: '#FFFFFFAA',
+  },
+  dbRetry: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: 6,
+    backgroundColor: '#2A6BE0',
+  },
+  dbRetryText: {
+    color: '#FFFFFF',
   },
 })
