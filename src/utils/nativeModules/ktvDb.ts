@@ -20,8 +20,8 @@ const ensure = () => {
   return KtvDb
 }
 
-/** 曲库压缩包下载地址（部署到你的服务器/CDN 后替换） */
-export const KTV_DB_DOWNLOAD_URL = 'https://ktvmedia.mysoto.cc/db/ktv_song.db.xz'
+/** 曲库压缩包下载地址 */
+export const KTV_DB_DOWNLOAD_URL = 'http://52xinghe.top/ktv_song.db.xz'
 
 export type KtvDbSong = {
   id: number
