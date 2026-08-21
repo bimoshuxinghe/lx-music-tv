@@ -28,13 +28,13 @@ import dalvik.system.DexClassLoader;
 /**
  * KTV 桥接模块
  *
- * 完全对齐 TVBox 的加载流程来使用你提供的 spider.jar：
+ * 完全对齐 TVBox 的加载流程来使用你提供的 spider.jar（参考 takagen99/Box 的 JarLoader）：
  *   - jar 内含 classes.dex（代码）+ assets/wexguard_v7.so / wexguard_v8.so
  *     + assets/wexshinidie.guard（被 wexguard native 库加密保护的资源）
- *   - 必须先把 wexguard 的 so 库 System.load 进进程，native 方法 wexguard_ 才能解密 .guard
- *   - 然后 DexClassLoader 加载 jar（nativeLibraryDir 指到 so 目录）
- *   - 最后通过 com.github.catvod.spider.Init.getSpider("MusicAiIKtvGuard")
- *     拿到 TVBox 里 api=csp_MusicAiIKtvGuard 对应的真实爬虫实例
+ *   - DexClassLoader(jar, cacheDir, null, parent) 加载 jar（nativeLibraryDir 传 null，
+ *     wexguard 由 DexNative 静态块自己写 cache 并 System.load）
+ *   - Init.init(app) 完成 native 初始化后，直接 newInstance() MusicAiIKtvGuard
+ *     （其构造经 BaseSpiderGuard 调 Init.getSpider 解密 .guard 并绑定真实爬虫）
  *
  * 这些类本身在 jar 的 classes.dex 里（不是 .class 目录），
  * 所以其完整类名是 com.github.catvod.spider.MusicAiIKtvGuard。
@@ -42,7 +42,7 @@ import dalvik.system.DexClassLoader;
 public class KtvSpiderModule extends ReactContextBaseJavaModule {
     private static final String TAG = "KtvSpiderModule";
     private static final String SPIDER_ASSET = "spider/spider.jar";
-    // TVBox 里 api="csp_MusicAiIKtvGuard"，去掉 csp_ 前缀后传给 Init.getSpider 的名字
+    // TVBox 里 api="csp_MusicAiIKtvGuard"，去掉 csp_ 前缀后即为要实例化的 Guard 类名
     private static final String SPIDER_NAME = "MusicAiIKtvGuard";
     // 完整类名（用于日志/校验）
     private static final String SPIDER_CLASS = "com.github.catvod.spider." + SPIDER_NAME;
@@ -115,33 +115,33 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             File optDir = new File(reactContext.getCacheDir(), "spider_opt");
             if (!optDir.exists()) optDir.mkdirs();
 
-            // 2) 用 DexClassLoader 加载 jar，让 com.github.catvod.spider.Init / DexNative 类可用。
-            //    nativeLibraryDir 指向缓存目录（DexNative 会把 wexguard_*.so 写到 getCacheDir() 并 System.load）。
+            // 2) 完全照搬 TVBox JarLoader.loadClassLoader：
+            //    new DexClassLoader(jar, cacheDir, null, parent)  ← nativeLibraryDir 必须为 null，
+            //    DexNative 静态块会自己把 wexguard_*.so 写到 getCacheDir() 并 System.load。
             ClassLoader parent = getClass().getClassLoader();
             spiderClassLoader = new DexClassLoader(
                     spiderJar.getAbsolutePath(),
                     optDir.getAbsolutePath(),
-                    reactContext.getCacheDir().getAbsolutePath(),
+                    null,
                     parent);
 
-            // 3) 完全对齐 TVBox：
-            //    Init.init(applicationContext) 内部由 DexNative 静态块加载 wexguard so、
-            //    并调用 native getLoader 创建真正的 DexClassLoader（解密 .guard）；
-            //    Init.getSpider("MusicAiIKtvGuard") 返回真实爬虫实例。
+            // 3) 对齐 TVBox：先 Init.init(app)，再直接 newInstance() Guard 类。
+            //    MusicAiIKtvGuard 继承 BaseSpiderGuard，其构造里会调
+            //    Init.getSpider(getClass().getName()) 由 wexguard 解密 .guard 并绑定真实实例。
             Context appContext = reactContext.getApplicationContext();
             Class<?> initClass = spiderClassLoader.loadClass("com.github.catvod.spider.Init");
             Method initMethod = initClass.getMethod("init", Context.class);
             initMethod.invoke(null, appContext);
 
-            Method getSpiderMethod = initClass.getMethod("getSpider", String.class);
-            spider = getSpiderMethod.invoke(null, SPIDER_NAME);
+            Class<?> guardClass = spiderClassLoader.loadClass(SPIDER_CLASS);
+            spider = guardClass.getConstructor().newInstance();
 
             if (spider == null) {
-                throw new IllegalStateException("Init.getSpider(\"" + SPIDER_NAME + "\") 返回 null");
+                throw new IllegalStateException("newInstance " + SPIDER_CLASS + " 返回 null");
             }
             Log.i(TAG, "spider 实例类型: " + spider.getClass().getName());
 
-            // 部分爬虫需要 init(ctx, extend)，失败可忽略
+            // TVBox 调 sp.init(app, ext)。Guard 继承 Spider，init(ctx, extend) 会转发到内部真实实例。
             try {
                 Method spiderInit = spiderClass().getMethod("init", Context.class, String.class);
                 spiderInit.invoke(spider, appContext, "");
