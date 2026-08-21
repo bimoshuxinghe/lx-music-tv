@@ -2,7 +2,6 @@ package cn.toside.music.mobile.ktv;
 
 import android.content.Context;
 import android.content.res.AssetManager;
-import android.os.Build;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -19,8 +18,6 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -53,10 +50,6 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
     private final ReactApplicationContext reactContext;
     private volatile DexClassLoader spiderClassLoader;
     private volatile Object spider; // 真实爬虫实例（Spider 子类）
-
-    // wexguard so 库只加载一次
-    private static volatile boolean wexguardLoaded = false;
-    private static final Object loadLock = new Object();
 
     public KtvSpiderModule(ReactApplicationContext context) {
         super(context);
@@ -94,82 +87,20 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
     }
 
     /**
-     * 加载 wexguard native 库。wexguard 的 so（wexguard_v7.so / wexguard_v8.so）是打包在
-     * spider.jar 内部的 assets/ 下的，需要先 System.load 进进程，jar 内的 DexNative 才能用
-     * native 方法 wexguard_ 解密 .guard。这里直接从 jar 内部把对应 ABI 的 so 抽出来加载。
+     * 注意：wexguard 的 so 绝不由我们手动 System.load。
+     * 反编译确认 spider.jar 内的 com.github.catvod.spider.DexNative 的静态块会自己：
+     *   1) 按 Build.CPU_ABI 是否含 "64" 选 wexguard_v8.so / wexguard_v7.so
+     *   2) 通过 Init.classLoader().getResourceAsStream("assets/wexguard_*.so") 从 jar 读 so
+     *   3) 写到 getCacheDir() 随机名文件并 System.load
+     * 所以我们只需要把 spider.jar 交给 DexClassLoader 加载（让 Init/DexNative 类可用），
+     * 然后调 Init.init(applicationContext)，native 会自动完成 so 加载与 .guard 解密。
+     * 自己提前 System.load 反而会触发 "JNI_OnLoad failed on a previous attempt"。
      */
-    private void ensureWexguardLoaded() throws Exception {
-        if (wexguardLoaded) return;
-        synchronized (loadLock) {
-            if (wexguardLoaded) return;
-            File soDir = new File(reactContext.getFilesDir(), "wexguard");
-            if (!soDir.exists()) soDir.mkdirs();
-
-            // 按当前设备 ABI 选择对应的 so（电视多为 armeabi-v7a，手机多为 arm64-v8a）
-            String abi;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                String[] abis = Build.SUPPORTED_ABIS;
-                abi = (abis != null && abis.length > 0) ? abis[0] : Build.CPU_ABI;
-            } else {
-                abi = Build.CPU_ABI;
-            }
-            String soName = "wexguard_v8.so";
-            if (abi != null && abi.contains("armeabi-v7a")) {
-                soName = "wexguard_v7.so";
-            }
-            Log.i(TAG, "wexguard abi=" + abi + " so=" + soName);
-
-            File soFile = new File(soDir, soName);
-            if (!soFile.exists() || soFile.length() == 0) {
-                // so 在 spider.jar 内部的 assets/ 目录下，从 jar 里抽取
-                File jarFile = ensureSpiderJar();
-                try (ZipFile zf = new ZipFile(jarFile)) {
-                    ZipEntry ze = zf.getEntry("assets/" + soName);
-                    if (ze == null) {
-                        throw new IllegalStateException("spider.jar 内找不到 " + soName);
-                    }
-                    try (InputStream in = zf.getInputStream(ze);
-                         OutputStream out = new FileOutputStream(soFile)) {
-                        byte[] buf = new byte[8192];
-                        int len;
-                        while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
-                    }
-                }
-            }
-            System.load(soFile.getAbsolutePath());
-            wexguardLoaded = true;
-            Log.i(TAG, "wexguard loaded: " + soFile.getAbsolutePath());
-        }
-    }
-
     private File ensureSpiderJar() throws Exception {
         File outDir = new File(reactContext.getCacheDir(), "spider");
         if (!outDir.exists()) outDir.mkdirs();
         File outFile = new File(outDir, "spider.jar");
         return extractAsset(SPIDER_ASSET, outFile);
-    }
-
-    /** 把 jar 内部的 wexshinidie.guard 抽取到 spider 工作目录，作为 wexguard 解密的可能输入 */
-    private void ensureGuardFile() throws Exception {
-        File spiderDir = new File(reactContext.getCacheDir(), "spider");
-        if (!spiderDir.exists()) spiderDir.mkdirs();
-        File guardFile = new File(spiderDir, "wexshinidie.guard");
-        if (guardFile.exists() && guardFile.length() > 0) return;
-        File jarFile = ensureSpiderJar();
-        try (ZipFile zf = new ZipFile(jarFile)) {
-            ZipEntry ze = zf.getEntry("assets/wexshinidie.guard");
-            if (ze == null) {
-                Log.w(TAG, "spider.jar 内未找到 wexshinidie.guard（可能已内嵌解密，忽略）");
-                return;
-            }
-            try (InputStream in = zf.getInputStream(ze);
-                 OutputStream out = new FileOutputStream(guardFile)) {
-                byte[] buf = new byte[8192];
-                int len;
-                while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
-            }
-        }
-        Log.i(TAG, "guard file extracted: " + guardFile.getAbsolutePath());
     }
 
     @ReactMethod
@@ -179,27 +110,24 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
                 promise.resolve("already");
                 return;
             }
-            // 1) 先加载 native 库（必须第一步，否则解密失败）
-            ensureWexguardLoaded();
-
-            // 2) 拷贝 jar + 抽取 .guard 到工作目录，并由 DexClassLoader 加载；
-            //    nativeLibraryDir 指向 so 目录；cwd 切到 spider 目录，方便 wexguard 找 .guard
-            File spiderDir = new File(reactContext.getCacheDir(), "spider");
+            // 1) 拷贝 spider.jar 到缓存目录
             File spiderJar = ensureSpiderJar();
-            ensureGuardFile();
             File optDir = new File(reactContext.getCacheDir(), "spider_opt");
             if (!optDir.exists()) optDir.mkdirs();
-            File soDir = new File(reactContext.getFilesDir(), "wexguard");
-            System.setProperty("user.dir", spiderDir.getAbsolutePath());
+
+            // 2) 用 DexClassLoader 加载 jar，让 com.github.catvod.spider.Init / DexNative 类可用。
+            //    nativeLibraryDir 指向缓存目录（DexNative 会把 wexguard_*.so 写到 getCacheDir() 并 System.load）。
             ClassLoader parent = getClass().getClassLoader();
             spiderClassLoader = new DexClassLoader(
                     spiderJar.getAbsolutePath(),
                     optDir.getAbsolutePath(),
-                    soDir.getAbsolutePath(),
+                    reactContext.getCacheDir().getAbsolutePath(),
                     parent);
 
-            // 3) 对齐 TVBox：Init.init(context) 初始化，再 Init.getSpider("MusicAiIKtvGuard")
-            //    拿到真实爬虫实例（内部由 wexguard 解密 .guard 后实例化）
+            // 3) 完全对齐 TVBox：
+            //    Init.init(applicationContext) 内部由 DexNative 静态块加载 wexguard so、
+            //    并调用 native getLoader 创建真正的 DexClassLoader（解密 .guard）；
+            //    Init.getSpider("MusicAiIKtvGuard") 返回真实爬虫实例。
             Context appContext = reactContext.getApplicationContext();
             Class<?> initClass = spiderClassLoader.loadClass("com.github.catvod.spider.Init");
             Method initMethod = initClass.getMethod("init", Context.class);
