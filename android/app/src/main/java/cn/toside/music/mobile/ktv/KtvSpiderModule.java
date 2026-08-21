@@ -2,6 +2,8 @@ package cn.toside.music.mobile.ktv;
 
 import android.content.Context;
 import android.content.res.AssetManager;
+import android.os.Build;
+import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
@@ -17,6 +19,8 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,23 +31,32 @@ import dalvik.system.DexClassLoader;
 /**
  * KTV 桥接模块
  *
- * 通过 catvod 框架（你提供的 spider.jar，内含 wexguard 保护）加载
- * com.github.catvod.spider.MusicAiIKtv，并把其标准方法暴露给 JS：
- *   initSpider / homeContent / categoryContent / searchContent / detailContent / playerContent / destroy
+ * 完全对齐 TVBox 的加载流程来使用你提供的 spider.jar：
+ *   - jar 内含 classes.dex（代码）+ assets/wexguard_v7.so / wexguard_v8.so
+ *     + assets/wexshinidie.guard（被 wexguard native 库加密保护的资源）
+ *   - 必须先把 wexguard 的 so 库 System.load 进进程，native 方法 wexguard_ 才能解密 .guard
+ *   - 然后 DexClassLoader 加载 jar（nativeLibraryDir 指到 so 目录）
+ *   - 最后通过 com.github.catvod.spider.Init.getSpider("MusicAiIKtvGuard")
+ *     拿到 TVBox 里 api=csp_MusicAiIKtvGuard 对应的真实爬虫实例
  *
- * spider.jar 放在 android/app/src/main/assets/spider/spider.jar，
- * 运行时拷贝到缓存目录后由 DexClassLoader 加载。DexNative 静态块会自动从
- * assets/wexguard_v8.so（或 v7）解密并 System.load，getLoader 再解密 .guard 得到可实例化类。
+ * 这些类本身在 jar 的 classes.dex 里（不是 .class 目录），
+ * 所以其完整类名是 com.github.catvod.spider.MusicAiIKtvGuard。
  */
 public class KtvSpiderModule extends ReactContextBaseJavaModule {
     private static final String TAG = "KtvSpiderModule";
     private static final String SPIDER_ASSET = "spider/spider.jar";
-    // 对齐 TVBox 用法：csp_MusicAiIKtvGuard -> com.github.catvod.spider.MusicAiIKtvGuard
-    private static final String SPIDER_ID = "com.github.catvod.spider.MusicAiIKtvGuard";
+    // TVBox 里 api="csp_MusicAiIKtvGuard"，去掉 csp_ 前缀后传给 Init.getSpider 的名字
+    private static final String SPIDER_NAME = "MusicAiIKtvGuard";
+    // 完整类名（用于日志/校验）
+    private static final String SPIDER_CLASS = "com.github.catvod.spider." + SPIDER_NAME;
 
     private final ReactApplicationContext reactContext;
     private volatile DexClassLoader spiderClassLoader;
-    private volatile Object spider; // com.github.catvod.crawler.Spider 实例
+    private volatile Object spider; // 真实爬虫实例（Spider 子类）
+
+    // wexguard so 库只加载一次
+    private static volatile boolean wexguardLoaded = false;
+    private static final Object loadLock = new Object();
 
     public KtvSpiderModule(ReactApplicationContext context) {
         super(context);
@@ -63,13 +76,14 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
     public void removeListeners(Integer count) {
     }
 
-    private File ensureSpiderJar() throws Exception {
-        File outDir = new File(reactContext.getCacheDir(), "spider");
-        if (!outDir.exists()) outDir.mkdirs();
-        File outFile = new File(outDir, "spider.jar");
+    /** 把 assets 里的文件拷贝到本地（同名且非空则跳过） */
+    private File extractAsset(String assetPath, File outFile) throws Exception {
         if (outFile.exists() && outFile.length() > 0) return outFile;
+        if (outFile.getParentFile() != null && !outFile.getParentFile().exists()) {
+            outFile.getParentFile().mkdirs();
+        }
         AssetManager am = reactContext.getAssets();
-        InputStream in = am.open(SPIDER_ASSET);
+        InputStream in = am.open(assetPath);
         OutputStream out = new FileOutputStream(outFile);
         byte[] buf = new byte[8192];
         int len;
@@ -79,6 +93,62 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
         return outFile;
     }
 
+    /**
+     * 加载 wexguard native 库。wexguard 的 so（wexguard_v7.so / wexguard_v8.so）是打包在
+     * spider.jar 内部的 assets/ 下的，需要先 System.load 进进程，jar 内的 DexNative 才能用
+     * native 方法 wexguard_ 解密 .guard。这里直接从 jar 内部把对应 ABI 的 so 抽出来加载。
+     */
+    private void ensureWexguardLoaded() throws Exception {
+        if (wexguardLoaded) return;
+        synchronized (loadLock) {
+            if (wexguardLoaded) return;
+            File soDir = new File(reactContext.getFilesDir(), "wexguard");
+            if (!soDir.exists()) soDir.mkdirs();
+
+            // 按当前设备 ABI 选择对应的 so（电视多为 armeabi-v7a，手机多为 arm64-v8a）
+            String abi;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                String[] abis = Build.SUPPORTED_ABIS;
+                abi = (abis != null && abis.length > 0) ? abis[0] : Build.CPU_ABI;
+            } else {
+                abi = Build.CPU_ABI;
+            }
+            String soName = "wexguard_v8.so";
+            if (abi != null && abi.contains("armeabi-v7a")) {
+                soName = "wexguard_v7.so";
+            }
+            Log.i(TAG, "wexguard abi=" + abi + " so=" + soName);
+
+            File soFile = new File(soDir, soName);
+            if (!soFile.exists() || soFile.length() == 0) {
+                // so 在 spider.jar 内部的 assets/ 目录下，从 jar 里抽取
+                File jarFile = ensureSpiderJar();
+                try (ZipFile zf = new ZipFile(jarFile)) {
+                    ZipEntry ze = zf.getEntry("assets/" + soName);
+                    if (ze == null) {
+                        throw new IllegalStateException("spider.jar 内找不到 " + soName);
+                    }
+                    try (InputStream in = zf.getInputStream(ze);
+                         OutputStream out = new FileOutputStream(soFile)) {
+                        byte[] buf = new byte[8192];
+                        int len;
+                        while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
+                    }
+                }
+            }
+            System.load(soFile.getAbsolutePath());
+            wexguardLoaded = true;
+            Log.i(TAG, "wexguard loaded: " + soFile.getAbsolutePath());
+        }
+    }
+
+    private File ensureSpiderJar() throws Exception {
+        File outDir = new File(reactContext.getCacheDir(), "spider");
+        if (!outDir.exists()) outDir.mkdirs();
+        File outFile = new File(outDir, "spider.jar");
+        return extractAsset(SPIDER_ASSET, outFile);
+    }
+
     @ReactMethod
     public void initSpider(Promise promise) {
         try {
@@ -86,30 +156,37 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
                 promise.resolve("already");
                 return;
             }
+            // 1) 先加载 native 库（必须第一步，否则解密失败）
+            ensureWexguardLoaded();
+
+            // 2) 拷贝 jar 并由 DexClassLoader 加载，nativeLibraryDir 指向 so 目录
             File spiderJar = ensureSpiderJar();
             File optDir = new File(reactContext.getCacheDir(), "spider_opt");
             if (!optDir.exists()) optDir.mkdirs();
+            File soDir = new File(reactContext.getFilesDir(), "wexguard");
             ClassLoader parent = getClass().getClassLoader();
             spiderClassLoader = new DexClassLoader(
                     spiderJar.getAbsolutePath(),
                     optDir.getAbsolutePath(),
-                    null,
+                    soDir.getAbsolutePath(),
                     parent);
 
-            Class<?> initClass = spiderClassLoader.loadClass("com.github.catvod.spider.Init");
+            // 3) 对齐 TVBox：Init.init(context) 初始化，再 Init.getSpider("MusicAiIKtvGuard")
+            //    拿到真实爬虫实例（内部由 wexguard 解密 .guard 后实例化）
             Context appContext = reactContext.getApplicationContext();
+            Class<?> initClass = spiderClassLoader.loadClass("com.github.catvod.spider.Init");
             Method initMethod = initClass.getMethod("init", Context.class);
             initMethod.invoke(null, appContext);
 
-            // 对齐 TVBox 标准用法：实例化 MusicAiIKtvGuard 类，
-            // 其构造（BaseSpiderGuard）内部会以完整类名调用 Init.getSpider(...)，
-            // 由 wexguard 解密 .guard 后拿到真正的 MusicAiIKtv 实例并绑定
-            Class<?> guardClass = spiderClassLoader.loadClass(SPIDER_ID);
-            // Guard 自身没有显式构造器，继承的是 BaseSpiderGuard/Spider 的 public 无参构造，
-            // 必须用 getConstructor（含继承），getDeclaredConstructor 拿不到会抛 NoSuchMethodException
-            spider = guardClass.getConstructor().newInstance();
+            Method getSpiderMethod = initClass.getMethod("getSpider", String.class);
+            spider = getSpiderMethod.invoke(null, SPIDER_NAME);
 
-            // 部分 spider 需要 init(ctx, extend)，失败可忽略
+            if (spider == null) {
+                throw new IllegalStateException("Init.getSpider(\"" + SPIDER_NAME + "\") 返回 null");
+            }
+            Log.i(TAG, "spider 实例类型: " + spider.getClass().getName());
+
+            // 部分爬虫需要 init(ctx, extend)，失败可忽略
             try {
                 Method spiderInit = spiderClass().getMethod("init", Context.class, String.class);
                 spiderInit.invoke(spider, appContext, "");
@@ -147,7 +224,7 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
     private static String errMsg(Throwable t) {
         Throwable u = unwrap(t);
         String m = u.getMessage();
-        if (m == null || m.isEmpty()) m = u.getClass().getName();
+        if (TextUtils.isEmpty(m)) m = u.getClass().getName();
         return m;
     }
 
