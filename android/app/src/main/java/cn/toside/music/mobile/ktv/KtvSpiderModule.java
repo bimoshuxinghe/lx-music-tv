@@ -123,8 +123,9 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
     }
 
     private Class<?> spiderClass() throws Exception {
-        if (spiderClassLoader == null) throw new IllegalStateException("spider 未初始化");
-        return spiderClassLoader.loadClass("com.github.catvod.crawler.Spider");
+        if (spider == null) throw new IllegalStateException("spider 未初始化");
+        // 直接用 wexguard 解密后返回的真实实例类反射方法，比 loadClass 框架基类更稳
+        return spider.getClass();
     }
 
     @ReactMethod

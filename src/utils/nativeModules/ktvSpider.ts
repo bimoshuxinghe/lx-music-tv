@@ -1,4 +1,4 @@
-import { NativeModules, type Promise } from 'react-native'
+import { NativeModules } from 'react-native'
 
 const { KtvSpider } = NativeModules
 
