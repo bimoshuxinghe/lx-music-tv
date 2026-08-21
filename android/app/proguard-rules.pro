@@ -33,3 +33,14 @@
 # 必须保持类名与方法签名不被 R8 混淆，否则继承链解析失败
 -keep class com.github.catvod.crawler.Spider { *; }
 -keepclassmembers class com.github.catvod.crawler.Spider { *; }
+
+# KTV 专区：wexguard 解密后的真实爬虫代码运行时需要 okhttp/okio。
+# RN 自带 okhttp 4.9.2，但 release 构建的 R8 会把 App 未直接引用的类
+# （如 okhttp3.EventListener$Factory）裁掉，导致 "Failed resolution of"。
+# 与 TVBox 宿主一致，保留整个 okhttp3/okio 供解密后代码使用。
+-keep class okhttp3.** { *; }
+-keepclassmembers class okhttp3.** { *; }
+-dontwarn okhttp3.**
+-keep class okio.** { *; }
+-keepclassmembers class okio.** { *; }
+-dontwarn okio.**
