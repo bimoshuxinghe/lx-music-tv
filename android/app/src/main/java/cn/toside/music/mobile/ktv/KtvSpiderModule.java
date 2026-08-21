@@ -37,7 +37,8 @@ import dalvik.system.DexClassLoader;
 public class KtvSpiderModule extends ReactContextBaseJavaModule {
     private static final String TAG = "KtvSpiderModule";
     private static final String SPIDER_ASSET = "spider/spider.jar";
-    private static final String SPIDER_ID = "MusicAiIKtv";
+    // 对齐 TVBox 用法：csp_MusicAiIKtvGuard -> com.github.catvod.spider.MusicAiIKtvGuard
+    private static final String SPIDER_ID = "com.github.catvod.spider.MusicAiIKtvGuard";
 
     private final ReactApplicationContext reactContext;
     private volatile DexClassLoader spiderClassLoader;
@@ -99,8 +100,11 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             Method initMethod = initClass.getMethod("init", Context.class);
             initMethod.invoke(null, appContext);
 
-            Method getSpiderMethod = initClass.getMethod("getSpider", String.class);
-            spider = getSpiderMethod.invoke(null, SPIDER_ID);
+            // 对齐 TVBox 标准用法：实例化 MusicAiIKtvGuard 类，
+            // 其构造（BaseSpiderGuard）内部会以完整类名调用 Init.getSpider(...)，
+            // 由 wexguard 解密 .guard 后拿到真正的 MusicAiIKtv 实例并绑定
+            Class<?> guardClass = spiderClassLoader.loadClass(SPIDER_ID);
+            spider = guardClass.getDeclaredConstructor().newInstance();
 
             // 部分 spider 需要 init(ctx, extend)，失败可忽略
             try {
