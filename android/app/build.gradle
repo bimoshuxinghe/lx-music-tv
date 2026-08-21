@@ -198,6 +198,15 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.3'
     // KTV 曲库 xz 压缩包解压（约 90KB，用于下载 18MB 的 ktv_song.db.xz）
     implementation 'org.tukaani:xz:1.9'
+    // KTV 专区：wexguard 解密后的真实爬虫代码运行时引用的宿主库。
+    // TVBox 宿主依赖 gson 2.10.1 / jsoup 1.16.1，真实爬虫（如 MusicAiIKtv 系列）
+    // 解密后按 TVBox 宿主 API 引用 com.google.gson.* / org.jsoup.* 解析数据。
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.jsoup:jsoup:1.16.1'
+    // androidx.collection 的 ArrayMap 被宿主 catvod/net/OkHttp 方法签名使用
+    implementation 'androidx.collection:collection:1.1.0'
+    // androidx.annotation 的 NonNull/Nullable 被宿主 catvod/net/OkhttpInterceptor 使用
+    implementation 'androidx.annotation:annotation:1.7.0'
 
   if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

@@ -62,3 +62,37 @@
 -keep class com.github.catvod.** { *; }
 -keepclassmembers class com.github.catvod.** { *; }
 -dontwarn com.github.catvod.**
+
+# KTV 专区：真实爬虫代码解密后按 TVBox 宿主 API 引用 gson/jsoup。
+# R8 编译时看不到解密后 dex 的引用，若不 keep 会被裁剪/混淆，
+# 运行时 FindClass 失败。与 TVBox 宿主 gson 2.10.1 / jsoup 1.16.1 对齐。
+-keep class com.google.gson.** { *; }
+-keepclassmembers class com.google.gson.** { *; }
+-dontwarn com.google.gson.**
+-keep class org.jsoup.** { *; }
+-keepclassmembers class org.jsoup.** { *; }
+-dontwarn org.jsoup.**
+
+# KTV 专区：真实爬虫代码可能直接 import com.google.common.net.HttpHeaders（guava 头常量）。
+# 本 App 提供同包同名简化常量类，keep 防止混淆
+-keep class com.google.common.net.HttpHeaders { *; }
+-keepclassmembers class com.google.common.net.HttpHeaders { *; }
+-dontwarn com.google.common.**
+
+# KTV 专区：壳 dex 的 mergeguard 代码引用了 com.whl.quickjs.*（RN 已有
+# wang.harlon.quickjs:wrapper-android 依赖），真实爬虫解密后也可能调用 JS 脚本。
+# keep 住 quickjs 类，避免 R8 裁剪导致解密代码 FindClass 失败。
+-keep class com.whl.quickjs.** { *; }
+-keepclassmembers class com.whl.quickjs.** { *; }
+-dontwarn com.whl.quickjs.**
+
+# KTV 专区：真实爬虫代码可能引用 TVBox 纯工具类（MD5 签名、AES 参数加密、StringUtils）。
+# 与 TVBox 宿主 com.github.tvbox.osc.util 一致，keep 防止 R8 裁剪/混淆
+-keep class com.github.tvbox.osc.util.** { *; }
+-keepclassmembers class com.github.tvbox.osc.util.** { *; }
+-dontwarn com.github.tvbox.osc.**
+
+# KTV 专区：androidx.collection ArrayMap 被宿主 catvod/net/OkHttp 方法签名使用
+-keep class androidx.collection.** { *; }
+-keepclassmembers class androidx.collection.** { *; }
+-dontwarn androidx.collection.**
