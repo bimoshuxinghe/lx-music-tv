@@ -207,6 +207,10 @@ dependencies {
     implementation 'androidx.collection:collection:1.1.0'
     // androidx.annotation 的 NonNull/Nullable 被宿主 catvod/net/OkhttpInterceptor 使用
     implementation 'androidx.annotation:annotation:1.7.0'
+    // guava: 真实爬虫代码与宿主 catvod 工具类按 TVBox 宿主 API 引用
+    // com.google.common.net.HttpHeaders（guava 传递依赖仅在 runtimeClasspath，
+    // 编译期不可见，需显式声明以进入 compileClasspath）。
+    implementation 'com.google.guava:guava:33.3.1-android'
 
   if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
