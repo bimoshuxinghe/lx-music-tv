@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -104,7 +105,9 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             // 其构造（BaseSpiderGuard）内部会以完整类名调用 Init.getSpider(...)，
             // 由 wexguard 解密 .guard 后拿到真正的 MusicAiIKtv 实例并绑定
             Class<?> guardClass = spiderClassLoader.loadClass(SPIDER_ID);
-            spider = guardClass.getDeclaredConstructor().newInstance();
+            // Guard 自身没有显式构造器，继承的是 BaseSpiderGuard/Spider 的 public 无参构造，
+            // 必须用 getConstructor（含继承），getDeclaredConstructor 拿不到会抛 NoSuchMethodException
+            spider = guardClass.getConstructor().newInstance();
 
             // 部分 spider 需要 init(ctx, extend)，失败可忽略
             try {
@@ -117,7 +120,7 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             promise.resolve("ok");
         } catch (Throwable e) {
             Log.e(TAG, "initSpider failed", e);
-            promise.reject("INIT_FAILED", e.getMessage() == null ? e.toString() : e.getMessage(), e);
+            promise.reject("INIT_FAILED", errMsg(e), unwrap(e));
         }
     }
 
@@ -132,6 +135,22 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
         return spider.getClass();
     }
 
+    // 解包反射 InvocationTargetException，取真正的 cause，否则给 JS 看到的就是
+    // "java.lang.reflect.InvocationTargetException" 这串字，看不到真实错误。
+    private static Throwable unwrap(Throwable t) {
+        Throwable cur = t;
+        while (cur instanceof InvocationTargetException && cur.getCause() != null && cur.getCause() != cur) {
+            cur = cur.getCause();
+        }
+        return cur;
+    }
+    private static String errMsg(Throwable t) {
+        Throwable u = unwrap(t);
+        String m = u.getMessage();
+        if (m == null || m.isEmpty()) m = u.getClass().getName();
+        return m;
+    }
+
     @ReactMethod
     public void homeContent(Promise promise) {
         try {
@@ -140,7 +159,7 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             String result = (String) m.invoke(sp, false);
             promise.resolve(result);
         } catch (Throwable e) {
-            promise.reject("HOME_FAILED", e.getMessage() == null ? e.toString() : e.getMessage(), e);
+            promise.reject("HOME_FAILED", errMsg(e), unwrap(e));
         }
     }
 
@@ -153,7 +172,7 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             String result = (String) m.invoke(sp, tid, page, false, new HashMap<String, String>());
             promise.resolve(result);
         } catch (Throwable e) {
-            promise.reject("CATEGORY_FAILED", e.getMessage() == null ? e.toString() : e.getMessage(), e);
+            promise.reject("CATEGORY_FAILED", errMsg(e), unwrap(e));
         }
     }
 
@@ -165,7 +184,7 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             String result = (String) m.invoke(sp, keyword, false);
             promise.resolve(result);
         } catch (Throwable e) {
-            promise.reject("SEARCH_FAILED", e.getMessage() == null ? e.toString() : e.getMessage(), e);
+            promise.reject("SEARCH_FAILED", errMsg(e), unwrap(e));
         }
     }
 
@@ -181,7 +200,7 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             String result = (String) m.invoke(sp, list);
             promise.resolve(result);
         } catch (Throwable e) {
-            promise.reject("DETAIL_FAILED", e.getMessage() == null ? e.toString() : e.getMessage(), e);
+            promise.reject("DETAIL_FAILED", errMsg(e), unwrap(e));
         }
     }
 
@@ -198,7 +217,7 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             String result = (String) m.invoke(sp, flag, id, list);
             promise.resolve(result);
         } catch (Throwable e) {
-            promise.reject("PLAYER_FAILED", e.getMessage() == null ? e.toString() : e.getMessage(), e);
+            promise.reject("PLAYER_FAILED", errMsg(e), unwrap(e));
         }
     }
 
@@ -213,7 +232,7 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             spiderClassLoader = null;
             promise.resolve("ok");
         } catch (Throwable e) {
-            promise.reject("DESTROY_FAILED", e.getMessage() == null ? e.toString() : e.getMessage(), e);
+            promise.reject("DESTROY_FAILED", errMsg(e), unwrap(e));
         }
     }
 }
