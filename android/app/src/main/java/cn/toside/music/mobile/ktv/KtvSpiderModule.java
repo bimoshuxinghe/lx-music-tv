@@ -149,6 +149,29 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
         return extractAsset(SPIDER_ASSET, outFile);
     }
 
+    /** 把 jar 内部的 wexshinidie.guard 抽取到 spider 工作目录，作为 wexguard 解密的可能输入 */
+    private void ensureGuardFile() throws Exception {
+        File spiderDir = new File(reactContext.getCacheDir(), "spider");
+        if (!spiderDir.exists()) spiderDir.mkdirs();
+        File guardFile = new File(spiderDir, "wexshinidie.guard");
+        if (guardFile.exists() && guardFile.length() > 0) return;
+        File jarFile = ensureSpiderJar();
+        try (ZipFile zf = new ZipFile(jarFile)) {
+            ZipEntry ze = zf.getEntry("assets/wexshinidie.guard");
+            if (ze == null) {
+                Log.w(TAG, "spider.jar 内未找到 wexshinidie.guard（可能已内嵌解密，忽略）");
+                return;
+            }
+            try (InputStream in = zf.getInputStream(ze);
+                 OutputStream out = new FileOutputStream(guardFile)) {
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) > 0) out.write(buf, 0, len);
+            }
+        }
+        Log.i(TAG, "guard file extracted: " + guardFile.getAbsolutePath());
+    }
+
     @ReactMethod
     public void initSpider(Promise promise) {
         try {
@@ -159,11 +182,15 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
             // 1) 先加载 native 库（必须第一步，否则解密失败）
             ensureWexguardLoaded();
 
-            // 2) 拷贝 jar 并由 DexClassLoader 加载，nativeLibraryDir 指向 so 目录
+            // 2) 拷贝 jar + 抽取 .guard 到工作目录，并由 DexClassLoader 加载；
+            //    nativeLibraryDir 指向 so 目录；cwd 切到 spider 目录，方便 wexguard 找 .guard
+            File spiderDir = new File(reactContext.getCacheDir(), "spider");
             File spiderJar = ensureSpiderJar();
+            ensureGuardFile();
             File optDir = new File(reactContext.getCacheDir(), "spider_opt");
             if (!optDir.exists()) optDir.mkdirs();
             File soDir = new File(reactContext.getFilesDir(), "wexguard");
+            System.setProperty("user.dir", spiderDir.getAbsolutePath());
             ClassLoader parent = getClass().getClassLoader();
             spiderClassLoader = new DexClassLoader(
                     spiderJar.getAbsolutePath(),
