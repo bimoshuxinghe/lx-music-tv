@@ -44,3 +44,21 @@
 -keep class okio.** { *; }
 -keepclassmembers class okio.** { *; }
 -dontwarn okio.**
+
+# KTV 专区：wexguard 解密后的真实爬虫 dex 是独立构建的，引用原始未混淆的
+# kotlin-stdlib 类名（如 kotlin.jvm.internal.Intrinsics、kotlin.Unit）。
+# RN release 构建的 R8 会把 kotlin 类混淆重命名（实测 Intrinsics->l6/a 等），
+# 导致解密代码 FindClass 失败，JNI 报 "Class not found using the boot class loader"。
+# 与 TVBox 宿主一致，必须保持 kotlin 原始类名，供解密后代码按原名解析。
+-keep class kotlin.** { *; }
+-keepclassmembers class kotlin.** { *; }
+-dontwarn kotlin.**
+-keep class kotlinx.** { *; }
+-keepclassmembers class kotlinx.** { *; }
+-dontwarn kotlinx.**
+
+# KTV 专区：与 TVBox 宿主一致，保留整个 com.github.catvod 包，
+# 解密后的真实爬虫代码若引用宿主 catvod 工具类（utils/net 等）需能按原名找到
+-keep class com.github.catvod.** { *; }
+-keepclassmembers class com.github.catvod.** { *; }
+-dontwarn com.github.catvod.**

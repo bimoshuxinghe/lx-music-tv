@@ -180,7 +180,11 @@ public class KtvSpiderModule extends ReactContextBaseJavaModule {
         Throwable u = unwrap(t);
         String m = u.getMessage();
         if (TextUtils.isEmpty(m)) m = u.getClass().getName();
-        return m;
+        // 追加完整堆栈，方便定位 "Class not found using the boot class loader" 这类
+        // 无具体类名的 JNI 错误（wexguard native 解密后真实爬虫运行时的类解析失败）
+        java.io.StringWriter sw = new java.io.StringWriter();
+        u.printStackTrace(new java.io.PrintWriter(sw));
+        return m + "\n" + sw;
     }
 
     @ReactMethod
