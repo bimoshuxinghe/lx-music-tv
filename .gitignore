@@ -68,3 +68,7 @@ buck-out/
 
 # testing
 /coverage
+
+# KTV 本地临时文件（曲库 xz 由 52xinghe.top HTTP 提供，不入库）
+/ktv_song.db.xz
+/ktv_song.db

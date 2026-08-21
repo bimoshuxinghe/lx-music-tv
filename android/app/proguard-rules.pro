@@ -28,3 +28,8 @@
 # ZXing (二维码生成)
 -keep class com.google.zxing.** { *; }
 -keepclassmembers class com.google.zxing.** { *; }
+
+# KTV 专区：宿主 Spider 基类，spider.jar 中的 dex 通过 parent 类加载器引用，
+# 必须保持类名与方法签名不被 R8 混淆，否则继承链解析失败
+-keep class com.github.catvod.crawler.Spider { *; }
+-keepclassmembers class com.github.catvod.crawler.Spider { *; }
