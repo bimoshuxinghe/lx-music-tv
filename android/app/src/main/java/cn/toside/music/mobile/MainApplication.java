@@ -17,7 +17,6 @@ import cn.toside.music.mobile.sourcePush.SourcePushPackage;
 import cn.toside.music.mobile.userApi.UserApiPackage;
 import cn.toside.music.mobile.utils.UtilsPackage;
 import cn.toside.music.mobile.wallpaper.WallpaperPackage;
-import cn.toside.music.mobile.ktv.KtvDbPackage;
 import cn.toside.music.mobile.ktv.KtvSpiderPackage;
 
 public class MainApplication extends NavigationApplication {
@@ -44,7 +43,6 @@ public class MainApplication extends NavigationApplication {
           packages.add(new AISharjeckPackage());
           packages.add(new SourcePushPackage());
           packages.add(new KtvSpiderPackage());
-          packages.add(new KtvDbPackage());
           return packages;
         }
 

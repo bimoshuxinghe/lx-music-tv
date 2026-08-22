@@ -49,3 +49,15 @@ Entries discovered by the Agent during task execution should follow this format:
 - Instructions:
   - Local environment has NO JDK/Android SDK; Java/native changes must be verified by GitHub Actions (gradle assembleRelease) after push, while JS changes can be locally verified with `npx react-native bundle --platform android --dev true --entry-file index.js --bundle-output index.android.bundle --assets-dest res`
   - CI only runs gradle assembleRelease (no eslint/tsc gate); eslint passes separately, and tsc has pre-existing errors in unrelated files
+
+[Project Knowledge Summary]
+- Date: 2026-08-21
+- Context: Discovered by Agent while reverse-engineering wexguard OLLVM-obfuscated shell (wexguard_v7.so in spider.jar) to decrypt .guard file
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - wexguard_v7.so data segment (0xbd9c, size 0x7ec) self-decrypts via `.datadiv_decode10638385061521549500` (Thumb entry 0x1bbd, odd addr = Thumb flag); emu_start MUST use odd Thumb address (0x1bbd), even address (0x1bbc) causes unicorn to misdecode push.w and write wrong SP
+  - After unicorn emulation of datadiv_decode, dump mem 0xbd9c..0xc588 reveals JNI strings: full loader flow is getLoader -> read assets/wexshinidie.guard -> decrypt -> DexClassLoader; references classes Init/InitOrigin/ProxyOrigin/DexNative (all inside shell jar, not host deps)
+  - Real host-class deps confirmed: only `com.github.catvod.crawler.Spider` (provided) plus shell-internal Init; ProxyOrigin/InitOrigin/DexNative belong to shell jar itself
+  - .mytext (0x5960-0x95a4) holds the OLLVM-flattened getLoader/decrypt code; fully emulating the JNI call chain (GetMethodID on android classes etc.) is high-effort
+  - guard file is strong-encrypted (entropy 7.99, no dex magic), offline decrypt infeasible without running the so
+  - unicorn 2.1.4 installed globally (import unicorn), capstone 5.0.9 (CS_ARCH_ARM, CS_MODE_THUMB); map so ELF LOAD segments at vaddr==offset into mem 0x0..0x20000, stack at 0x30000000 with 0x10000 size
