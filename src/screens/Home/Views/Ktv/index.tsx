@@ -19,8 +19,6 @@ import { createStyle, toast, isHorizontalMode } from '@/utils/tools'
 import { scaleSizeW } from '@/utils/pixelRatio'
 import { BorderWidths } from '@/theme'
 import { useBackHandler } from '@/utils/hooks/useBackHandler'
-import Overlay, { type OverlayType } from '@/components/common/Overlay'
-import commonState from '@/store/common/state'
 import { setNavActiveId } from '@/core/common'
 import { mvSingers, mvSongs, mvSearch, mvPlayer, mvSingerAvatar } from '@/utils/nativeModules/ktvSpider'
 
@@ -109,6 +107,7 @@ export default () => {
   const [paused, setPaused] = useState(false)
   const [progress, setProgress] = useState({ time: 0, duration: 0 })
   const [showControls, setShowControls] = useState(false) // 控制条显隐
+  const [lastCtrlIndex, setLastCtrlIndex] = useState(1) // 控制条上次聚焦的按钮位（FongMi getFocus2 思想），默认暂停键
   const [menuVisible, setMenuVisible] = useState(false) // 歌曲选择菜单
 
   const searchInputRef = useRef<InputType>(null)
@@ -247,25 +246,13 @@ export default () => {
 
   const onEnd = useCallback(() => { playNext() }, [playNext])
 
-  // 全屏图层引用：二级页/全屏播放经 Overlay(usePortal) 渲染到 Screen 根，
-  // 真正占满整个屏幕且独立图层（tv_overlay_root 焦点守门，按钮可正常点击）。
-  const ktvOverlayRef = useRef<OverlayType>(null)
-  useEffect(() => {
-    const overlay = ktvOverlayRef.current
-    overlay?.setVisible(fullScreen || playingSinger != '')
-    return () => { overlay?.setVisible(false) }
-  }, [fullScreen, playingSinger])
-
-  // 返回键（遥控器返回）：菜单 → 全屏 → 二级 → 退出 Ktv 回上一个导航
+  // 返回键（遥控器返回）：菜单 → 全屏 → 二级 → 退出 Ktv 回主页
   const handleBack = useCallback((): boolean => {
     if (menuVisible) { setMenuVisible(false); return true }
     if (fullScreen) { setFullScreen(false); setPlayer(null); setShowControls(false); return true }
     if (playingSinger) { setPlayingSinger(''); setMvList([]); return true }
-    if (commonState.navActiveId == 'nav_ktv' && commonState.lastNavActiveId != 'nav_ktv') {
-      setNavActiveId(commonState.lastNavActiveId)
-      return true
-    }
-    return false
+    setNavActiveId('nav_search')
+    return true
   }, [menuVisible, fullScreen, playingSinger])
 
   useBackHandler(useCallback(() => handleBack(), [handleBack]))
@@ -300,6 +287,9 @@ export default () => {
   }, [mvGridW, mvCols])
 
   // ============ 全屏播放页 ============
+  // 交互：播放中屏幕只显示视频（透明焦点锚点承载焦点，无任何视觉框）；
+  // 按下键 → 焦点落到底部控制条（上一首/暂停/下一首/菜单）并显示；
+  // 按 OK → 暂停，中间弹出播放按钮；再按 OK 恢复播放，按钮消失。
   const renderFullScreen = () => (
     <View style={styles.fullScreenContainer}>
       {player && videoSource ? (
@@ -324,18 +314,28 @@ export default () => {
         </View>
       )}
 
-      {/* 居中播放/暂停按钮：常驻焦点目标，OK 切换暂停；暂停时显示播放图标 */}
+      {/* 全屏透明焦点锚点：播放时承载焦点，无任何视觉；OK 键切换暂停 */}
       <TouchableOpacity
-        style={styles.fsCenterBtn}
-        focusStyle={styles.fsCenterFocus}
-        hasTVPreferredFocus
+        style={StyleSheet.absoluteFill}
+        focusStyle={styles.fsAnchorFocus}
         onPress={() => { setPaused(p => !p); setShowControls(false) }}
         onFocus={() => { setShowControls(false) }}
-      >
-        <IconMaterial name={paused ? 'play-arrow' : 'pause'} size={72} color="#FFFFFF" />
-      </TouchableOpacity>
+      />
 
-      {/* 顶栏：仅控制条显示时出现（不再常驻占位） */}
+      {/* 暂停时显示的居中播放按钮：控制条隐藏时作唯一焦点目标，控制条显示时不抢焦点 */}
+      {paused && (
+        <TouchableOpacity
+          style={styles.fsCenterBtn}
+          focusStyle={styles.fsCenterFocus}
+          hasTVPreferredFocus={!showControls}
+          onPress={() => { setPaused(false); setShowControls(false) }}
+          onFocus={() => { setShowControls(false) }}
+        >
+          <IconMaterial name="play-arrow" size={72} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
+
+      {/* 顶栏：仅控制条显示时出现 */}
       {showControls && (
         <View style={styles.fsTopBar}>
           <IconMaterial name="person" size={18} color={ACCENT_RED} />
@@ -351,28 +351,34 @@ export default () => {
         </View>
       )}
 
-      {/* 控制条：下键聚焦时显示 */}
-      {showControls && (
-        <View style={styles.fsControls}>
-          <TouchableOpacity style={styles.ctrlBtn} onPress={() => { playPrev() }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
-            <IconMaterial name="skip-previous" size={24} color="#FFFFFF" />
-            <Text style={styles.ctrlText} size={13}>上一首</Text>
+      {/* 控制条：始终渲染可聚焦（透明时下键仍能聚焦呼出），聚焦即显示；呼出时恢复上次聚焦按钮（FongMi getFocus2 思想） */}
+      <View style={[styles.fsControls, { opacity: showControls ? 1 : 0 }]}>
+        {[
+          { key: 'prev', icon: 'skip-previous', label: '上一首', onPress: () => { playPrev() } },
+          {
+            key: 'pause',
+            icon: paused ? 'play-arrow' : 'pause',
+            label: paused ? '播放' : '暂停',
+            onPress: () => { setPaused(p => !p) },
+          },
+          { key: 'next', icon: 'skip-next', label: '下一首', onPress: () => { playNext() } },
+          { key: 'menu', icon: 'queue-music', label: '菜单', onPress: () => { setMenuVisible(true); setShowControls(false) }, menu: true },
+        ].map((btn, index) => (
+          <TouchableOpacity
+            key={btn.key}
+            style={{ ...styles.ctrlBtn, ...(btn.menu ? styles.ctrlBtnMenu : {}) }}
+            onPress={btn.onPress}
+            onFocus={() => { setShowControls(true); setLastCtrlIndex(index) }}
+            onBlur={() => { setShowControls(false) }}
+            hasTVPreferredFocus={showControls && index == lastCtrlIndex}
+            focusStyle={styles.ctrlFocus}
+          >
+            <IconMaterial name={btn.icon as any} size={index == 1 ? 30 : 24} color="#FFFFFF" />
+            <Text style={styles.ctrlText} size={13}>{btn.label}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.ctrlBtn} onPress={() => { setPaused(p => !p) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
-            <IconMaterial name={paused ? 'play-arrow' : 'pause'} size={30} color="#FFFFFF" />
-            <Text style={styles.ctrlText} size={13}>{paused ? '播放' : '暂停'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.ctrlBtn} onPress={() => { playNext() }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
-            <IconMaterial name="skip-next" size={24} color="#FFFFFF" />
-            <Text style={styles.ctrlText} size={13}>下一首</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={{ ...styles.ctrlBtn, ...styles.ctrlBtnMenu }} onPress={() => { setMenuVisible(true); setShowControls(false) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
-            <IconMaterial name="queue-music" size={24} color="#FFFFFF" />
-            <Text style={styles.ctrlText} size={13}>菜单</Text>
-          </TouchableOpacity>
-          <Text style={styles.ctrlTime} size={13} color="#FFFFFFAA">{fmt(progress.time)}{progress.duration > 0 ? ` / ${fmt(progress.duration)}` : ''}</Text>
-        </View>
-      )}
+        ))}
+        <Text style={styles.ctrlTime} size={13} color="#FFFFFFAA">{fmt(progress.time)}{progress.duration > 0 ? ` / ${fmt(progress.duration)}` : ''}</Text>
+      </View>
 
       {/* 歌曲选择菜单：全屏二级界面，盖住整个全屏播放页 */}
       {menuVisible && (
@@ -602,19 +608,9 @@ export default () => {
     </View>
   )
 
-  // 一级页面保持嵌在 Horizontal 内容区；二级页/全屏播放经 Overlay 全屏渲染
-  return (
-    <>
-      {renderHome()}
-      <Overlay ref={ktvOverlayRef} keyHide={false} bgHide={false} bgColor="#0A0C10" statusBarPadding={false}>
-        <View style={StyleSheet.absoluteFill}>
-          {playingSinger
-            ? (fullScreen ? renderFullScreen() : renderPlayPage())
-            : null}
-        </View>
-      </Overlay>
-    </>
-  )
+  return fullScreen
+    ? renderFullScreen()
+    : (playingSinger ? renderPlayPage() : renderHome())
 }
 
 // ============ 样式 ============
@@ -863,6 +859,14 @@ const styles = createStyle({
     borderColor: '#FFFFFF',
     borderWidth: 4,
     transform: [{ scale: 1.12 }],
+  },
+  // 全屏透明焦点锚点：聚焦时保持透明，播放中无任何视觉焦点框
+  fsAnchorFocus: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    borderWidth: 0,
+    elevation: 0,
+    transform: [{ scale: 1 }],
   },
   progressTrack: {
     position: 'absolute',

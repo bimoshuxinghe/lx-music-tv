@@ -5,6 +5,7 @@ import PlayPanel from './PlayPanel'
 import StatusBar from '@/components/common/StatusBar'
 import Header from './Header'
 import Main from './Main'
+import Ktv from '../Views/Ktv'
 import { createStyle } from '@/utils/tools'
 import { moveTaskToBack } from '@/utils/nativeModules/utils'
 import { exitApp } from '@/core/common'
@@ -62,6 +63,16 @@ export default () => {
       backHandler.remove()
     }
   }, [backPressAction])
+
+  // KTV 是独立全屏页面：按到 KTV 时整个屏幕显示 KTV，不渲染导航/播放面板
+  if (navActiveId == 'nav_ktv') {
+    return (
+      <>
+        <StatusBar />
+        <Ktv />
+      </>
+    )
+  }
 
   return (
     <>
