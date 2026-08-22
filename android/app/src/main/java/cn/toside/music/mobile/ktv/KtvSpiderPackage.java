@@ -18,6 +18,6 @@ public class KtvSpiderPackage implements ReactPackage {
 
     @Override
     public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
-        return Arrays.<NativeModule>asList(new MiguSpiderModule(reactContext));
+        return Arrays.<NativeModule>asList(new CfssSpiderModule(reactContext));
     }
 }
