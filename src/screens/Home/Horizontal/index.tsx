@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { View, BackHandler, ToastAndroid } from 'react-native'
+import { View, BackHandler, ToastAndroid, AppState } from 'react-native'
 import NavBar from './NavBar'
 import PlayPanel from './PlayPanel'
 import StatusBar from '@/components/common/StatusBar'
@@ -8,7 +8,7 @@ import Main from './Main'
 import Ktv from '../Views/Ktv'
 import { createStyle } from '@/utils/tools'
 import { moveTaskToBack } from '@/utils/nativeModules/utils'
-import { exitApp } from '@/core/common'
+import { exitApp, setNavActiveId } from '@/core/common'
 import { useSettingValue } from '@/store/setting/hook'
 import { useNavActiveId } from '@/store/common/hook'
 import { pop } from '@/navigation'
@@ -65,6 +65,16 @@ export default () => {
   }, [backPressAction])
 
   // KTV 是独立全屏页面：按到 KTV 时整个屏幕显示 KTV，不渲染导航/播放面板
+  // app 从后台恢复时若仍停在 KTV（进程存活状态未重置），自动回主页，
+  // 保证用户再次打开软件看到的是主页，而不是上次停留的 KTV 全屏页
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state != 'active') return
+      if (commonState.navActiveId == 'nav_ktv') setNavActiveId('nav_search')
+    })
+    return () => { sub.remove() }
+  }, [])
+
   if (navActiveId == 'nav_ktv') {
     return (
       <>

@@ -23,6 +23,15 @@ export const screenUnkeepAwake = () => {
   UtilsModule.screenUnkeepAwake()
 }
 
+/**
+ * KTV 全屏播放按键拦截开关：
+ * 开启后 MainActivity 把 D-pad 上下键 / OK / Enter 转发到 JS（tvRemoteKey 事件），
+ * 由全屏页自行处理（暂停播放、呼出控制条），不再参与系统焦点导航。
+ */
+export const setFullscreenKeyCapture = (enabled: boolean) => {
+  UtilsModule.setFullscreenKeyCapture(enabled)
+}
+
 export const getWIFIIPV4Address = UtilsModule.getWIFIIPV4Address as () => Promise<string>
 
 export const getIPV4Address = UtilsModule.getIPV4Address as () => Promise<string>

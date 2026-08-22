@@ -185,9 +185,17 @@ public class UtilsModule extends ReactContextBaseJavaModule {
     }
   }
 
+  /**
+   * KTV 全屏播放按键拦截开关。
+   * 开启时 MainActivity 将 D-pad 上下键 / OK / Enter 转发 JS 处理（暂停播放、呼出控制条）。
+   */
   @ReactMethod
-  public void screenkeepAwake() {
-    // https://github.com/corbt/react-native-keep-awake/blob/master/android/src/main/java/com/corbt/keepawake/KCKeepAwake.java
+  public void setFullscreenKeyCapture(boolean enabled) {
+    cn.toside.music.mobile.MainActivity.setFullscreenKeyCapture(enabled);
+  }
+
+  @ReactMethod
+  public void screenkeepAwake() {    // https://github.com/corbt/react-native-keep-awake/blob/master/android/src/main/java/com/corbt/keepawake/KCKeepAwake.java
     final Activity activity = getCurrentActivity();
 
     if (activity != null) {

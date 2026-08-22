@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { MutableRefObject } from 'react'
 import {
   View,
   FlatList,
   StyleSheet,
   useWindowDimensions,
+  DeviceEventEmitter,
   type NativeSyntheticEvent,
   type TextInputSubmitEditingEventData,
 } from 'react-native'
@@ -20,7 +20,9 @@ import { scaleSizeW } from '@/utils/pixelRatio'
 import { BorderWidths } from '@/theme'
 import { useBackHandler } from '@/utils/hooks/useBackHandler'
 import { setNavActiveId } from '@/core/common'
-import { mvSingers, mvSongs, mvSearch, mvPlayer, mvSingerAvatar } from '@/utils/nativeModules/ktvSpider'
+import { setFullscreenKeyCapture } from '@/utils/nativeModules/utils'
+import { mvSingers, mvSongs, mvSearch, mvPlayer } from '@/utils/nativeModules/ktvSpider'
+import { getSingerAvatar, preloadSingerAvatars } from '@/utils/ktvAvatarCache'
 
 // ============ 类型 ============
 interface MvSong {
@@ -44,26 +46,24 @@ const ACCENT_RED = '#FD3359'
 
 /**
  * 歌手头像：cfss 歌手接口不返回图片，调用酷我搜索接口拿该歌手头像。
- * 用 cacheRef 缓存 URL，FlatList 卸载重挂载时从缓存恢复，避免重复请求。
- * 加载完成前显示 person 占位图标。
+ * 走 ktvAvatarCache（磁盘缓存 + 并发池）：二次进入秒读，首次进入并发受限不卡顿；
+ * 加载完成前显示 person 占位图标，失败静默。
  */
-const SingerAvatar = ({ name, cacheRef, theme }: {
+const SingerAvatar = ({ name, theme }: {
   name: string
-  cacheRef: MutableRefObject<Record<string, string>>
   theme: ReturnType<typeof useTheme>
 }) => {
-  const [pic, setPic] = useState(() => cacheRef.current[name] ?? '')
+  const [pic, setPic] = useState(() => '')
 
   useEffect(() => {
     if (!name) return
-    if (cacheRef.current[name]) { setPic(cacheRef.current[name]); return }
     let alive = true
-    void mvSingerAvatar(name).then((url) => {
+    void getSingerAvatar(name).then((url) => {
       if (!alive) return
-      if (url) { cacheRef.current[name] = url; setPic(url) }
-    }).catch(() => { /* ignore */ })
+      if (url) setPic(url)
+    })
     return () => { alive = false }
-  }, [name, cacheRef])
+  }, [name])
 
   return (
     <View style={{ ...styles.singerAvatar, backgroundColor: theme['c-primary-light-900-alpha-200'] }}>
@@ -80,9 +80,6 @@ export default () => {
   const horizontalMode = isHorizontalMode(winW, winH)
 
   // ===== 界面状态 =====
-  // 歌手头像 URL 缓存（FlatList 卸载重挂载时恢复，避免重复请求）
-  const avatarCacheRef = useRef<Record<string, string>>({})
-
   // 一级 Tab
   const [activeTab, setActiveTab] = useState<MainTab>('singer')
   // 歌手 Tab（gender: 1=男 2=女，由 activeTab 决定）
@@ -125,6 +122,11 @@ export default () => {
       const arr: MvSong[] = Array.isArray(json.list) ? json.list : []
       setSingers(arr)
       setStatus('idle')
+      // 歌手名单拿到后后台预取头像（并发池内排队，不阻塞 UI）
+      if (arr.length > 0) {
+        const names = arr.map(i => i.vod_name)
+        setTimeout(() => { void preloadSingerAvatars(names) }, 0)
+      }
     } catch (err) {
       setStatus('error')
       setErrorMsg((err as Error).message ?? String(err))
@@ -257,6 +259,34 @@ export default () => {
 
   useBackHandler(useCallback(() => handleBack(), [handleBack]))
 
+  // ===== 全屏播放遥控器按键拦截 =====
+  // 原生侧（MainActivity）在全屏拦截开启时把 D-pad 上下/OK/Enter 转发到 JS（tvRemoteKey）。
+  // 交互：控制条隐藏时 OK=暂停/播放、上下=呼出控制条；控制条显示时关闭拦截，恢复系统
+  // 焦点导航（左右切按钮、OK 激活按钮）。
+  const keyCaptureOn = fullScreen && !menuVisible && !showControls
+  useEffect(() => {
+    setFullscreenKeyCapture(keyCaptureOn)
+    return () => { setFullscreenKeyCapture(false) }
+  }, [keyCaptureOn])
+
+  useEffect(() => {
+    if (!keyCaptureOn) return
+    const listener = DeviceEventEmitter.addListener('tvRemoteKey', (event: { keyCode: number }) => {
+      if (!event) return
+      switch (event.keyCode) {
+        case 19: // KEYCODE_DPAD_UP
+        case 20: // KEYCODE_DPAD_DOWN
+          setShowControls(true)
+          break
+        case 23: // KEYCODE_DPAD_CENTER
+        case 66: // KEYCODE_ENTER
+          setPaused(p => !p)
+          break
+      }
+    })
+    return () => { listener.remove() }
+  }, [keyCaptureOn])
+
   const videoSource = useMemo(() => {
     if (!player) return null
     return { uri: player.url }
@@ -274,11 +304,13 @@ export default () => {
     return Math.max(1, Math.floor(containerWidth / cardMinW))
   }, [horizontalMode])
 
-  const singerCols = useMemo(() => calcCols(singerGridW, scaleSizeW(150)), [calcCols, singerGridW])
+  // 歌手宫格固定 6 列（用户要求：5-6 列、一屏 3 行，卡片紧凑）
+  const SINGER_COLS = 6
+  const singerCols = useMemo(() => SINGER_COLS, [])
   const singerItemWidth = useMemo(() => {
-    if (singerGridW <= 0) return scaleSizeW(150)
-    return Math.floor((singerGridW - 12) / singerCols)
-  }, [singerGridW, singerCols])
+    if (singerGridW <= 0) return scaleSizeW(120)
+    return Math.floor((singerGridW - 10) / SINGER_COLS)
+  }, [singerGridW])
 
   const mvCols = useMemo(() => calcCols(mvGridW, scaleSizeW(200)), [calcCols, mvGridW])
   const mvItemWidth = useMemo(() => {
@@ -464,8 +496,8 @@ export default () => {
           focusStyle={styles.cardFocus}
           onPress={() => { void openSinger(item.vod_name) }}
         >
-          <SingerAvatar name={item.vod_name} cacheRef={avatarCacheRef} theme={theme} />
-          <Text style={styles.singerName} size={13} color={theme['c-font']} numberOfLines={1}>{item.vod_name}</Text>
+          <SingerAvatar name={item.vod_name} theme={theme} />
+          <Text style={styles.singerName} size={12} color={theme['c-font']} numberOfLines={1}>{item.vod_name}</Text>
         </TouchableOpacity>
       </View>
     )
@@ -699,14 +731,14 @@ const styles = createStyle({
   gridRow: {
     justifyContent: 'flex-start',
   },
-  // 歌手卡片
+  // 歌手卡片（紧凑：固定 6 列，一屏约 3 行）
   singerCard: {
-    paddingHorizontal: 6,
-    paddingBottom: 14,
+    paddingHorizontal: 5,
+    paddingBottom: 10,
   },
   singerCardTouch: {
     alignItems: 'center',
-    padding: 10,
+    padding: 6,
   },
   cardFocus: {
     backgroundColor: 'transparent',
@@ -718,7 +750,7 @@ const styles = createStyle({
   singerAvatar: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 10,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -728,7 +760,7 @@ const styles = createStyle({
     height: '100%',
   },
   singerName: {
-    marginTop: 8,
+    marginTop: 4,
     textAlign: 'center',
   },
   // MV 卡片

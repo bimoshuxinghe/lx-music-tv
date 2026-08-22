@@ -41,6 +41,21 @@ public class MainActivity extends NavigationActivity {
     /** 可调节控件（滑块/进度条）的 nativeID 前缀，命中则 D-pad 左右键被 JS 消费 */
     private static final String TV_ADJUSTABLE_PREFIX = "tv_adjustable_";
 
+    /**
+     * 全屏按键拦截开关（KTV 全屏播放用）：
+     * 开启时，D-pad 上下键 / OK / Enter 键被转发到 JS 侧统一处理（暂停播放、呼出控制条），
+     * 不参与系统焦点导航。JS 侧在 KTV 全屏且控制条隐藏时开启，控制条显示时关闭恢复系统导航。
+     */
+    private static boolean fullscreenKeyCapture = false;
+
+    public static void setFullscreenKeyCapture(boolean enabled) {
+        fullscreenKeyCapture = enabled;
+    }
+
+    public static boolean isFullscreenKeyCapture() {
+        return fullscreenKeyCapture;
+    }
+
     /** Overlay 根容器 nativeID（JS 侧 Overlay.tsx 设置），用于弹窗焦点守门 */
     private static final String TV_OVERLAY_ROOT_ID = "tv_overlay_root";
     /** Overlay 遮罩层 nativeID（JS 侧 Overlay.tsx 设置），用于弹窗焦点守门 */
@@ -202,6 +217,11 @@ public class MainActivity extends NavigationActivity {
             sendKeyToJS(keyCode, event);
             return true;
         }
+        // KTV 全屏播放：上下/OK/Enter 键转发 JS（暂停播放、呼出控制条），不参与系统焦点导航
+        if (fullscreenKeyCapture && isFullscreenCaptureKey(keyCode)) {
+            sendKeyToJS(keyCode, event);
+            return true;
+        }
         // 菜单键：开发模式下弹出 RN DevServer 菜单
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             ReactInstanceManager rim = getReactInstanceManager();
@@ -270,6 +290,22 @@ public class MainActivity extends NavigationActivity {
             v = (View) parent;
         }
         return null;
+    }
+
+    /**
+     * 全屏播放时由 JS 消费的按键：上下方向键（呼出控制条）+ OK/Enter（暂停播放）
+     */
+    private boolean isFullscreenCaptureKey(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /**
