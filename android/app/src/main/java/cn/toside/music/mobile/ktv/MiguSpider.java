@@ -325,6 +325,7 @@ public class MiguSpider {
   public static String search(String keyword) throws Exception {
     JSONObject params = new JSONObject();
     params.put("signinfo", keyword);
+    params.put("signtype", "1");
     params.put("start", 1);
     params.put("count", 20);
     JSONObject r = call("tvGetSongsByMuliType", params);
@@ -394,7 +395,7 @@ public class MiguSpider {
     JSONObject a = new JSONObject();
     a.put("parse", 0);
     a.put("url", parts[0]);
-    a.put("header", UA);
+    a.put("header", "User-Agent: " + UA);
     return a.toString();
   }
 }

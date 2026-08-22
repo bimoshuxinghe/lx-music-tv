@@ -155,10 +155,13 @@ export default () => {
     const detailJson = JSON.parse(await ktvDetail([item.vod_id]))
     const detail = Array.isArray(detailJson.list) ? detailJson.list[0] : null
     if (!detail) return null
-    const urlParts: string[] = String(detail.vod_play_url ?? '').split('$$$').filter(Boolean)
-    const firstSourceUrls: string[] = (urlParts[0] ?? '').split('#').filter(Boolean)
-    if (!firstSourceUrls.length) return null
-    const playerJson = JSON.parse(await ktvPlayer('咪咕', firstSourceUrls[0], firstSourceUrls))
+    // vod_play_url 形如 "歌名$url@@lrc#歌名$url@@lrc"（咪咕单源）
+    const urlParts: string[] = String(detail.vod_play_url ?? '').split('#').filter(Boolean)
+    const source = urlParts[0] ?? ''
+    const dollarIdx = source.indexOf('$')
+    const playId = dollarIdx >= 0 ? source.slice(dollarIdx + 1) : source // 去掉 "歌名$" 前缀
+    if (!playId) return null
+    const playerJson = JSON.parse(await ktvPlayer('咪咕', playId, [playId]))
     const url: string = playerJson.url ?? playerJson.playUrl ?? ''
     if (!url) return null
     return {
