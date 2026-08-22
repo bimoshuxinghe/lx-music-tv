@@ -216,7 +216,7 @@ public class MiguSpider {
     return song.optString("resourcepath", "");
   }
 
-  private static JSONObject toVod(JSONObject song) {
+  private static JSONObject toVod(JSONObject song) throws JSONException {
     JSONObject v = new JSONObject();
     v.put("vod_id", song.optString("resourceno") + "@@" + song.optString("resourcename") + "@@" + pickPath(song) + "@@" + song.optString("encryptlyricspath"));
     v.put("vod_name", song.optString("resourcename"));
