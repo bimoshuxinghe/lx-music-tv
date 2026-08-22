@@ -196,7 +196,7 @@ public class CfssSpider {
   }
 
   // 酷我搜索接口（宽松 JSON，含 hts_PICPATH 完整头像 URL）：all=歌手名&ft=artist
-  private static final String KUWO_SEARCH = "http://search.kuwo.cn/r.s";
+  private static final String KUWO_SEARCH = "https://search.kuwo.cn/r.s";
   // hts_PICPATH':'https://img3.kuwo.cn/star/starheads/240/xxx.jpg
   private static final Pattern KUWO_PIC_PATTERN = Pattern.compile("hts_PICPATH':'([^']+)'");
 

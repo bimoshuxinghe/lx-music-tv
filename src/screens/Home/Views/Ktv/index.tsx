@@ -19,6 +19,7 @@ import { createStyle, toast, isHorizontalMode } from '@/utils/tools'
 import { scaleSizeW } from '@/utils/pixelRatio'
 import { BorderWidths } from '@/theme'
 import { useBackHandler } from '@/utils/hooks/useBackHandler'
+import Overlay, { type OverlayType } from '@/components/common/Overlay'
 import commonState from '@/store/common/state'
 import { setNavActiveId } from '@/core/common'
 import { mvSingers, mvSongs, mvSearch, mvPlayer, mvSingerAvatar } from '@/utils/nativeModules/ktvSpider'
@@ -45,25 +46,26 @@ const ACCENT_RED = '#FD3359'
 
 /**
  * 歌手头像：cfss 歌手接口不返回图片，调用酷我搜索接口拿该歌手头像。
+ * 用 cacheRef 缓存 URL，FlatList 卸载重挂载时从缓存恢复，避免重复请求。
  * 加载完成前显示 person 占位图标。
  */
-const SingerAvatar = ({ name, loadedRef, theme }: {
+const SingerAvatar = ({ name, cacheRef, theme }: {
   name: string
-  loadedRef: MutableRefObject<Record<string, boolean>>
+  cacheRef: MutableRefObject<Record<string, string>>
   theme: ReturnType<typeof useTheme>
 }) => {
-  const [pic, setPic] = useState('')
+  const [pic, setPic] = useState(() => cacheRef.current[name] ?? '')
 
   useEffect(() => {
-    if (!name || loadedRef.current[name]) return
-    loadedRef.current[name] = true
+    if (!name) return
+    if (cacheRef.current[name]) { setPic(cacheRef.current[name]); return }
     let alive = true
     void mvSingerAvatar(name).then((url) => {
       if (!alive) return
-      if (url) setPic(url)
+      if (url) { cacheRef.current[name] = url; setPic(url) }
     }).catch(() => { /* ignore */ })
     return () => { alive = false }
-  }, [name, loadedRef])
+  }, [name, cacheRef])
 
   return (
     <View style={{ ...styles.singerAvatar, backgroundColor: theme['c-primary-light-900-alpha-200'] }}>
@@ -80,8 +82,8 @@ export default () => {
   const horizontalMode = isHorizontalMode(winW, winH)
 
   // ===== 界面状态 =====
-  // 歌手头像缓存标记（避免重复请求该歌手封面）
-  const avatarLoadedRef = useRef<Record<string, boolean>>({})
+  // 歌手头像 URL 缓存（FlatList 卸载重挂载时恢复，避免重复请求）
+  const avatarCacheRef = useRef<Record<string, string>>({})
 
   // 一级 Tab
   const [activeTab, setActiveTab] = useState<MainTab>('singer')
@@ -245,6 +247,15 @@ export default () => {
 
   const onEnd = useCallback(() => { playNext() }, [playNext])
 
+  // 全屏图层引用：二级页/全屏播放经 Overlay(usePortal) 渲染到 Screen 根，
+  // 真正占满整个屏幕且独立图层（tv_overlay_root 焦点守门，按钮可正常点击）。
+  const ktvOverlayRef = useRef<OverlayType>(null)
+  useEffect(() => {
+    const overlay = ktvOverlayRef.current
+    overlay?.setVisible(fullScreen || playingSinger != '')
+    return () => { overlay?.setVisible(false) }
+  }, [fullScreen, playingSinger])
+
   // 返回键（遥控器返回）：菜单 → 全屏 → 二级 → 退出 Ktv 回上一个导航
   const handleBack = useCallback((): boolean => {
     if (menuVisible) { setMenuVisible(false); return true }
@@ -363,11 +374,13 @@ export default () => {
         </View>
       )}
 
-      {/* 歌曲选择菜单 */}
+      {/* 歌曲选择菜单：全屏二级界面，盖住整个全屏播放页 */}
       {menuVisible && (
-        <View style={styles.menuPanel}>
+        <View style={styles.menuFullPanel}>
           <View style={styles.menuHeader}>
-            <Text style={styles.menuTitle} size={15} color="#FFFFFF">{playingSinger} 的全部歌曲</Text>
+            <IconMaterial name="queue-music" size={18} color={GOLD} />
+            <Text style={styles.menuTitle} size={16} color="#FFFFFF">{playingSinger} 的全部歌曲</Text>
+            <Text style={styles.menuHint} size={12} color="#FFFFFF77">按返回键退出</Text>
           </View>
           <FlatList
             style={styles.menuList}
@@ -445,7 +458,7 @@ export default () => {
           focusStyle={styles.cardFocus}
           onPress={() => { void openSinger(item.vod_name) }}
         >
-          <SingerAvatar name={item.vod_name} loadedRef={avatarLoadedRef} theme={theme} />
+          <SingerAvatar name={item.vod_name} cacheRef={avatarCacheRef} theme={theme} />
           <Text style={styles.singerName} size={13} color={theme['c-font']} numberOfLines={1}>{item.vod_name}</Text>
         </TouchableOpacity>
       </View>
@@ -589,9 +602,19 @@ export default () => {
     </View>
   )
 
-  return fullScreen
-    ? renderFullScreen()
-    : (playingSinger ? renderPlayPage() : renderHome())
+  // 一级页面保持嵌在 Horizontal 内容区；二级页/全屏播放经 Overlay 全屏渲染
+  return (
+    <>
+      {renderHome()}
+      <Overlay ref={ktvOverlayRef} keyHide={false} bgHide={false} bgColor="#0A0C10" statusBarPadding={false}>
+        <View style={StyleSheet.absoluteFill}>
+          {playingSinger
+            ? (fullScreen ? renderFullScreen() : renderPlayPage())
+            : null}
+        </View>
+      </Overlay>
+    </>
+  )
 }
 
 // ============ 样式 ============
@@ -889,32 +912,34 @@ const styles = createStyle({
   ctrlTime: {
     marginLeft: 8,
   },
-  // 歌曲选择菜单
-  menuPanel: {
-    position: 'absolute',
-    right: 16,
-    top: 56,
-    bottom: 56,
-    width: 420,
-    borderRadius: 10,
-    backgroundColor: 'rgba(18,20,26,0.97)',
-    borderWidth: BorderWidths.normal,
-    borderColor: '#FFFFFF22',
-    overflow: 'hidden',
+  // 歌曲选择菜单（全屏二级界面）
+  menuFullPanel: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    backgroundColor: 'rgba(10,12,16,0.97)',
+    flexDirection: 'column',
   },
   menuHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     borderBottomWidth: BorderWidths.normal,
     borderBottomColor: '#FFFFFF14',
   },
   menuTitle: {
+    flexGrow: 1,
+    flexShrink: 1,
+    marginLeft: 10,
     fontWeight: 'bold',
+  },
+  menuHint: {
+    marginRight: 4,
   },
   menuList: {
     flex: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
   menuRow: {
     flexDirection: 'row',
