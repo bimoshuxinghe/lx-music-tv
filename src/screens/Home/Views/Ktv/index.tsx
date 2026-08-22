@@ -3,6 +3,7 @@ import {
   View,
   Modal,
   FlatList,
+  StyleSheet,
   useWindowDimensions,
   type NativeSyntheticEvent,
   type TextInputSubmitEditingEventData,
@@ -10,7 +11,7 @@ import {
 import Video from 'react-native-video'
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 import Text from '@/components/common/Text'
-import { Icon, IconMaterial } from '@/components/common/Icon'
+import { IconMaterial } from '@/components/common/Icon'
 import Image from '@/components/common/Image'
 import Input, { type InputType } from '@/components/common/Input'
 import { useTheme } from '@/store/theme/hook'
@@ -27,19 +28,14 @@ interface MvSong {
   vod_remarks?: string
 }
 
-// 一级页面 Tab
+// 一级页面 Tab（歌手=男歌手，女歌手独立）
 const MAIN_TABS = [
   { id: 'singer', name: '歌手' },
+  { id: 'female', name: '女歌手' },
   { id: 'song', name: '歌曲' },
   { id: 'search', name: '搜索' },
 ] as const
 type MainTab = typeof MAIN_TABS[number]['id']
-
-// 歌手 Tab：男/女
-const SINGER_GENDERS = [
-  { id: 1, name: '男歌手' },
-  { id: 2, name: '女歌手' },
-]
 
 const GOLD = '#F5BE59'
 const ACCENT_RED = '#FD3359'
@@ -47,7 +43,6 @@ const ACCENT_RED = '#FD3359'
 export default () => {
   const theme = useTheme()
   const { width: winW, height: winH } = useWindowDimensions()
-  const landscape = winW > winH
   const horizontalMode = isHorizontalMode(winW, winH)
 
   // ===== 界面状态 =====
@@ -55,12 +50,10 @@ export default () => {
 
   // 一级 Tab
   const [activeTab, setActiveTab] = useState<MainTab>('singer')
-  // 歌手 Tab
-  const [gender, setGender] = useState(1)
+  // 歌手 Tab（gender: 1=男 2=女，由 activeTab 决定）
   const [singers, setSingers] = useState<MvSong[]>([])
   // 歌曲 Tab
   const [songs, setSongs] = useState<MvSong[]>([])
-  const [songsTitle, setSongsTitle] = useState('')
   // 搜索
   const [keyword, setKeyword] = useState('')
   const [searchResult, setSearchResult] = useState<MvSong[]>([])
@@ -68,18 +61,25 @@ export default () => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
-  // ===== 二级播放界面状态 =====
+  // ===== 二级（歌手全部 MV 列表页） =====
   const [playingSinger, setPlayingSinger] = useState('') // 非空表示进入二级
   const [mvList, setMvList] = useState<MvSong[]>([])
+
+  // ===== 全屏播放 =====
+  const [fullScreen, setFullScreen] = useState(false) // 全屏播放中
   const [currentIndex, setCurrentIndex] = useState(-1)
   const [player, setPlayer] = useState<{ url: string, name: string, pic?: string } | null>(null)
   const [paused, setPaused] = useState(false)
   const [progress, setProgress] = useState({ time: 0, duration: 0 })
+  const [showControls, setShowControls] = useState(false) // 控制条显隐
+  const [menuVisible, setMenuVisible] = useState(false) // 歌曲选择菜单
 
   const searchInputRef = useRef<InputType>(null)
   const loadingRef = useRef(false)
   const [singerGridW, setSingerGridW] = useState(0)
   const [mvGridW, setMvGridW] = useState(0)
+
+  const gender = activeTab == 'female' ? 2 : 1
 
   // ===== 歌手列表 =====
   const loadSingers = useCallback(async() => {
@@ -104,7 +104,6 @@ export default () => {
       const json = JSON.parse(await mvSongs(kw, 1))
       const arr: MvSong[] = Array.isArray(json.list) ? json.list : []
       setSongs(arr)
-      setSongsTitle(title)
       setStatus('idle')
     } catch (err) {
       setStatus('error')
@@ -136,7 +135,7 @@ export default () => {
     void doSearch(keyword)
   }
 
-  // ===== 进入二级：加载该歌手全部 MV =====
+  // ===== 加载歌手全部 MV =====
   const loadMvListForSinger = useCallback(async(singer: string): Promise<MvSong[]> => {
     try {
       const json = JSON.parse(await mvSongs(singer, 1))
@@ -148,18 +147,29 @@ export default () => {
     }
   }, [])
 
+  // 从名称提取歌手名：优先 '歌手 - 歌名'，其次 '歌手 歌名'（搜索提示）
+  const getSingerFromName = useCallback((name: string): string => {
+    const m = name.split(' - ')[0]?.trim()
+    if (m && m.length > 0 && m != name) return m
+    return name.split(' ')[0]?.trim() ?? ''
+  }, [])
+
+  // 点击歌手 → 进入二级（歌手全部 MV 列表，不自动播放）
   const openSinger = useCallback(async(singer: string) => {
     setPlayingSinger(singer)
     setMvList([])
-    setCurrentIndex(-1)
+    setFullScreen(false)
     setPlayer(null)
+    setCurrentIndex(-1)
     setPaused(false)
     setProgress({ time: 0, duration: 0 })
+    setShowControls(false)
+    setMenuVisible(false)
     const arr = await loadMvListForSinger(singer)
     setMvList(arr)
   }, [loadMvListForSinger])
 
-  // 二级界面点某首 MV
+  // 播放指定 index
   const playAt = useCallback(async(list: MvSong[], index: number) => {
     if (index < 0 || index >= list.length) return
     if (loadingRef.current) return
@@ -173,6 +183,9 @@ export default () => {
       setPaused(false)
       setProgress({ time: 0, duration: 0 })
       setPlayer({ url, name: item.vod_name, pic: item.vod_pic })
+      setFullScreen(true)
+      setShowControls(false)
+      setMenuVisible(false)
     } catch (err) {
       toast(`播放失败：${(err as Error).message ?? err}`)
     } finally {
@@ -180,38 +193,30 @@ export default () => {
     }
   }, [])
 
-  const playNext = useCallback(() => { playAt(mvList, currentIndex + 1).catch(() => {}) }, [mvList, currentIndex, playAt])
-  const playPrev = useCallback(() => { playAt(mvList, currentIndex - 1).catch(() => {}) }, [mvList, currentIndex, playAt])
-
-  const onEnd = useCallback(() => { playNext() }, [playNext])
-
-  // 从名称提取歌手名：优先 '歌手 - 歌名'，其次 '歌手 歌名'（搜索提示）
-  const getSingerFromName = useCallback((name: string): string => {
-    const m = name.split(' - ')[0]?.trim()
-    if (m && m.length > 0 && m != name) return m
-    return name.split(' ')[0]?.trim() ?? ''
-  }, [])
-
-  // 从一级 MV 列表直接进入并播放
+  // 点击 MV（二级列表或搜索/歌曲结果）→ 进入二级并全屏播放
   const openMv = useCallback(async(song: MvSong) => {
     const singerName = getSingerFromName(song.vod_name)
     if (!singerName) return
     setPlayingSinger(singerName)
     setMvList([])
-    setCurrentIndex(-1)
-    setPlayer(null)
-    setPaused(false)
-    setProgress({ time: 0, duration: 0 })
     const arr = await loadMvListForSinger(singerName)
     setMvList(arr)
     const idx = arr.findIndex(i => i.vod_id === song.vod_id)
     void playAt(arr, Math.max(0, idx))
   }, [loadMvListForSinger, playAt, getSingerFromName])
 
-  const close = useCallback(() => {
-    if (playingSinger) { setPlayingSinger(''); setPlayer(null); return }
+  const playNext = useCallback(() => { playAt(mvList, currentIndex + 1).catch(() => {}) }, [mvList, currentIndex, playAt])
+  const playPrev = useCallback(() => { playAt(mvList, currentIndex - 1).catch(() => {}) }, [mvList, currentIndex, playAt])
+
+  const onEnd = useCallback(() => { playNext() }, [playNext])
+
+  // 返回键（Modal onRequestClose / 遥控器返回）
+  const handleBack = useCallback(() => {
+    if (menuVisible) { setMenuVisible(false); return }
+    if (fullScreen) { setFullScreen(false); setPlayer(null); setShowControls(false); return }
+    if (playingSinger) { setPlayingSinger(''); setMvList([]); return }
     setVisible(false)
-  }, [playingSinger])
+  }, [menuVisible, fullScreen, playingSinger])
 
   const videoSource = useMemo(() => {
     if (!player) return null
@@ -230,28 +235,26 @@ export default () => {
     return Math.max(1, Math.floor(containerWidth / cardMinW))
   }, [horizontalMode])
 
-  // 歌手网格：列数与卡片宽由实际布局宽决定
   const singerCols = useMemo(() => calcCols(singerGridW, scaleSizeW(150)), [calcCols, singerGridW])
   const singerItemWidth = useMemo(() => {
     if (singerGridW <= 0) return scaleSizeW(150)
     return Math.floor((singerGridW - 12) / singerCols)
   }, [singerGridW, singerCols])
 
-  // MV 网格：横屏二级右侧 58% 宽，竖屏全宽
-  const mvCols = useMemo(() => calcCols(mvGridW, scaleSizeW(190)), [calcCols, mvGridW])
+  const mvCols = useMemo(() => calcCols(mvGridW, scaleSizeW(200)), [calcCols, mvGridW])
   const mvItemWidth = useMemo(() => {
-    if (mvGridW <= 0) return scaleSizeW(190)
+    if (mvGridW <= 0) return scaleSizeW(200)
     return Math.floor((mvGridW - 12) / mvCols)
   }, [mvGridW, mvCols])
 
-  // ============ 视频区（二级界面） ============
-  const renderVideo = () => (
-    <View style={styles.videoBox}>
+  // ============ 全屏播放页 ============
+  const renderFullScreen = () => (
+    <View style={styles.fullScreenContainer}>
       {player && videoSource ? (
         <Video
           key={player.url}
           source={videoSource}
-          style={styles.video}
+          style={StyleSheet.absoluteFill}
           resizeMode="contain"
           controls={false}
           paused={paused}
@@ -261,128 +264,134 @@ export default () => {
           onError={(e: any) => { toast(`播放出错：${e?.error?.localizedDescription || e?.error || ''}`) }}
         />
       ) : (
-        <View style={styles.videoPlaceholder}>
-          <IconMaterial name="video-library" size={56} color="#FFFFFF44" />
-          <Text style={styles.videoPlaceholderText} size={15} color="#FFFFFF66">选择一首 MV 开始播放</Text>
+        <View style={StyleSheet.absoluteFill}>
+          <View style={styles.videoPlaceholder}>
+            <IconMaterial name="video-library" size={64} color="#FFFFFF44" />
+            <Text style={styles.videoPlaceholderText} size={16} color="#FFFFFF66">加载中…</Text>
+          </View>
         </View>
       )}
 
-      {player && (
-        <View style={styles.videoTopBar}>
-          <Text style={styles.videoTitle} size={16} numberOfLines={1}>{player.name}</Text>
-          {player.pic ? <Image url={player.pic} style={styles.videoMiniPic} /> : null}
-        </View>
-      )}
+      {/* 顶部信息 */}
+      <View style={styles.fsTopBar}>
+        <IconMaterial name="person" size={18} color={ACCENT_RED} />
+        <Text style={styles.fsSinger} size={15} color="#FFFFFFCC" numberOfLines={1}>{playingSinger}</Text>
+        <Text style={styles.fsTitle} size={15} color="#FFFFFF" numberOfLines={1}>{player?.name}</Text>
+        {player?.pic ? <Image url={player.pic} style={styles.fsPic} /> : null}
+      </View>
 
+      {/* 进度条 */}
       {player && (
         <View style={styles.progressTrack}>
           <View style={{ ...styles.progressFill, width: `${progressPct}%` }} />
         </View>
       )}
 
-      {player && (
-        <View style={styles.videoControls}>
-          <TouchableOpacity style={styles.ctrlBtn} onPress={playPrev} focusStyle={styles.ctrlFocus}>
-            <IconMaterial name="skip-previous" size={22} color="#FFFFFF" />
-            <Text style={styles.ctrlText} size={13}>上一首</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.ctrlBtn} onPress={() => { setPaused(p => !p) }} focusStyle={styles.ctrlFocus}>
-            <IconMaterial name={paused ? 'play-arrow' : 'pause'} size={26} color="#FFFFFF" />
-            <Text style={styles.ctrlText} size={13}>{paused ? '播放' : '暂停'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.ctrlBtn} onPress={playNext} focusStyle={styles.ctrlFocus}>
-            <IconMaterial name="skip-next" size={22} color="#FFFFFF" />
-            <Text style={styles.ctrlText} size={13}>下一首</Text>
-          </TouchableOpacity>
-          <Text style={styles.ctrlTime} size={13} color="#FFFFFFAA">{fmt(progress.time)}{progress.duration > 0 ? ` / ${fmt(progress.duration)}` : ''}</Text>
+      {/* 全屏透明覆盖层：OK 键 = 暂停/播放，聚焦时隐藏控制条 */}
+      <TouchableOpacity
+        style={styles.fsOverlay}
+        focusStyle={styles.fsOverlayFocus}
+        onPress={() => { setPaused(p => !p); setShowControls(false) }}
+        onFocus={() => { setShowControls(false) }}
+        hasTVPreferredFocus
+      />
+
+      {/* 控制条：可聚焦，聚焦时显示 */}
+      <View style={{ ...styles.fsControls, opacity: showControls ? 1 : 0 }}>
+        <TouchableOpacity style={styles.ctrlBtn} onPress={() => { playPrev(); setShowControls(false) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
+          <IconMaterial name="skip-previous" size={24} color="#FFFFFF" />
+          <Text style={styles.ctrlText} size={13}>上一首</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.ctrlBtn} onPress={() => { setPaused(p => !p); setShowControls(false) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
+          <IconMaterial name={paused ? 'play-arrow' : 'pause'} size={30} color="#FFFFFF" />
+          <Text style={styles.ctrlText} size={13}>{paused ? '播放' : '暂停'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.ctrlBtn} onPress={() => { playNext(); setShowControls(false) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
+          <IconMaterial name="skip-next" size={24} color="#FFFFFF" />
+          <Text style={styles.ctrlText} size={13}>下一首</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={{ ...styles.ctrlBtn, ...styles.ctrlBtnMenu }} onPress={() => { setMenuVisible(true); setShowControls(false) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
+          <IconMaterial name="queue-music" size={24} color="#FFFFFF" />
+          <Text style={styles.ctrlText} size={13}>菜单</Text>
+        </TouchableOpacity>
+        <Text style={styles.ctrlTime} size={13} color="#FFFFFFAA">{fmt(progress.time)}{progress.duration > 0 ? ` / ${fmt(progress.duration)}` : ''}</Text>
+      </View>
+
+      {/* 歌曲选择菜单 */}
+      {menuVisible && (
+        <View style={styles.menuPanel}>
+          <View style={styles.menuHeader}>
+            <Text style={styles.menuTitle} size={15} color="#FFFFFF">{playingSinger} 的全部歌曲</Text>
+          </View>
+          <FlatList
+            style={styles.menuList}
+            data={mvList}
+            keyExtractor={(item, index) => `${item.vod_id}_${index}`}
+            renderItem={({ item, index }) => {
+              const active = index == currentIndex
+              return (
+                <TouchableOpacity
+                  style={{ ...styles.menuRow, ...(active ? styles.menuRowActive : {}) }}
+                  focusStyle={styles.rowFocus}
+                  onPress={() => { setMenuVisible(false); void playAt(mvList, index) }}
+                  hasTVPreferredFocus={index == currentIndex || index == 0}
+                >
+                  <Text style={styles.menuIdx} size={12} color={active ? GOLD : '#FFFFFF77'}>{index + 1}</Text>
+                  <Text style={styles.menuRowName} size={14} color={active ? GOLD : '#FFFFFF'} numberOfLines={1}>{item.vod_name}</Text>
+                  {item.vod_remarks ? <Text style={styles.menuRowDur} size={12} color="#FFFFFF77">{item.vod_remarks}</Text> : null}
+                  {active ? <IconMaterial name="equalizer" size={14} color={GOLD} /> : null}
+                </TouchableOpacity>
+              )
+            }}
+            maxToRenderPerBatch={12}
+            windowSize={8}
+            initialNumToRender={20}
+          />
         </View>
       )}
     </View>
   )
 
-  // ============ MV 卡片（FlatList 网格，原生自动滚动） ============
-  const renderMvItem = ({ item, index }: { item: MvSong, index: number }) => {
-    const active = index == currentIndex
-    return (
-      <View style={{ ...styles.mvCard, width: mvItemWidth }}>
-        <TouchableOpacity
-          style={styles.mvCardTouch}
-          focusStyle={styles.cardFocus}
-          onPress={() => { void playAt(mvList, index) }}
-          hasTVPreferredFocus={index == 0}
-        >
-          <View style={{ ...styles.mvThumb, backgroundColor: theme['c-primary-light-900-alpha-200'] }}>
-            {item.vod_pic ? <Image url={item.vod_pic} style={styles.mvThumbImg} resizeMode="cover" /> : <IconMaterial name="movie" size={30} color={theme['c-primary-light-400-alpha-300']} />}
-            {active ? (
-              <View style={styles.playingBadge}>
-                <IconMaterial name="equalizer" size={14} color={GOLD} />
-                <Text style={styles.playingBadgeText} size={10} color={GOLD}>播放中</Text>
-              </View>
-            ) : null}
-            {item.vod_remarks ? <Text style={styles.mvDuration} size={11} color="#FFFFFF">{item.vod_remarks}</Text> : null}
-          </View>
-          <Text style={styles.mvName} size={12} color={active ? GOLD : theme['c-font']} numberOfLines={1}>{item.vod_name}</Text>
-        </TouchableOpacity>
-      </View>
-    )
-  }
-
-  // MV 网格列宽（由容器宽度与列数决定，先按估算渲染）
-  const renderMvGrid = () => (
-    <FlatList
-      key={`mv_${mvCols}`}
-      style={styles.gridList}
-      data={mvList}
-      numColumns={mvCols}
-      keyExtractor={(item, index) => `${item.vod_id}_${index}`}
-      renderItem={renderMvItem}
-      columnWrapperStyle={styles.gridRow}
-      maxToRenderPerBatch={6}
-      windowSize={6}
-      removeClippedSubviews={true}
-      onLayout={(e) => { setMvGridW(e.nativeEvent.layout.width) }}
-      initialNumToRender={12}
-    />
-  )
-
-  // ============ 二级界面（播放 + 歌手全部 MV） ============
+  // ============ 二级界面（歌手全部 MV 列表，全屏网格） ============
   const renderPlayPage = () => (
     <View style={styles.container}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => { setPlayingSinger(''); setPlayer(null) }}>
-          <Icon name="back-2" size={20} color="#FFFFFF" />
-          <Text style={styles.backText} size={14}>返回</Text>
-        </TouchableOpacity>
         <IconMaterial name="person" size={20} color={ACCENT_RED} />
         <Text style={styles.brand} size={18} numberOfLines={1}>{playingSinger}</Text>
         <View style={styles.orderBtn}><Text style={styles.orderBtnText} size={13} color="#FFFFFF">共 {mvList.length} 首</Text></View>
       </View>
-
-      {landscape ? (
-        <View style={styles.splitRow}>
-          <View style={styles.leftCol}>
-            {renderVideo()}
-          </View>
-          <View style={styles.rightCol}>
-            <Text style={styles.listTitle} size={12} color="#FFFFFF88">{playingSinger} 的全部 MV</Text>
-            {renderMvGrid()}
-          </View>
-        </View>
-      ) : (
-        <View style={styles.portraitCol}>
-          {renderVideo()}
-          <View style={styles.portraitContent}>
-            <Text style={styles.listTitle} size={12} color="#FFFFFF88">{playingSinger} 的全部 MV</Text>
-            {renderMvGrid()}
-          </View>
-        </View>
-      )}
+      <View style={styles.body}>
+        <FlatList
+          key={`mv_${mvCols}`}
+          style={styles.gridList}
+          data={mvList}
+          numColumns={mvCols}
+          keyExtractor={(item, index) => `${item.vod_id}_${index}`}
+          renderItem={({ item, index }) => (
+            <View style={{ ...styles.mvCard, width: mvItemWidth }}>
+              <TouchableOpacity style={styles.mvCardTouch} focusStyle={styles.cardFocus} onPress={() => { void playAt(mvList, index) }} hasTVPreferredFocus={index == 0}>
+                <View style={{ ...styles.mvThumb, backgroundColor: theme['c-primary-light-900-alpha-200'] }}>
+                  {item.vod_pic ? <Image url={item.vod_pic} style={styles.mvThumbImg} resizeMode="cover" /> : <IconMaterial name="movie" size={30} color={theme['c-primary-light-400-alpha-300']} />}
+                  {item.vod_remarks ? <Text style={styles.mvDuration} size={11} color="#FFFFFF">{item.vod_remarks}</Text> : null}
+                </View>
+                <Text style={styles.mvName} size={12} color={theme['c-font']} numberOfLines={1}>{item.vod_name}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          columnWrapperStyle={styles.gridRow}
+          maxToRenderPerBatch={6}
+          windowSize={6}
+          removeClippedSubviews={true}
+          onLayout={(e) => { setMvGridW(e.nativeEvent.layout.width) }}
+          initialNumToRender={12}
+          ListEmptyComponent={<Text style={styles.tip} size={14} color="#FFFFFF77">暂无 MV</Text>}
+        />
+      </View>
     </View>
   )
 
   // ============ 歌手卡片（宫格） ============
   const renderSingerItem = ({ item, index }: { item: MvSong, index: number }) => {
-    const initial = item.vod_name.charAt(0) || '?'
     return (
       <View style={{ ...styles.singerCard, width: singerItemWidth }}>
         <TouchableOpacity
@@ -391,7 +400,7 @@ export default () => {
           onPress={() => { void openSinger(item.vod_name) }}
         >
           <View style={{ ...styles.singerAvatar, backgroundColor: theme['c-primary-light-900-alpha-200'] }}>
-            <Text style={styles.singerAvatarText} size={22} color={theme['c-primary-light-400-alpha-400']}>{initial}</Text>
+            <IconMaterial name="person" size={40} color={theme['c-primary-light-400-alpha-400']} />
           </View>
           <Text style={styles.singerName} size={13} color={theme['c-font']} numberOfLines={1}>{item.vod_name}</Text>
         </TouchableOpacity>
@@ -401,13 +410,6 @@ export default () => {
 
   const renderSingerTab = () => (
     <View style={styles.contentCol}>
-      <View style={styles.subTabBar}>
-        {SINGER_GENDERS.map(g => (
-          <TouchableOpacity key={g.id} style={{ ...styles.subTabItem, ...(gender == g.id ? styles.subTabItemActive : {}) }} onPress={() => { setGender(g.id) }} focusStyle={styles.subTabFocus}>
-            <Text style={styles.tabText} size={13} color={gender == g.id ? '#FFFFFF' : '#FFFFFFAA'}>{g.name}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
       <View style={styles.listWrap}>
         <FlatList
           key={`singer_${gender}_${singerCols}`}
@@ -431,10 +433,6 @@ export default () => {
   // ============ 歌曲 Tab（热门 MV 宫格） ============
   const renderSongTab = () => (
     <View style={styles.contentCol}>
-      <View style={styles.subTabBar}>
-        <View style={styles.sectionLabel}><Text size={13} color={GOLD}>热门 MV</Text></View>
-        {songsTitle ? <Text style={styles.sectionSub} size={12} color="#FFFFFF88">{songsTitle}</Text> : null}
-      </View>
       <View style={styles.listWrap}>
         <FlatList
           key={`songs_${mvCols}`}
@@ -511,10 +509,6 @@ export default () => {
   const renderHome = () => (
     <View style={styles.container}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={close}>
-          <Icon name="back-2" size={20} color="#FFFFFF" />
-          <Text style={styles.backText} size={14}>返回</Text>
-        </TouchableOpacity>
         <IconMaterial name="video-library" size={22} color={ACCENT_RED} />
         <Text style={styles.brand} size={20}>MV</Text>
       </View>
@@ -526,7 +520,7 @@ export default () => {
             style={{ ...styles.tabItem, ...(activeTab == id ? styles.tabItemActive : {}) }}
             onPress={() => {
               setActiveTab(id)
-              if (id == 'singer') void loadSingers()
+              if (id == 'singer' || id == 'female') void loadSingers()
               if (id == 'song' && songs.length == 0) void loadSongs('', '热门')
             }}
             hasTVPreferredFocus={tabIndex == 0}
@@ -542,7 +536,7 @@ export default () => {
         {status == 'error' && <Text style={styles.tip} size={15} color="#FF6B6B">加载失败：{errorMsg}</Text>}
         {status == 'idle' && (
           <>
-            {activeTab == 'singer' && renderSingerTab()}
+            {(activeTab == 'singer' || activeTab == 'female') && renderSingerTab()}
             {activeTab == 'song' && renderSongTab()}
             {activeTab == 'search' && renderSearchTab()}
           </>
@@ -556,10 +550,12 @@ export default () => {
       visible={visible}
       animationType="fade"
       transparent={false}
-      onRequestClose={close}
+      onRequestClose={handleBack}
       supportedOrientations={['portrait', 'landscape']}
     >
-      {playingSinger ? renderPlayPage() : renderHome()}
+      {fullScreen
+        ? renderFullScreen()
+        : (playingSinger ? renderPlayPage() : renderHome())}
     </Modal>
   )
 }
@@ -580,22 +576,8 @@ const styles = createStyle({
     borderBottomWidth: BorderWidths.normal,
     borderBottomColor: '#FFFFFF14',
   },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 6,
-    backgroundColor: '#333A48',
-    marginRight: 14,
-  },
-  backText: {
-    marginLeft: 4,
-    color: '#FFFFFF',
-  },
   brand: {
     marginLeft: 10,
-    marginRight: 12,
     fontWeight: 'bold',
     color: '#FFFFFF',
     flexShrink: 1,
@@ -634,32 +616,11 @@ const styles = createStyle({
     borderWidth: 3,
     transform: [{ scale: 1.06 }],
   },
-  subTabBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: 8,
-  },
-  subTabItem: {
-    paddingHorizontal: 18,
-    paddingVertical: 7,
-    borderRadius: 8,
-    marginRight: 10,
-    backgroundColor: '#22262F',
-  },
-  subTabItemActive: {
-    backgroundColor: '#2A6BE0',
-  },
   subTabFocus: {
     backgroundColor: '#2A6BE0',
     borderColor: '#FFFFFF',
     borderWidth: 3,
     transform: [{ scale: 1.06 }],
-  },
-  sectionLabel: {
-    paddingRight: 8,
-  },
-  sectionSub: {
-    paddingRight: 10,
   },
   tabText: {},
   body: {
@@ -709,9 +670,6 @@ const styles = createStyle({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  singerAvatarText: {
-    fontWeight: 'bold',
-  },
   singerName: {
     marginTop: 8,
     textAlign: 'center',
@@ -748,20 +706,6 @@ const styles = createStyle({
     paddingHorizontal: 4,
     paddingVertical: 1,
     overflow: 'hidden',
-  },
-  playingBadge: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 3,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-  },
-  playingBadgeText: {
-    marginLeft: 3,
   },
   // 搜索
   searchBar: {
@@ -807,91 +751,58 @@ const styles = createStyle({
     marginLeft: 10,
     marginRight: 10,
   },
-  // 横屏分栏
-  splitRow: {
+  // 全屏播放
+  fullScreenContainer: {
     flex: 1,
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingTop: 14,
-  },
-  leftCol: {
-    width: '42%',
-    paddingRight: 16,
-  },
-  rightCol: {
-    flex: 1,
-    flexDirection: 'column',
-  },
-  listTitle: {
-    marginBottom: 8,
-  },
-  // 竖屏
-  portraitCol: {
-    flex: 1,
-    flexDirection: 'column',
-    paddingHorizontal: 20,
-    paddingTop: 14,
-  },
-  portraitContent: {
-    flex: 1,
-    marginTop: 12,
-  },
-  // 视频
-  videoBox: {
-    width: '100%',
-    aspectRatio: 16 / 9,
     backgroundColor: '#000000',
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  video: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
   },
   videoPlaceholder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   videoPlaceholderText: {
     marginTop: 12,
   },
-  videoTopBar: {
+  fsTopBar: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 8,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
-  videoTitle: {
-    color: GOLD,
-    fontWeight: 'bold',
+  fsSinger: {
+    marginLeft: 8,
+    marginRight: 14,
+  },
+  fsTitle: {
     flexShrink: 1,
+    fontWeight: 'bold',
   },
-  videoMiniPic: {
-    width: 48,
-    height: 28,
+  fsPic: {
+    width: 52,
+    height: 30,
     borderRadius: 4,
-    marginLeft: 10,
+    marginLeft: 'auto',
+  },
+  fsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  fsOverlayFocus: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    transform: [],
   },
   progressTrack: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 52,
+    bottom: 58,
     height: 3,
     backgroundColor: '#FFFFFF33',
   },
@@ -899,25 +810,28 @@ const styles = createStyle({
     height: 3,
     backgroundColor: GOLD,
   },
-  videoControls: {
+  fsControls: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(0,0,0,0.7)',
   },
   ctrlBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 6,
-    marginRight: 8,
+    marginRight: 10,
     backgroundColor: '#161F2A',
+  },
+  ctrlBtnMenu: {
+    marginLeft: 'auto',
   },
   ctrlFocus: {
     backgroundColor: '#2A6BE0',
@@ -930,6 +844,58 @@ const styles = createStyle({
     color: '#FFFFFF',
   },
   ctrlTime: {
-    marginLeft: 4,
+    marginLeft: 8,
+  },
+  // 歌曲选择菜单
+  menuPanel: {
+    position: 'absolute',
+    right: 16,
+    top: 56,
+    bottom: 56,
+    width: 420,
+    borderRadius: 10,
+    backgroundColor: 'rgba(18,20,26,0.97)',
+    borderWidth: BorderWidths.normal,
+    borderColor: '#FFFFFF22',
+    overflow: 'hidden',
+  },
+  menuHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: BorderWidths.normal,
+    borderBottomColor: '#FFFFFF14',
+  },
+  menuTitle: {
+    fontWeight: 'bold',
+  },
+  menuList: {
+    flex: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginBottom: 4,
+    backgroundColor: '#161A22',
+  },
+  menuRowActive: {
+    backgroundColor: '#1E2A3A',
+  },
+  menuIdx: {
+    width: 28,
+    textAlign: 'center',
+  },
+  menuRowName: {
+    flexGrow: 1,
+    flexShrink: 1,
+    marginLeft: 6,
+    marginRight: 8,
+  },
+  menuRowDur: {
+    marginRight: 8,
   },
 })
