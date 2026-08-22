@@ -17,7 +17,8 @@ const ensure = () => {
   return CfssSpider
 }
 
-export const mvSingers = (gender: number | string): Promise<string> => ensure().singers(Number(gender))
-export const mvSongs = (keyword: string, page: string | number = 1): Promise<string> => ensure().songs(keyword, Number(page))
-export const mvSearch = (keyword: string): Promise<string> => ensure().search(keyword)
-export const mvPlayer = (id: string): Promise<string> => ensure().player(id)
+export const mvSingers = async(gender: number | string): Promise<string> => ensure().singers(Number(gender))
+export const mvSongs = async(keyword: string, page: string | number = 1): Promise<string> => ensure().songs(keyword, Number(page))
+export const mvSearch = async(keyword: string): Promise<string> => ensure().search(keyword)
+export const mvPlayer = async(id: string): Promise<string> => ensure().player(id)
+export const mvSingerAvatar = async(name: string): Promise<string> => ensure().singerAvatar(name)

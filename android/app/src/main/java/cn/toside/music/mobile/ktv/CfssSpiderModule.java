@@ -75,4 +75,14 @@ public class CfssSpiderModule extends ReactContextBaseJavaModule {
       promise.reject("PLAYER_FAILED", String.valueOf(e.getMessage()), e);
     }
   }
+
+  @ReactMethod
+  public void singerAvatar(String name, Promise promise) {
+    try {
+      promise.resolve(CfssSpider.singerAvatar(name));
+    } catch (Throwable e) {
+      Log.e(TAG, "singerAvatar failed", e);
+      promise.reject("SINGER_AVATAR_FAILED", String.valueOf(e.getMessage()), e);
+    }
+  }
 }

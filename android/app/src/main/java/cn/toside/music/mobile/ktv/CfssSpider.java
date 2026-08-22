@@ -195,6 +195,22 @@ public class CfssSpider {
     }
   }
 
+  // 酷我搜索接口（宽松 JSON，含 hts_PICPATH 完整头像 URL）：all=歌手名&ft=artist
+  private static final String KUWO_SEARCH = "http://search.kuwo.cn/r.s";
+  // hts_PICPATH':'https://img3.kuwo.cn/star/starheads/240/xxx.jpg
+  private static final Pattern KUWO_PIC_PATTERN = Pattern.compile("hts_PICPATH':'([^']+)'");
+
+  /** 歌手头像：调用酷我搜索接口取该歌手头像 URL。找不到返回空字符串。 */
+  public static String singerAvatar(String name) throws Exception {
+    if (name == null || name.trim().isEmpty()) return "";
+    String url = KUWO_SEARCH + "?all=" + encode(name.trim()) + "&ft=artist&itemset=web_2013&client=kt&pn=0&rn=3&rformat=json&encoding=utf8";
+    String body = http("GET", url, null);
+    if (body == null || body.isEmpty()) return "";
+    Matcher m = KUWO_PIC_PATTERN.matcher(body);
+    if (m.find()) return m.group(1);
+    return "";
+  }
+
   private static volatile SSLContext sslContext = null;
 
   private static SSLContext getSslContext() {

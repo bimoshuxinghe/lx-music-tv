@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { MutableRefObject } from 'react'
 import {
   View,
-  Modal,
   FlatList,
   StyleSheet,
   useWindowDimensions,
@@ -18,7 +18,10 @@ import { useTheme } from '@/store/theme/hook'
 import { createStyle, toast, isHorizontalMode } from '@/utils/tools'
 import { scaleSizeW } from '@/utils/pixelRatio'
 import { BorderWidths } from '@/theme'
-import { mvSingers, mvSongs, mvSearch, mvPlayer } from '@/utils/nativeModules/ktvSpider'
+import { useBackHandler } from '@/utils/hooks/useBackHandler'
+import commonState from '@/store/common/state'
+import { setNavActiveId } from '@/core/common'
+import { mvSingers, mvSongs, mvSearch, mvPlayer, mvSingerAvatar } from '@/utils/nativeModules/ktvSpider'
 
 // ============ 类型 ============
 interface MvSong {
@@ -40,13 +43,45 @@ type MainTab = typeof MAIN_TABS[number]['id']
 const GOLD = '#F5BE59'
 const ACCENT_RED = '#FD3359'
 
+/**
+ * 歌手头像：cfss 歌手接口不返回图片，调用酷我搜索接口拿该歌手头像。
+ * 加载完成前显示 person 占位图标。
+ */
+const SingerAvatar = ({ name, loadedRef, theme }: {
+  name: string
+  loadedRef: MutableRefObject<Record<string, boolean>>
+  theme: ReturnType<typeof useTheme>
+}) => {
+  const [pic, setPic] = useState('')
+
+  useEffect(() => {
+    if (!name || loadedRef.current[name]) return
+    loadedRef.current[name] = true
+    let alive = true
+    void mvSingerAvatar(name).then((url) => {
+      if (!alive) return
+      if (url) setPic(url)
+    }).catch(() => { /* ignore */ })
+    return () => { alive = false }
+  }, [name, loadedRef])
+
+  return (
+    <View style={{ ...styles.singerAvatar, backgroundColor: theme['c-primary-light-900-alpha-200'] }}>
+      {pic
+        ? <Image url={pic} style={styles.singerAvatarImg} resizeMode="cover" />
+        : <IconMaterial name="person" size={40} color={theme['c-primary-light-400-alpha-400']} />}
+    </View>
+  )
+}
+
 export default () => {
   const theme = useTheme()
   const { width: winW, height: winH } = useWindowDimensions()
   const horizontalMode = isHorizontalMode(winW, winH)
 
   // ===== 界面状态 =====
-  const [visible, setVisible] = useState(true)
+  // 歌手头像缓存标记（避免重复请求该歌手封面）
+  const avatarLoadedRef = useRef<Record<string, boolean>>({})
 
   // 一级 Tab
   const [activeTab, setActiveTab] = useState<MainTab>('singer')
@@ -210,13 +245,19 @@ export default () => {
 
   const onEnd = useCallback(() => { playNext() }, [playNext])
 
-  // 返回键（Modal onRequestClose / 遥控器返回）
-  const handleBack = useCallback(() => {
-    if (menuVisible) { setMenuVisible(false); return }
-    if (fullScreen) { setFullScreen(false); setPlayer(null); setShowControls(false); return }
-    if (playingSinger) { setPlayingSinger(''); setMvList([]); return }
-    setVisible(false)
+  // 返回键（遥控器返回）：菜单 → 全屏 → 二级 → 退出 Ktv 回上一个导航
+  const handleBack = useCallback((): boolean => {
+    if (menuVisible) { setMenuVisible(false); return true }
+    if (fullScreen) { setFullScreen(false); setPlayer(null); setShowControls(false); return true }
+    if (playingSinger) { setPlayingSinger(''); setMvList([]); return true }
+    if (commonState.navActiveId == 'nav_ktv' && commonState.lastNavActiveId != 'nav_ktv') {
+      setNavActiveId(commonState.lastNavActiveId)
+      return true
+    }
+    return false
   }, [menuVisible, fullScreen, playingSinger])
+
+  useBackHandler(useCallback(() => handleBack(), [handleBack]))
 
   const videoSource = useMemo(() => {
     if (!player) return null
@@ -272,50 +313,55 @@ export default () => {
         </View>
       )}
 
-      {/* 顶部信息 */}
-      <View style={styles.fsTopBar}>
-        <IconMaterial name="person" size={18} color={ACCENT_RED} />
-        <Text style={styles.fsSinger} size={15} color="#FFFFFFCC" numberOfLines={1}>{playingSinger}</Text>
-        <Text style={styles.fsTitle} size={15} color="#FFFFFF" numberOfLines={1}>{player?.name}</Text>
-        {player?.pic ? <Image url={player.pic} style={styles.fsPic} /> : null}
-      </View>
+      {/* 居中播放/暂停按钮：常驻焦点目标，OK 切换暂停；暂停时显示播放图标 */}
+      <TouchableOpacity
+        style={styles.fsCenterBtn}
+        focusStyle={styles.fsCenterFocus}
+        hasTVPreferredFocus
+        onPress={() => { setPaused(p => !p); setShowControls(false) }}
+        onFocus={() => { setShowControls(false) }}
+      >
+        <IconMaterial name={paused ? 'play-arrow' : 'pause'} size={72} color="#FFFFFF" />
+      </TouchableOpacity>
 
-      {/* 进度条 */}
-      {player && (
+      {/* 顶栏：仅控制条显示时出现（不再常驻占位） */}
+      {showControls && (
+        <View style={styles.fsTopBar}>
+          <IconMaterial name="person" size={18} color={ACCENT_RED} />
+          <Text style={styles.fsSinger} size={15} color="#FFFFFFCC" numberOfLines={1}>{playingSinger}</Text>
+          <Text style={styles.fsTitle} size={15} color="#FFFFFF" numberOfLines={1}>{player?.name}</Text>
+        </View>
+      )}
+
+      {/* 进度条：仅控制条显示时出现 */}
+      {showControls && player && (
         <View style={styles.progressTrack}>
           <View style={{ ...styles.progressFill, width: `${progressPct}%` }} />
         </View>
       )}
 
-      {/* 全屏透明覆盖层：OK 键 = 暂停/播放，聚焦时隐藏控制条 */}
-      <TouchableOpacity
-        style={styles.fsOverlay}
-        focusStyle={styles.fsOverlayFocus}
-        onPress={() => { setPaused(p => !p); setShowControls(false) }}
-        onFocus={() => { setShowControls(false) }}
-        hasTVPreferredFocus
-      />
-
-      {/* 控制条：可聚焦，聚焦时显示 */}
-      <View style={{ ...styles.fsControls, opacity: showControls ? 1 : 0 }}>
-        <TouchableOpacity style={styles.ctrlBtn} onPress={() => { playPrev(); setShowControls(false) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
-          <IconMaterial name="skip-previous" size={24} color="#FFFFFF" />
-          <Text style={styles.ctrlText} size={13}>上一首</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.ctrlBtn} onPress={() => { setPaused(p => !p); setShowControls(false) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
-          <IconMaterial name={paused ? 'play-arrow' : 'pause'} size={30} color="#FFFFFF" />
-          <Text style={styles.ctrlText} size={13}>{paused ? '播放' : '暂停'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.ctrlBtn} onPress={() => { playNext(); setShowControls(false) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
-          <IconMaterial name="skip-next" size={24} color="#FFFFFF" />
-          <Text style={styles.ctrlText} size={13}>下一首</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={{ ...styles.ctrlBtn, ...styles.ctrlBtnMenu }} onPress={() => { setMenuVisible(true); setShowControls(false) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
-          <IconMaterial name="queue-music" size={24} color="#FFFFFF" />
-          <Text style={styles.ctrlText} size={13}>菜单</Text>
-        </TouchableOpacity>
-        <Text style={styles.ctrlTime} size={13} color="#FFFFFFAA">{fmt(progress.time)}{progress.duration > 0 ? ` / ${fmt(progress.duration)}` : ''}</Text>
-      </View>
+      {/* 控制条：下键聚焦时显示 */}
+      {showControls && (
+        <View style={styles.fsControls}>
+          <TouchableOpacity style={styles.ctrlBtn} onPress={() => { playPrev() }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
+            <IconMaterial name="skip-previous" size={24} color="#FFFFFF" />
+            <Text style={styles.ctrlText} size={13}>上一首</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.ctrlBtn} onPress={() => { setPaused(p => !p) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
+            <IconMaterial name={paused ? 'play-arrow' : 'pause'} size={30} color="#FFFFFF" />
+            <Text style={styles.ctrlText} size={13}>{paused ? '播放' : '暂停'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.ctrlBtn} onPress={() => { playNext() }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
+            <IconMaterial name="skip-next" size={24} color="#FFFFFF" />
+            <Text style={styles.ctrlText} size={13}>下一首</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ ...styles.ctrlBtn, ...styles.ctrlBtnMenu }} onPress={() => { setMenuVisible(true); setShowControls(false) }} onFocus={() => { setShowControls(true) }} focusStyle={styles.ctrlFocus}>
+            <IconMaterial name="queue-music" size={24} color="#FFFFFF" />
+            <Text style={styles.ctrlText} size={13}>菜单</Text>
+          </TouchableOpacity>
+          <Text style={styles.ctrlTime} size={13} color="#FFFFFFAA">{fmt(progress.time)}{progress.duration > 0 ? ` / ${fmt(progress.duration)}` : ''}</Text>
+        </View>
+      )}
 
       {/* 歌曲选择菜单 */}
       {menuVisible && (
@@ -390,7 +436,7 @@ export default () => {
     </View>
   )
 
-  // ============ 歌手卡片（宫格） ============
+  // ============ 歌手卡片（宫格，含头像懒加载） ============
   const renderSingerItem = ({ item, index }: { item: MvSong, index: number }) => {
     return (
       <View style={{ ...styles.singerCard, width: singerItemWidth }}>
@@ -399,9 +445,7 @@ export default () => {
           focusStyle={styles.cardFocus}
           onPress={() => { void openSinger(item.vod_name) }}
         >
-          <View style={{ ...styles.singerAvatar, backgroundColor: theme['c-primary-light-900-alpha-200'] }}>
-            <IconMaterial name="person" size={40} color={theme['c-primary-light-400-alpha-400']} />
-          </View>
+          <SingerAvatar name={item.vod_name} loadedRef={avatarLoadedRef} theme={theme} />
           <Text style={styles.singerName} size={13} color={theme['c-font']} numberOfLines={1}>{item.vod_name}</Text>
         </TouchableOpacity>
       </View>
@@ -545,19 +589,9 @@ export default () => {
     </View>
   )
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent={false}
-      onRequestClose={handleBack}
-      supportedOrientations={['portrait', 'landscape']}
-    >
-      {fullScreen
-        ? renderFullScreen()
-        : (playingSinger ? renderPlayPage() : renderHome())}
-    </Modal>
-  )
+  return fullScreen
+    ? renderFullScreen()
+    : (playingSinger ? renderPlayPage() : renderHome())
 }
 
 // ============ 样式 ============
@@ -669,6 +703,10 @@ const styles = createStyle({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  singerAvatarImg: {
+    width: '100%',
+    height: '100%',
   },
   singerName: {
     marginTop: 8,
@@ -784,19 +822,24 @@ const styles = createStyle({
     flexShrink: 1,
     fontWeight: 'bold',
   },
-  fsPic: {
-    width: 52,
-    height: 30,
-    borderRadius: 4,
-    marginLeft: 'auto',
+  fsCenterBtn: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '42%',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderWidth: 2,
+    borderColor: '#FFFFFF55',
   },
-  fsOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  fsOverlayFocus: {
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    transform: [],
+  fsCenterFocus: {
+    backgroundColor: 'rgba(42,107,224,0.85)',
+    borderColor: '#FFFFFF',
+    borderWidth: 4,
+    transform: [{ scale: 1.12 }],
   },
   progressTrack: {
     position: 'absolute',
