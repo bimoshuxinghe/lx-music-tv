@@ -49,6 +49,7 @@ export interface InputProps extends TextInputProps {
   onClearText?: () => void
   clearBtn?: boolean
   size?: number
+  hasTVPreferredFocus?: boolean
 }
 
 
@@ -59,7 +60,7 @@ export interface InputType {
   isFocused: () => boolean
 }
 
-export default forwardRef<InputType, InputProps>(({ onChangeText, onClearText, clearBtn, style, size = 14, ...props }, ref) => {
+export default forwardRef<InputType, InputProps>(({ onChangeText, onClearText, clearBtn, style, size = 14, hasTVPreferredFocus, ...props }, ref) => {
   const inputRef = useRef<TextInput>(null)
   const theme = useTheme()
   // const scaleClearBtn = useRef(new Animated.Value(0)).current
@@ -111,7 +112,7 @@ export default forwardRef<InputType, InputProps>(({ onChangeText, onClearText, c
   }, [onChangeText])
 
   return (
-    <TouchableOpacity style={styles.content} onPress={() => { inputRef.current?.focus() }}>
+    <TouchableOpacity hasTVPreferredFocus={hasTVPreferredFocus} style={styles.content} onPress={() => { inputRef.current?.focus() }}>
       <TextInput
         autoCapitalize="none"
         onChangeText={changeText}
