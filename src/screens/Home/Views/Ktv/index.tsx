@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import {
   View,
   FlatList,
@@ -44,16 +44,16 @@ type MainTab = typeof MAIN_TABS[number]['id']
 const GOLD = '#F5BE59'
 const ACCENT_RED = '#FD3359'
 
+// ============ 歌手头像 ============
 /**
- * 歌手头像：cfss 歌手接口不返回图片，调用酷我搜索接口拿该歌手头像。
- * 走 ktvAvatarCache（磁盘缓存 + 并发池）：二次进入秒读，首次进入并发受限不卡顿；
- * 加载完成前显示 person 占位图标，失败静默。
+ * 歌手头像组件：内存+磁盘缓存，加载前显示占位图标，失败静默。
+ * 使用 React.memo 避免不必要重渲染。
  */
-const SingerAvatar = ({ name, theme }: {
+const SingerAvatar = memo(({ name, theme }: {
   name: string
   theme: ReturnType<typeof useTheme>
 }) => {
-  const [pic, setPic] = useState(() => '')
+  const [pic, setPic] = useState('')
 
   useEffect(() => {
     if (!name) return
@@ -72,45 +72,45 @@ const SingerAvatar = ({ name, theme }: {
         : <IconMaterial name="person" size={40} color={theme['c-primary-light-400-alpha-400']} />}
     </View>
   )
-}
+})
 
+// ============ 主组件 ============
 export default () => {
   const theme = useTheme()
   const { width: winW, height: winH } = useWindowDimensions()
   const horizontalMode = isHorizontalMode(winW, winH)
 
   // ===== 界面状态 =====
-  // 一级 Tab
   const [activeTab, setActiveTab] = useState<MainTab>('singer')
-  // 歌手 Tab（gender: 1=男 2=女，由 activeTab 决定）
   const [singers, setSingers] = useState<MvSong[]>([])
-  // 歌曲 Tab
   const [songs, setSongs] = useState<MvSong[]>([])
-  // 搜索
   const [keyword, setKeyword] = useState('')
   const [searchResult, setSearchResult] = useState<MvSong[]>([])
-  // 通用状态
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
   // ===== 二级（歌手全部 MV 列表页） =====
-  const [playingSinger, setPlayingSinger] = useState('') // 非空表示进入二级
+  const [playingSinger, setPlayingSinger] = useState('')
   const [mvList, setMvList] = useState<MvSong[]>([])
 
   // ===== 全屏播放 =====
-  const [fullScreen, setFullScreen] = useState(false) // 全屏播放中
+  const [fullScreen, setFullScreen] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(-1)
   const [player, setPlayer] = useState<{ url: string, name: string, pic?: string } | null>(null)
   const [paused, setPaused] = useState(false)
   const [progress, setProgress] = useState({ time: 0, duration: 0 })
-  const [showControls, setShowControls] = useState(false) // 控制条显隐
-  const [lastCtrlIndex, setLastCtrlIndex] = useState(1) // 控制条上次聚焦的按钮位（FongMi getFocus2 思想），默认暂停键
-  const [menuVisible, setMenuVisible] = useState(false) // 歌曲选择菜单
+  const [showControls, setShowControls] = useState(false)
+  const [lastCtrlIndex, setLastCtrlIndex] = useState(1)
+  const [menuVisible, setMenuVisible] = useState(false)
 
   const searchInputRef = useRef<InputType>(null)
   const loadingRef = useRef(false)
   const [singerGridW, setSingerGridW] = useState(0)
   const [mvGridW, setMvGridW] = useState(0)
+
+  // 控制条焦点索引 ref（用于回调中取最新值）
+  const lastCtrlIndexRef = useRef(lastCtrlIndex)
+  lastCtrlIndexRef.current = lastCtrlIndex
 
   const gender = activeTab == 'female' ? 2 : 1
 
@@ -122,10 +122,10 @@ export default () => {
       const arr: MvSong[] = Array.isArray(json.list) ? json.list : []
       setSingers(arr)
       setStatus('idle')
-      // 歌手名单拿到后后台预取头像（并发池内排队，不阻塞 UI）
       if (arr.length > 0) {
-        const names = arr.map(i => i.vod_name)
-        setTimeout(() => { void preloadSingerAvatars(names) }, 0)
+        const names = arr.map(i => i.vod_name).filter(Boolean)
+        // 先入栈预取，再延迟一次确保 UI 线程空闲
+        setTimeout(() => { void preloadSingerAvatars(names) }, 50)
       }
     } catch (err) {
       setStatus('error')
@@ -136,10 +136,10 @@ export default () => {
   useEffect(() => { void loadSingers() }, [loadSingers])
 
   // ===== 歌曲列表 =====
-  const loadSongs = useCallback(async(kw: string, title: string) => {
+  const loadSongs = useCallback(async() => {
     setStatus('loading')
     try {
-      const json = JSON.parse(await mvSongs(kw, 1))
+      const json = JSON.parse(await mvSongs('', 1))
       const arr: MvSong[] = Array.isArray(json.list) ? json.list : []
       setSongs(arr)
       setStatus('idle')
@@ -185,14 +185,14 @@ export default () => {
     }
   }, [])
 
-  // 从名称提取歌手名：优先 '歌手 - 歌名'，其次 '歌手 歌名'（搜索提示）
+  // 从名称提取歌手名
   const getSingerFromName = useCallback((name: string): string => {
     const m = name.split(' - ')[0]?.trim()
     if (m && m.length > 0 && m != name) return m
     return name.split(' ')[0]?.trim() ?? ''
   }, [])
 
-  // 点击歌手 → 进入二级（歌手全部 MV 列表，不自动播放）
+  // 点击歌手 → 进入二级（不自动播放）
   const openSinger = useCallback(async(singer: string) => {
     setPlayingSinger(singer)
     setMvList([])
@@ -231,7 +231,7 @@ export default () => {
     }
   }, [])
 
-  // 点击 MV（二级列表或搜索/歌曲结果）→ 进入二级并全屏播放
+  // 点击 MV（二级列表或搜索/歌曲结果）→ 加载该歌手全部 MV 并播放
   const openMv = useCallback(async(song: MvSong) => {
     const singerName = getSingerFromName(song.vod_name)
     if (!singerName) return
@@ -248,7 +248,7 @@ export default () => {
 
   const onEnd = useCallback(() => { playNext() }, [playNext])
 
-  // 返回键（遥控器返回）：菜单 → 全屏 → 二级 → 退出 Ktv 回主页
+  // 返回键：菜单 → 全屏 → 二级 → 退出 Ktv 回主页
   const handleBack = useCallback((): boolean => {
     if (menuVisible) { setMenuVisible(false); return true }
     if (fullScreen) { setFullScreen(false); setPlayer(null); setShowControls(false); return true }
@@ -260,9 +260,12 @@ export default () => {
   useBackHandler(useCallback(() => handleBack(), [handleBack]))
 
   // ===== 全屏播放遥控器按键拦截 =====
-  // 原生侧（MainActivity）在全屏拦截开启时把 D-pad 上下/OK/Enter 转发到 JS（tvRemoteKey）。
-  // 交互：控制条隐藏时 OK=暂停/播放、上下=呼出控制条；控制条显示时关闭拦截，恢复系统
-  // 焦点导航（左右切按钮、OK 激活按钮）。
+  // 交互：
+  //   - OK/Enter → 暂停/播放（控制条隐藏时）
+  //   - 上键     → 上一曲（控制条隐藏时，有上一首才响应）
+  //   - 下键     → 下一曲（控制条隐藏时，有下一首才响应）
+  //   - 菜单键   → 呼出歌曲选择菜单
+  //   - 控制条显示时关闭拦截，恢复系统焦点导航
   const keyCaptureOn = fullScreen && !menuVisible && !showControls
   useEffect(() => {
     setFullscreenKeyCapture(keyCaptureOn)
@@ -271,21 +274,25 @@ export default () => {
 
   useEffect(() => {
     if (!keyCaptureOn) return
-    const listener = DeviceEventEmitter.addListener('tvRemoteKey', (event: { keyCode: number }) => {
-      if (!event) return
-      switch (event.keyCode) {
-        case 19: // KEYCODE_DPAD_UP
-        case 20: // KEYCODE_DPAD_DOWN
-          setShowControls(true)
-          break
-        case 23: // KEYCODE_DPAD_CENTER
-        case 66: // KEYCODE_ENTER
-          setPaused(p => !p)
-          break
+    const listener = DeviceEventEmitter.addListener('tvRemoteKey', (_event: any) => {
+      const event = typeof _event === 'object' ? _event : {}
+      const code = event.keyCode
+      if (code === 23 || code === 66) {
+        // OK / Enter → 暂停/播放（无论控制条是否显示）
+        setPaused(p => !p)
+      } else if (code === 82) {
+        // MENU → 切换歌曲选择菜单
+        setMenuVisible(v => !v)
+      } else if (code === 19) {
+        // DPAD_UP → 上一曲（有上一首才响应）
+        if (currentIndex > 0) playPrev()
+      } else if (code === 20) {
+        // DPAD_DOWN → 下一曲（有下一首才响应）
+        if (currentIndex < mvList.length - 1) playNext()
       }
     })
     return () => { listener.remove() }
-  }, [keyCaptureOn])
+  }, [keyCaptureOn, currentIndex, mvList.length, playPrev, playNext])
 
   const videoSource = useMemo(() => {
     if (!player) return null
@@ -304,7 +311,7 @@ export default () => {
     return Math.max(1, Math.floor(containerWidth / cardMinW))
   }, [horizontalMode])
 
-  // 歌手宫格固定 6 列（用户要求：5-6 列、一屏 3 行，卡片紧凑）
+  // 歌手宫格固定 6 列
   const SINGER_COLS = 6
   const singerCols = useMemo(() => SINGER_COLS, [])
   const singerItemWidth = useMemo(() => {
@@ -319,9 +326,6 @@ export default () => {
   }, [mvGridW, mvCols])
 
   // ============ 全屏播放页 ============
-  // 交互：播放中屏幕只显示视频（透明焦点锚点承载焦点，无任何视觉框）；
-  // 按下键 → 焦点落到底部控制条（上一首/暂停/下一首/菜单）并显示；
-  // 按 OK → 暂停，中间弹出播放按钮；再按 OK 恢复播放，按钮消失。
   const renderFullScreen = () => (
     <View style={styles.fullScreenContainer}>
       {player && videoSource ? (
@@ -354,7 +358,7 @@ export default () => {
         onFocus={() => { setShowControls(false) }}
       />
 
-      {/* 暂停时显示的居中播放按钮：控制条隐藏时作唯一焦点目标，控制条显示时不抢焦点 */}
+      {/* 暂停时居中播放按钮：控制条隐藏时作唯一焦点目标 */}
       {paused && (
         <TouchableOpacity
           style={styles.fsCenterBtn}
@@ -367,7 +371,7 @@ export default () => {
         </TouchableOpacity>
       )}
 
-      {/* 顶栏：仅控制条显示时出现 */}
+      {/* 顶栏：控制条显示时出现 */}
       {showControls && (
         <View style={styles.fsTopBar}>
           <IconMaterial name="person" size={18} color={ACCENT_RED} />
@@ -376,14 +380,14 @@ export default () => {
         </View>
       )}
 
-      {/* 进度条：仅控制条显示时出现 */}
+      {/* 进度条：控制条显示时出现 */}
       {showControls && player && (
         <View style={styles.progressTrack}>
           <View style={{ ...styles.progressFill, width: `${progressPct}%` }} />
         </View>
       )}
 
-      {/* 控制条：始终渲染可聚焦（透明时下键仍能聚焦呼出），聚焦即显示；呼出时恢复上次聚焦按钮（FongMi getFocus2 思想） */}
+      {/* 控制条：始终渲染（opacity 控制显隐），保持布局稳定避免跳变 */}
       <View style={[styles.fsControls, { opacity: showControls ? 1 : 0 }]}>
         {[
           { key: 'prev', icon: 'skip-previous', label: '上一首', onPress: () => { playPrev() } },
@@ -412,13 +416,13 @@ export default () => {
         <Text style={styles.ctrlTime} size={13} color="#FFFFFFAA">{fmt(progress.time)}{progress.duration > 0 ? ` / ${fmt(progress.duration)}` : ''}</Text>
       </View>
 
-      {/* 歌曲选择菜单：全屏二级界面，盖住整个全屏播放页 */}
+      {/* 歌曲选择菜单：全屏覆盖，显示当前歌手全部 MV，高亮正在播放的 */}
       {menuVisible && (
         <View style={styles.menuFullPanel}>
           <View style={styles.menuHeader}>
             <IconMaterial name="queue-music" size={18} color={GOLD} />
             <Text style={styles.menuTitle} size={16} color="#FFFFFF">{playingSinger} 的全部歌曲</Text>
-            <Text style={styles.menuHint} size={12} color="#FFFFFF77">按返回键退出</Text>
+            <Text style={styles.menuHint} size={12} color="#FFFFFF77">返回键退出</Text>
           </View>
           <FlatList
             style={styles.menuList}
@@ -449,7 +453,7 @@ export default () => {
     </View>
   )
 
-  // ============ 二级界面（歌手全部 MV 列表，全屏网格） ============
+  // ============ 二级界面（歌手全部 MV 列表） ============
   const renderPlayPage = () => (
     <View style={styles.container}>
       <View style={styles.topBar}>
@@ -487,21 +491,19 @@ export default () => {
     </View>
   )
 
-  // ============ 歌手卡片（宫格，含头像懒加载） ============
-  const renderSingerItem = ({ item, index }: { item: MvSong, index: number }) => {
-    return (
-      <View style={{ ...styles.singerCard, width: singerItemWidth }}>
-        <TouchableOpacity
-          style={styles.singerCardTouch}
-          focusStyle={styles.cardFocus}
-          onPress={() => { void openSinger(item.vod_name) }}
-        >
-          <SingerAvatar name={item.vod_name} theme={theme} />
-          <Text style={styles.singerName} size={12} color={theme['c-font']} numberOfLines={1}>{item.vod_name}</Text>
-        </TouchableOpacity>
-      </View>
-    )
-  }
+  // ============ 歌手卡片 ============
+  const renderSingerItem = ({ item }: { item: MvSong }) => (
+    <View style={{ ...styles.singerCard, width: singerItemWidth }}>
+      <TouchableOpacity
+        style={styles.singerCardTouch}
+        focusStyle={styles.cardFocus}
+        onPress={() => { void openSinger(item.vod_name) }}
+      >
+        <SingerAvatar name={item.vod_name} theme={theme} />
+        <Text style={styles.singerName} size={12} color={theme['c-font']} numberOfLines={1}>{item.vod_name}</Text>
+      </TouchableOpacity>
+    </View>
+  )
 
   const renderSingerTab = () => (
     <View style={styles.contentCol}>
@@ -525,7 +527,7 @@ export default () => {
     </View>
   )
 
-  // ============ 歌曲 Tab（热门 MV 宫格） ============
+  // ============ 歌曲 Tab ============
   const renderSongTab = () => (
     <View style={styles.contentCol}>
       <View style={styles.listWrap}>
@@ -616,7 +618,7 @@ export default () => {
             onPress={() => {
               setActiveTab(id)
               if (id == 'singer' || id == 'female') void loadSingers()
-              if (id == 'song' && songs.length == 0) void loadSongs('', '热门')
+              if (id == 'song' && songs.length == 0) void loadSongs()
             }}
             hasTVPreferredFocus={tabIndex == 0}
             focusStyle={styles.tabFocus}
@@ -652,7 +654,6 @@ const styles = createStyle({
     flexDirection: 'column',
     backgroundColor: '#0A0C10',
   },
-  // 顶栏
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -677,7 +678,6 @@ const styles = createStyle({
     backgroundColor: '#2A6BE0',
   },
   orderBtnText: {},
-  // Tab
   tabBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -724,14 +724,12 @@ const styles = createStyle({
     paddingVertical: 30,
     textAlign: 'center',
   },
-  // 网格
   gridList: {
     flex: 1,
   },
   gridRow: {
     justifyContent: 'flex-start',
   },
-  // 歌手卡片（紧凑：固定 6 列，一屏约 3 行）
   singerCard: {
     paddingHorizontal: 5,
     paddingBottom: 10,
@@ -763,7 +761,6 @@ const styles = createStyle({
     marginTop: 4,
     textAlign: 'center',
   },
-  // MV 卡片
   mvCard: {
     paddingHorizontal: 6,
     paddingBottom: 14,
@@ -796,7 +793,6 @@ const styles = createStyle({
     paddingVertical: 1,
     overflow: 'hidden',
   },
-  // 搜索
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -840,7 +836,6 @@ const styles = createStyle({
     marginLeft: 10,
     marginRight: 10,
   },
-  // 全屏播放
   fullScreenContainer: {
     flex: 1,
     backgroundColor: '#000000',
@@ -892,7 +887,6 @@ const styles = createStyle({
     borderWidth: 4,
     transform: [{ scale: 1.12 }],
   },
-  // 全屏透明焦点锚点：聚焦时保持透明，播放中无任何视觉焦点框
   fsAnchorFocus: {
     backgroundColor: 'transparent',
     borderColor: 'transparent',
@@ -948,7 +942,6 @@ const styles = createStyle({
   ctrlTime: {
     marginLeft: 8,
   },
-  // 歌曲选择菜单（全屏二级界面）
   menuFullPanel: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,

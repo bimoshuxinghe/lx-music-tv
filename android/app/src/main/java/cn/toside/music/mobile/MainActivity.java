@@ -217,7 +217,7 @@ public class MainActivity extends NavigationActivity {
             sendKeyToJS(keyCode, event);
             return true;
         }
-        // KTV 全屏播放：上下/OK/Enter 键转发 JS（暂停播放、呼出控制条），不参与系统焦点导航
+        // KTV 全屏播放：上下/OK/Enter/菜单键转发 JS（暂停播放、上下曲、呼出歌曲菜单），不参与系统焦点导航
         if (fullscreenKeyCapture && isFullscreenCaptureKey(keyCode)) {
             sendKeyToJS(keyCode, event);
             return true;
@@ -293,7 +293,11 @@ public class MainActivity extends NavigationActivity {
     }
 
     /**
-     * 全屏播放时由 JS 消费的按键：上下方向键（呼出控制条）+ OK/Enter（暂停播放）
+     * 全屏播放时由 JS 消费的按键：
+     *   OK/Enter  → 暂停/播放
+     *   DPAD_UP   → 上一曲
+     *   DPAD_DOWN → 下一曲
+     *   MENU      → 呼出歌曲选择菜单
      */
     private boolean isFullscreenCaptureKey(int keyCode) {
         switch (keyCode) {
@@ -302,6 +306,7 @@ public class MainActivity extends NavigationActivity {
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
+            case KeyEvent.KEYCODE_MENU:
                 return true;
             default:
                 return false;

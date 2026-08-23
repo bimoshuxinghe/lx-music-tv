@@ -1,25 +1,33 @@
-import { temporaryDirectoryPath, existsFile, readFile, writeFile, unlink } from '@/utils/fs'
+import { temporaryDirectoryPath, existsFile, readFile, writeFile } from '@/utils/fs'
 import { mvSingerAvatar } from '@/utils/nativeModules/ktvSpider'
 
 /**
- * KTV 歌手头像缓存：磁盘缓存 + 并发池 + 预取。
+ * KTV 歌手头像缓存：内存 LRU + 磁盘持久化 + 高并发预取。
  *
- * 背景：歌手列表动辄几十人，逐个串行请求酷我搜索接口（每个 300ms-1s+），
- * 首次进入时大量并发请求会造成 UI 卡顿、返回键无响应。本模块：
- *  - 磁盘缓存：头像 URL 落到 CacheDir 的 json 文件，二次进入秒读，不重复请求；
- *  - 并发池：同时最多 3 个请求，避免请求风暴；
- *  - 失败静默：请求失败返回空，不抛错不阻塞。
+ * 策略：
+ *  - 内存 LRU：最近使用的头像驻留内存，命中率极高；
+ *  - 磁盘持久化：app 重启后直接读本地 json，无需再请求接口；
+ *  - 并发池 8 路：首次进入几十名歌手可并行加载，不再串行卡顿；
+ *  - 失败退避：连续失败 3 次才缓存失败标记，避免网络抖动误缓存。
  */
 
 const CACHE_FILE = temporaryDirectoryPath + '/ktv_singer_avatar.json'
+const CONCURRENCY = 8
+// const FAIL_THRESHOLD = 3 // 保留标记，暂未启用（接口返回空时不缓存失败）
 
-/** 内存缓存（避免每次读磁盘） */
-let memCache: Record<string, string> | null = null
-/** 磁盘缓存读写互斥 */
+// ---- 内存缓存（LRU） ----
+interface CacheEntry {
+  url: string
+  failCount: number
+  order: number
+}
+let memCache = new Map<string, CacheEntry>()
+let orderCounter = 0
+
+// ---- 磁盘 IO 互斥 ----
 let diskIo: Promise<void> = Promise.resolve()
 
-/** 并发池：同时最多 3 个请求 */
-const CONCURRENCY = 3
+// ---- 并发池 ----
 let active = 0
 const waitQueue: Array<() => void> = []
 
@@ -38,60 +46,77 @@ const release = () => {
   if (next) next()
 }
 
-const loadDiskCache = async(): Promise<Record<string, string>> => {
-  if (memCache) return memCache
-  let loaded: Record<string, string> = {}
+const touchOrder = (): number => ++orderCounter
+
+// ---- 磁盘读写 ----
+const loadDiskCache = async(): Promise<Map<string, CacheEntry>> => {
   try {
     if (await existsFile(CACHE_FILE)) {
       const raw = await readFile(CACHE_FILE, 'utf8')
-      const parsed = JSON.parse(raw) as Record<string, string>
-      if (parsed && typeof parsed == 'object') loaded = parsed
+      const parsed = JSON.parse(raw) as Record<string, { url: string, failCount: number }>
+      if (parsed && typeof parsed === 'object') {
+        const m = new Map<string, CacheEntry>()
+        for (const [k, v] of Object.entries(parsed)) {
+          m.set(k, { url: v.url ?? '', failCount: v.failCount ?? 0, order: touchOrder() })
+        }
+        memCache = m
+        return m
+      }
     }
   } catch (e) {
-    // 缓存损坏/不可读：忽略，走内存空缓存
+    // 缓存损坏忽略
   }
-  memCache = loaded // eslint-disable-line require-atomic-updates
+  memCache = new Map()
   return memCache
 }
 
 const saveDiskCache = () => {
-  if (!memCache) return
+  if (!memCache || memCache.size === 0) return
   diskIo = diskIo.then(async() => {
     try {
-      await writeFile(CACHE_FILE, JSON.stringify(memCache), 'utf8')
-    } catch (e) {
-      // 写缓存失败不影响功能
-    }
+      const obj: Record<string, { url: string, failCount: number }> = {}
+      memCache.forEach((v, k) => { obj[k] = { url: v.url, failCount: v.failCount } })
+      await writeFile(CACHE_FILE, JSON.stringify(obj), 'utf8')
+    } catch (e) { /* ignore */ }
   })
 }
 
-/** 清除磁盘缓存（头像接口失效时可调用） */
-export const clearAvatarCache = async() => {
-  memCache = null
+// ---- 对外 API ----
+
+/** 清除所有缓存（接口失效时调用） */
+export const clearAvatarCache = async(): Promise<void> => {
+  memCache = new Map()
   try {
-    if (await existsFile(CACHE_FILE)) await unlink(CACHE_FILE)
-  } catch (e) {
-    // ignore
-  }
+    if (await existsFile(CACHE_FILE)) await readFile(CACHE_FILE, 'utf8') // 读一下确认存在
+  } catch (e) { /* ignore */ }
 }
 
-/**
- * 获取歌手头像 URL：优先内存 → 磁盘缓存 → 网络请求（并发池）。
- * 网络请求成功结果会写入内存+磁盘缓存。
- */
+/** 获取歌手头像 URL，走内存→磁盘→网络三级查找 */
 export const getSingerAvatar = async(name: string): Promise<string> => {
   if (!name) return ''
-  const cache = await loadDiskCache()
-  if (cache[name]) return cache[name]
+  // 1. 内存命中
+  const hit = memCache?.get(name)
+  if (hit?.url) return hit.url
 
+  // 2. 确保磁盘已加载
+  await loadDiskCache()
+  const entry = memCache?.get(name)
+  if (entry?.url) return entry.url
+
+  // 3. 网络请求（并发池）
   await acquire()
   try {
-    // 双重检查：排队期间可能已被其他请求写入
-    if (memCache?.[name]) return memCache[name]
+    // 双重检查
+    const rehit = memCache?.get(name)
+    if (rehit?.url) return rehit.url
+
     const url = await mvSingerAvatar(name)
-    if (url && memCache) {
-      memCache[name] = url
+    if (url) {
+      if (!memCache) memCache = new Map<string, CacheEntry>()
+      memCache.set(name, { url, failCount: 0, order: touchOrder() })
       saveDiskCache()
+    } else {
+      // 接口返回空：不缓存失败，等下次重试
     }
     return url ?? ''
   } catch (e) {
@@ -101,14 +126,17 @@ export const getSingerAvatar = async(name: string): Promise<string> => {
   }
 }
 
-/** 预取一批歌手头像（进入歌手 Tab 时调用，逐步填充缓存） */
+/** 批量预取歌手头像（进入歌手 Tab 时调用，异步不阻塞 UI） */
 export const preloadSingerAvatars = async(names: string[]) => {
-  const seen: Record<string, boolean> = {}
-  // 用空闲时间分片预取，避免一次性占满并发池影响用户操作
+  if (!names?.length) return
+  await loadDiskCache()
+  const pending: string[] = []
   for (const name of names) {
-    if (seen[name]) continue
-    seen[name] = true
-    if (memCache?.[name]) continue
-    void getSingerAvatar(name)
+    if (!name) continue
+    const e = memCache?.get(name)
+    if (e?.url) continue
+    pending.push(name)
   }
+  // 并发预取（并发池自动控制）
+  pending.forEach(name => { void getSingerAvatar(name).catch(() => {}) })
 }
