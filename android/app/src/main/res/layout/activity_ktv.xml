@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0A0C10"
+    android:orientation="vertical">
+
+    <!-- 顶部导航栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <TextView
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:text="←"
+            android:textColor="#FFFFFF"
+            android:textSize="20dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="MV"
+            android:textColor="#FFFFFF"
+            android:textSize="20dp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_gravity="center_vertical"
+            android:background="#2A6BE0"
+            android:gravity="center"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:text="共 0 首"
+            android:textColor="#FFFFFF"
+            android:textSize="13dp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- Tab栏 -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/txt_tab_singer"
+                android:layout_width="100dp"
+                android:layout_height="40dp"
+                android:background="#2A6BE0"
+                android:gravity="center"
+                android:text="歌手"
+                android:textColor="#FFFFFF"
+                android:textSize="14dp" />
+
+            <TextView
+                android:id="@+id/txt_tab_female"
+                android:layout_width="100dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="12dp"
+                android:background="#22262F"
+                android:gravity="center"
+                android:text="女歌手"
+                android:textColor="#FFFFFFAA"
+                android:textSize="14dp" />
+
+            <TextView
+                android:id="@+id/txt_tab_song"
+                android:layout_width="100dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="12dp"
+                android:background="#22262F"
+                android:gravity="center"
+                android:text="歌曲"
+                android:textColor="#FFFFFFAA"
+                android:textSize="14dp" />
+
+            <TextView
+                android:id="@+id/txt_tab_search"
+                android:layout_width="100dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="12dp"
+                android:background="#22262F"
+                android:gravity="center"
+                android:text="搜索"
+                android:textColor="#FFFFFFAA"
+                android:textSize="14dp" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- 内容区域 -->
+    <FrameLayout
+        android:id="@+id/fragment_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="12dp">
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/txt_error"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textColor="#FF6B6B"
+            android:textSize="14dp"
+            android:visibility="gone" />
+    </FrameLayout>
+
+</LinearLayout>

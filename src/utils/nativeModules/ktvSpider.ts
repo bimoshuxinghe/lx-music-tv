@@ -17,8 +17,30 @@ const ensure = () => {
   return CfssSpider
 }
 
-export const mvSingers = async(gender: number | string): Promise<string> => ensure().singers(Number(gender))
-export const mvSongs = async(keyword: string, page: string | number = 1): Promise<string> => ensure().songs(keyword, Number(page))
-export const mvSearch = async(keyword: string): Promise<string> => ensure().search(keyword)
-export const mvPlayer = async(id: string): Promise<string> => ensure().player(id)
-export const mvSingerAvatar = async(name: string): Promise<string> => ensure().singerAvatar(name)
+// 请求超时（毫秒）
+const TIMEOUT = 15000
+
+/** 包装原始请求，添加超时保护，避免阻塞 JS 线程导致界面卡死 */
+const withTimeout = <T>(fn: () => Promise<T>, ms: number = TIMEOUT): Promise<T> => {
+  return Promise.race([
+    fn(),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`请求超时(${ms}ms)`)), ms)
+    ),
+  ])
+}
+
+export const mvSingers = async(gender: number | string): Promise<string> =>
+  withTimeout(() => ensure().singers(Number(gender)))
+
+export const mvSongs = async(keyword: string, page: string | number = 1): Promise<string> =>
+  withTimeout(() => ensure().songs(keyword, Number(page)))
+
+export const mvSearch = async(keyword: string): Promise<string> =>
+  withTimeout(() => ensure().search(keyword))
+
+export const mvPlayer = async(id: string): Promise<string> =>
+  withTimeout(() => ensure().player(id))
+
+export const mvSingerAvatar = async(name: string): Promise<string> =>
+  withTimeout(() => ensure().singerAvatar(name))

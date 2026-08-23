@@ -105,6 +105,13 @@
         </intent-filter>
       </activity>
 
+      <!-- KTV 原生界面 -->
+      <activity
+        android:name=".ktv.KtvActivity"
+        android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+        android:screenOrientation="landscape"
+        android:theme="@style/AppTheme" />
+
       <!-- 夏杰语音音乐指令接收服务 -->
       <service
         android:name=".aiSharjeck.AISharjeckService"

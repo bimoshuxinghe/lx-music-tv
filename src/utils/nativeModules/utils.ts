@@ -32,6 +32,8 @@ export const setFullscreenKeyCapture = (enabled: boolean) => {
   UtilsModule.setFullscreenKeyCapture(enabled)
 }
 
+export const startKtv = () => UtilsModule.startKtv()
+
 export const getWIFIIPV4Address = UtilsModule.getWIFIIPV4Address as () => Promise<string>
 
 export const getIPV4Address = UtilsModule.getIPV4Address as () => Promise<string>
