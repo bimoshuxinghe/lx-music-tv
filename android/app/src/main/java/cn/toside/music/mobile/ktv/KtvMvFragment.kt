@@ -44,6 +44,8 @@ class KtvMvFragment : Fragment() {
         adapter.updateList(list)
     }
 
+    fun getCurrentList(): List<KtvMvItem> = mvList
+
     class MvAdapter(
         private var mvList: List<KtvMvItem>,
         private val onItemClick: (KtvMvItem) -> Unit

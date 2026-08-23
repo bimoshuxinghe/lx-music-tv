@@ -13,6 +13,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentTransaction
 import cn.toside.music.mobile.R
@@ -30,6 +31,11 @@ class KtvActivity : AppCompatActivity() {
     private var isPlaying = false
     private var isMenuVisible = false
     
+    // 长按检测
+    private var isLongPress = false
+    private val longPressHandler = Handler(Looper.getMainLooper())
+    private val longPressRunnable = Runnable { isLongPress = true }
+    
     private val cfssApi = CfssSpiderApi()
     private val mainHandler = Handler(Looper.getMainLooper())
     
@@ -42,7 +48,8 @@ class KtvActivity : AppCompatActivity() {
     private val keyEventReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val keyCode = intent?.getIntExtra("keyCode", -1) ?: return
-            handleNativeKeyCode(keyCode)
+            val event = intent.getParcelableExtra<KeyEvent>("event")
+            handleNativeKeyCode(keyCode, event)
         }
     }
 
@@ -277,11 +284,30 @@ class KtvActivity : AppCompatActivity() {
 
     // ==================== 按键处理 ====================
 
-    private fun handleNativeKeyCode(keyCode: Int) {
+    private fun handleNativeKeyCode(keyCode: Int, event: KeyEvent?) {
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_UP -> playPrevious()
             KeyEvent.KEYCODE_DPAD_DOWN -> playNext()
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> togglePlay()
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                if (event != null) {
+                    when (event.action) {
+                        android.view.KeyEvent.ACTION_DOWN -> {
+                            isLongPress = false
+                            longPressHandler.postDelayed(longPressRunnable, 800) // 800ms 判定为长按
+                        }
+                        android.view.KeyEvent.ACTION_UP -> {
+                            longPressHandler.removeCallbacks(longPressRunnable)
+                            if (!isLongPress) {
+                                togglePlay()
+                            } else {
+                                playAllSongs() // 长按OK触发全部播放
+                            }
+                        }
+                    }
+                } else {
+                    togglePlay()
+                }
+            }
             KeyEvent.KEYCODE_MENU -> toggleMenu()
         }
     }
@@ -302,6 +328,71 @@ class KtvActivity : AppCompatActivity() {
     
     private fun toggleMenu() {
         isMenuVisible = !isMenuVisible
+    }
+
+    /**
+     * 全部播放：加载当前列表所有歌曲并顺序播放
+     */
+    private fun playAllSongs() {
+        val currentFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
+        when (currentFragment) {
+            is KtvSingerFragment -> {
+                // 歌手列表 - 加载全部歌手歌曲
+                showToast("正在加载全部歌曲...")
+                startLoadAllSongsFromSingers()
+            }
+            is KtvMvFragment -> {
+                // MV列表 - 播放当前列表所有MV
+                val mvFragment = currentFragment as KtvMvFragment
+                val currentList = mvFragment.getCurrentList()
+                if (currentList.isNotEmpty()) {
+                    showFirstMvFromList(currentList, 0)
+                }
+            }
+            else -> {
+                showToast("当前没有可播放的列表")
+            }
+        }
+    }
+
+    private fun startLoadAllSongsFromSingers() {
+        Thread {
+            try {
+                // 加载男女歌手共2页
+                val jsonMale = cfssApi.sengersSync(1)
+                val singersMale = parseSingerJson(jsonMale)
+                val jsonFemale = cfssApi.singersSync(2)
+                val singersFemale = parseSingerJson(jsonFemale)
+                
+                val allSingers = singersMale + singersFemale
+                mainHandler.post {
+                    if (allSingers.isNotEmpty()) {
+                        // TODO: 显示全部歌曲列表，用户可选择
+                        showToast("共 ${allSingers.size} 位歌手，请选择")
+                    } else {
+                        showToast("暂无歌手数据")
+                    }
+                }
+            } catch (e: Exception) {
+                mainHandler.post { showError("加载失败: ${e.message}") }
+            }
+        }.start()
+    }
+
+    private fun showFirstMvFromList(list: List<KtvMvFragment.KtvMvItem>, index: Int) {
+        if (index >= list.size) {
+            showToast("播放完成")
+            return
+        }
+        val mv = list[index]
+        showLoading()
+        startPlayMv(mv.id, mv.name)
+    }
+
+    private fun showToast(message: String) {
+        mainHandler.post {
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        }
     }
 
     // ==================== JSON解析 ====================
