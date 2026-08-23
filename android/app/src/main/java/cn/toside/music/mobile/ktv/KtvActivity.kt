@@ -25,7 +25,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
  */
 class KtvActivity : AppCompatActivity() {
 
-    private var currentTab = 0 // 0=MV列表, 1=歌曲列表, 2=搜索
+    private var currentTab = 0 // 0=singer, 1=song, 2=search
     private var selectedSinger: String? = null
     private var playerFragment: KtvPlayerFragment? = null
     private var isPlaying = false
@@ -60,8 +60,8 @@ class KtvActivity : AppCompatActivity() {
         // 初始化UI
         setupViews()
         
-        // 加载初始数据 - 默认显示MV列表
-        loadMvList(1) // 默认男歌手
+        // 加载初始数据
+        loadSingerList(1) // 默认男歌手
     }
 
     private fun setupViews() {
@@ -81,27 +81,23 @@ class KtvActivity : AppCompatActivity() {
         val tabs = listOf(R.id.txt_tab_singer, R.id.txt_tab_female, R.id.txt_tab_song, R.id.txt_tab_search)
         tabs.forEachIndexed { index, id ->
             findViewById<TextView>(id).isSelected = index == tab
-            val color = if (index == tab) "#FFFFFF" else "#FFFFFFAA"
-            findViewById<TextView>(id).setTextColor(android.graphics.Color.parseColor(color))
-            val bg = if (index == tab) "#2A6BE0" else "#22262F"
-            findViewById<TextView>(id).setBackgroundColor(android.graphics.Color.parseColor(bg))
         }
         
         // 加载对应内容
         when (tab) {
-            0 -> loadMvList(if (selectedSinger == null) 1 else 2)
+            0 -> loadSingerList(if (selectedSinger == null) 1 else 2)
             1 -> loadSongList()
             2 -> {} // 搜索功能待实现
         }
     }
 
-    private fun loadMvList(gender: Int) {
+    private fun loadSingerList(gender: Int) {
         findViewById<ProgressBar>(R.id.progressBar).visibility = View.VISIBLE
         Thread {
             try {
                 val json = cfssApi.singers(gender)
                 val singers = parseSingerJson(json)
-                runOnUiThread {
+                    runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
                     showSingerFragment(singers)
                 }
@@ -109,7 +105,6 @@ class KtvActivity : AppCompatActivity() {
                 runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
                     findViewById<TextView>(R.id.txt_error).text = "加载失败: ${e.message}"
-                    findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
                 }
             }
         }.start()
@@ -123,24 +118,15 @@ class KtvActivity : AppCompatActivity() {
                 val songs = parseMvJson(json)
                 runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    if (songs.isNotEmpty()) {
-                        showSongFragment(songs)
-                    } else {
-                        showError("暂无歌曲数据")
-                    }
+                    showSongFragment(songs)
                 }
             } catch (e: Exception) {
                 runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    showError("加载失败: ${e.message}")
+                    findViewById<TextView>(R.id.txt_error).text = "加载失败: ${e.message}"
                 }
             }
         }.start()
-    }
-
-    private fun showError(message: String) {
-        findViewById<TextView>(R.id.txt_error).text = message
-        findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
     }
 
     fun onSingerSelected(singer: KtvSingerFragment.KtvSinger) {
@@ -156,16 +142,12 @@ class KtvActivity : AppCompatActivity() {
                 val mvList = parseMvJson(json)
                 runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    if (mvList.isNotEmpty()) {
-                        showMvFragment(mvList, singerName)
-                    } else {
-                        showError("暂无 $singerName 的MV")
-                    }
+                    showMvFragment(mvList, singerName)
                 }
             } catch (e: Exception) {
                 runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    showError("加载失败: ${e.message}")
+                    findViewById<TextView>(R.id.txt_error).text = "加载失败: ${e.message}"
                 }
             }
         }.start()
@@ -192,43 +174,28 @@ class KtvActivity : AppCompatActivity() {
     }
 
     private fun showSingerFragment(singers: List<KtvSingerFragment.KtvSinger>) {
-        if (singers.isEmpty()) {
-            showError("歌手列表为空")
-            return
-        }
         val fragment = KtvSingerFragment()
         fragment.updateList(singers)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()
-        findViewById<TextView>(R.id.txt_error).visibility = View.GONE
     }
 
     private fun showSongFragment(songs: List<KtvMvFragment.KtvMvItem>) {
-        if (songs.isEmpty()) {
-            showError("歌曲列表为空")
-            return
-        }
         val fragment = KtvMvFragment()
         fragment.updateList(songs)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()
-        findViewById<TextView>(R.id.txt_error).visibility = View.GONE
     }
 
     private fun showMvFragment(mvs: List<KtvMvFragment.KtvMvItem>, singerName: String) {
         selectedSinger = singerName
-        if (mvs.isEmpty()) {
-            showError("$singerName 的MV列表为空")
-            return
-        }
         val fragment = KtvMvFragment()
         fragment.updateList(mvs)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .commit()
-        findViewById<TextView>(R.id.txt_error).visibility = View.GONE
     }
 
     private fun showPlayerFragment(url: String, name: String) {
