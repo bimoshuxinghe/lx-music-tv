@@ -6,78 +6,78 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 
 /**
  * KTV 网络请求工具类
- * 使用OkHttp异步请求，避免阻塞主线程
+ * 同步请求方法，直接阻塞当前线程返回结果
+ * 调用方必须在后台线程中调用
  */
 class CfssSpiderApi {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    companion object {
+        private const val CONNECT_TIMEOUT = 5L
+        private const val READ_TIMEOUT = 10L
+        private const val WRITE_TIMEOUT = 5L
+    }
 
-    private val result = AtomicReference<String?>(null)
+    // 单例OkHttpClient，共享连接池
+    private val client: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(CONNECT_TIMEOUT, TimeUnit.SECONDS)
+            .readTimeout(READ_TIMEOUT, TimeUnit.SECONDS)
+            .writeTimeout(WRITE_TIMEOUT, TimeUnit.SECONDS)
+            .build()
+    }
 
     /**
-     * 同步执行网络请求（内部使用后台线程）
+     * 同步获取歌手列表（必须在后台线程调用）
      */
-    fun singers(gender: Int): String {
-        return synchronousRequest("singers", mapOf("gender" to gender.toString()))
+    fun singersSync(gender: Int): String {
+        return syncRequest("singers", mapOf("gender" to gender.toString()))
     }
 
-    fun songs(keyword: String, page: Int): String {
-        return synchronousRequest("songs", mapOf("keyword" to keyword, "page" to page.toString()))
+    /**
+     * 同步获取歌曲列表（必须在后台线程调用）
+     */
+    fun songsSync(keyword: String, page: Int): String {
+        return syncRequest("songs", mapOf("keyword" to keyword, "page" to page.toString()))
     }
 
-    fun search(keyword: String): String {
-        return synchronousRequest("search", mapOf("keyword" to keyword))
+    /**
+     * 同步搜索（必须在后台线程调用）
+     */
+    fun searchSync(keyword: String): String {
+        return syncRequest("search", mapOf("keyword" to keyword))
     }
 
-    fun player(id: String): String {
-        return synchronousRequest("player", mapOf("id" to id))
+    /**
+     * 同步获取播放地址（必须在后台线程调用）
+     */
+    fun playerSync(id: String): String {
+        return syncRequest("player", mapOf("id" to id))
     }
 
-    fun singerAvatar(name: String): String {
-        return synchronousRequest("singerAvatar", mapOf("name" to name))
+    /**
+     * 同步获取歌手头像（必须在后台线程调用）
+     */
+    fun singerAvatarSync(name: String): String {
+        return syncRequest("singerAvatar", mapOf("name" to name))
     }
 
-    private fun synchronousRequest(method: String, params: Map<String, String>): String {
-        result.set(null)
-        val latch = java.util.concurrent.CountDownLatch(1)
-
-        Thread {
-            try {
-                val url = buildUrl(method, params)
-                val request = Request.Builder().url(url).build()
-
-                client.newCall(request).enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) {
-                        result.set("{\"error\":\"${e.message}\"}")
-                        latch.countDown()
-                    }
-
-                    override fun onResponse(call: Call, response: okhttp3.Response) {
-                        response.use {
-                            val body = it.body?.string() ?: ""
-                            result.set(body)
-                            latch.countDown()
-                        }
-                    }
-                })
-
-                latch.await()
-            } catch (e: Exception) {
-                result.set("{\"error\":\"${e.message}\"}")
-                latch.countDown()
-            }
-        }.start()
-
-        latch.await()
-
-        return result.get() ?: "{\"error\":\"请求失败\"}"
+    /**
+     * 同步执行网络请求（内部阻塞，必须在后台线程调用）
+     */
+    private fun syncRequest(method: String, params: Map<String, String>): String {
+        try {
+            val url = buildUrl(method, params)
+            val request = Request.Builder().url(url).build()
+            val response = client.newCall(request).execute()
+            return response.body?.string() ?: "{\"error\":\"空响应\"}"
+        } catch (e: IOException) {
+            return "{\"error\":\"${e.message}\"}"
+        } catch (e: Exception) {
+            return "{\"error\":\"${e.message}\"}"
+        }
     }
 
     private fun buildUrl(method: String, params: Map<String, String>): String {

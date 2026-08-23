@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
@@ -15,9 +17,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentTransaction
 import cn.toside.music.mobile.R
 import cn.toside.music.mobile.utils.CfssSpiderApi
-import com.facebook.react.ReactInstanceManager
-import com.facebook.react.bridge.ReactContext
-import com.facebook.react.modules.core.DeviceEventManagerModule
 
 /**
  * 原生KTV主Activity
@@ -25,13 +24,19 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
  */
 class KtvActivity : AppCompatActivity() {
 
-    private var currentTab = 0 // 0=singer, 1=song, 2=search
+    private var currentTab = 0
     private var selectedSinger: String? = null
     private var playerFragment: KtvPlayerFragment? = null
     private var isPlaying = false
     private var isMenuVisible = false
     
     private val cfssApi = CfssSpiderApi()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    
+    // 缓存View引用，避免重复findViewById
+    private var progressBar: ProgressBar? = null
+    private var txtError: TextView? = null
+    private var txtLoading: TextView? = null
     
     // 按键事件接收器
     private val keyEventReceiver = object : BroadcastReceiver() {
@@ -48,6 +53,14 @@ class KtvActivity : AppCompatActivity() {
         // 保持屏幕常亮
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         
+        // 隐藏系统导航栏和Cursor
+        hideSystemUI()
+        
+        // 缓存View引用
+        progressBar = findViewById(R.id.progressBar)
+        txtError = findViewById(R.id.txt_error)
+        txtLoading = findViewById(R.id.txt_loading)
+        
         // 注册按键监听
         val filter = IntentFilter("cn.toside.music.mobile.ktv.KEY_EVENT")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -60,147 +73,180 @@ class KtvActivity : AppCompatActivity() {
         // 初始化UI
         setupViews()
         
-        // 显示加载状态
-        findViewById<TextView>(R.id.txt_loading).visibility = View.VISIBLE
-        
-        // 延迟加载初始数据，避免界面闪烁
-        findViewById<TextView>(R.id.txt_loading).visibility = View.GONE
-        loadSingerList(1) // 默认男歌手
+        // 直接加载数据，不走RN
+        loadInitialData()
     }
 
     private fun setupViews() {
-        // Tab切换
-        findViewById<TextView>(R.id.txt_tab_singer).setOnClickListener { switchTab(0) }
-        findViewById<TextView>(R.id.txt_tab_female).setOnClickListener { switchTab(0) }
-        findViewById<TextView>(R.id.txt_tab_song).setOnClickListener { switchTab(1) }
-        findViewById<TextView>(R.id.txt_tab_search).setOnClickListener { switchTab(2) }
+        // Tab切换 - 使用直接View引用
+        val tabSinger = findViewById<TextView>(R.id.txt_tab_singer)
+        val tabFemale = findViewById<TextView>(R.id.txt_tab_female)
+        val tabSong = findViewById<TextView>(R.id.txt_tab_song)
+        val tabSearch = findViewById<TextView>(R.id.txt_tab_search)
+        
+        tabSinger.setOnClickListener { switchTab(0) }
+        tabFemale.setOnClickListener { switchTab(0) }
+        tabSong.setOnClickListener { switchTab(1) }
+        tabSearch.setOnClickListener { switchTab(2) }
         
         // 返回键
         findViewById<View>(R.id.btn_back).setOnClickListener { onBackPressed() }
     }
 
+    private fun loadInitialData() {
+        showLoading()
+        startLoadSingerList(1)
+    }
+
     private fun switchTab(tab: Int) {
         currentTab = tab
-        // 更新Tab样式
         val tabs = listOf(R.id.txt_tab_singer, R.id.txt_tab_female, R.id.txt_tab_song, R.id.txt_tab_search)
         tabs.forEachIndexed { index, id ->
             findViewById<TextView>(id).isSelected = index == tab
         }
         
-        // 加载对应内容
         when (tab) {
-            0 -> loadSingerList(if (selectedSinger == null) 1 else 2)
-            1 -> loadSongList()
-            2 -> {} // 搜索功能待实现
+            0 -> {
+                showLoading()
+                startLoadSingerList(if (selectedSinger == null) 1 else 2)
+            }
+            1 -> {
+                showLoading()
+                startLoadSongList()
+            }
+            2 -> {}
         }
     }
 
-    private fun loadSingerList(gender: Int) {
-        findViewById<ProgressBar>(R.id.progressBar).visibility = View.VISIBLE
+    // ==================== 数据加载（异步）====================
+
+    private fun startLoadSingerList(gender: Int) {
         Thread {
             try {
-                val json = cfssApi.singers(gender)
+                val json = cfssApi.singersSync(gender)
                 val singers = parseSingerJson(json)
-                runOnUiThread {
-                    findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    if (singers.isNotEmpty()) {
-                        showSingerFragment(singers)
-                    } else {
-                        findViewById<TextView>(R.id.txt_error).text = "歌手列表为空"
-                        findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
-                    }
+                if (singers.isNotEmpty()) {
+                    mainHandler.post { showSingerFragment(singers) }
+                } else {
+                    mainHandler.post { showError("歌手列表为空") }
                 }
             } catch (e: Exception) {
-                runOnUiThread {
-                    findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    findViewById<TextView>(R.id.txt_error).text = "加载失败: ${e.message}"
-                    findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
-                }
+                mainHandler.post { showError("加载失败: ${e.message}") }
             }
         }.start()
     }
 
-    private fun loadSongList() {
-        findViewById<ProgressBar>(R.id.progressBar).visibility = View.VISIBLE
+    private fun startLoadSongList() {
         Thread {
             try {
-                val json = cfssApi.songs("", 1)
+                val json = cfssApi.songsSync("", 1)
                 val songs = parseMvJson(json)
-                runOnUiThread {
-                    findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    if (songs.isNotEmpty()) {
-                        showSongFragment(songs)
-                    } else {
-                        findViewById<TextView>(R.id.txt_error).text = "歌曲列表为空"
-                        findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
-                    }
+                if (songs.isNotEmpty()) {
+                    mainHandler.post { showSongFragment(songs) }
+                } else {
+                    mainHandler.post { showError("歌曲列表为空") }
                 }
             } catch (e: Exception) {
-                runOnUiThread {
-                    findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    findViewById<TextView>(R.id.txt_error).text = "加载失败: ${e.message}"
-                    findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
-                }
+                mainHandler.post { showError("加载失败: ${e.message}") }
             }
         }.start()
     }
+
+    // ==================== 用户操作回调 ====================
 
     fun onSingerSelected(singer: KtvSingerFragment.KtvSinger) {
         selectedSinger = singer.name
-        loadSingerMvList(singer.name)
+        showLoading()
+        startLoadSingerMvList(singer.name)
     }
 
-    private fun loadSingerMvList(singerName: String) {
-        findViewById<ProgressBar>(R.id.progressBar).visibility = View.VISIBLE
+    private fun startLoadSingerMvList(singerName: String) {
         Thread {
             try {
-                val json = cfssApi.songs(singerName, 1)
+                val json = cfssApi.songsSync(singerName, 1)
                 val mvList = parseMvJson(json)
-                runOnUiThread {
-                    findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    if (mvList.isNotEmpty()) {
-                        showMvFragment(mvList, singerName)
-                    } else {
-                        findViewById<TextView>(R.id.txt_error).text = "${singerName} 的歌曲列表为空"
-                        findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
-                    }
+                if (mvList.isNotEmpty()) {
+                    mainHandler.post { showMvFragment(mvList, singerName) }
+                } else {
+                    mainHandler.post { showError("${singerName} 的歌曲列表为空") }
                 }
             } catch (e: Exception) {
-                runOnUiThread {
-                    findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    findViewById<TextView>(R.id.txt_error).text = "加载失败: ${e.message}"
-                    findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
-                }
+                mainHandler.post { showError("加载失败: ${e.message}") }
             }
         }.start()
     }
 
     fun onMvSelected(mv: KtvMvFragment.KtvMvItem) {
-        playMv(mv.id, mv.name)
+        showLoading()
+        startPlayMv(mv.id, mv.name)
     }
 
-    private fun playMv(id: String, name: String) {
+    private fun startPlayMv(id: String, name: String) {
         Thread {
             try {
-                val json = cfssApi.player(id)
+                val json = cfssApi.playerSync(id)
                 val url = parsePlayerUrl(json)
-                runOnUiThread {
+                mainHandler.post {
+                    hideLoading()
                     showPlayerFragment(url, name)
                 }
             } catch (e: Exception) {
-                runOnUiThread {
-                    findViewById<TextView>(R.id.txt_error).text = "播放失败: ${e.message}"
-                }
+                mainHandler.post { showError("播放失败: ${e.message}") }
             }
         }.start()
     }
+
+    // ==================== UI 更新（直接操作）====================
+
+    private fun showLoading() {
+        progressBar?.visibility = View.VISIBLE
+        txtError?.visibility = View.GONE
+        txtLoading?.visibility = View.VISIBLE
+    }
+
+    private fun hideLoading() {
+        progressBar?.visibility = View.GONE
+        txtLoading?.visibility = View.GONE
+    }
+
+    private fun showError(msg: String) {
+        progressBar?.visibility = View.GONE
+        txtLoading?.visibility = View.GONE
+        txtError?.text = msg
+        txtError?.visibility = View.VISIBLE
+    }
+
+    /**
+     * 隐藏系统UI（导航栏、状态栏等）
+     */
+    private fun hideSystemUI() {
+        @Suppress("DEPRECATION")
+        val decorView = window.decorView
+        val uiOptions = (View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+        decorView.systemUiVisibility = uiOptions
+        
+        // 隐藏导航栏
+        val navBarHeight = resources.getDimensionPixelSize(
+            resources.getIdentifier("navigation_bar_height", "dimen", "android"))
+        if (navBarHeight > 0) {
+            val params = window.attributes
+            params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            window.attributes = params
+        }
+    }
+
+    // ==================== Fragment 显示 ====================
 
     private fun showSingerFragment(singers: List<KtvSingerFragment.KtvSinger>) {
         val fragment = KtvSingerFragment()
         fragment.updateList(singers)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
-            .commit()
+            .commitAllowingStateLoss()
     }
 
     private fun showSongFragment(songs: List<KtvMvFragment.KtvMvItem>) {
@@ -208,7 +254,7 @@ class KtvActivity : AppCompatActivity() {
         fragment.updateList(songs)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
-            .commit()
+            .commitAllowingStateLoss()
     }
 
     private fun showMvFragment(mvs: List<KtvMvFragment.KtvMvItem>, singerName: String) {
@@ -217,38 +263,26 @@ class KtvActivity : AppCompatActivity() {
         fragment.updateList(mvs)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
-            .commit()
+            .commitAllowingStateLoss()
     }
 
     private fun showPlayerFragment(url: String, name: String) {
         val fragment = KtvPlayerFragment()
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
-            .commit()
-        // 延迟播放确保fragment已显示
+            .commitAllowingStateLoss()
         supportFragmentManager.executePendingTransactions()
         (supportFragmentManager.findFragmentById(R.id.fragment_container) as? KtvPlayerFragment)?.playVideo(url)
     }
 
-    // 处理原生按键
+    // ==================== 按键处理 ====================
+
     private fun handleNativeKeyCode(keyCode: Int) {
         when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> {
-                // 上一曲
-                playPrevious()
-            }
-            KeyEvent.KEYCODE_DPAD_DOWN -> {
-                // 下一曲
-                playNext()
-            }
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                // 暂停/播放
-                togglePlay()
-            }
-            KeyEvent.KEYCODE_MENU -> {
-                // 显示/隐藏菜单
-                toggleMenu()
-            }
+            KeyEvent.KEYCODE_DPAD_UP -> playPrevious()
+            KeyEvent.KEYCODE_DPAD_DOWN -> playNext()
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> togglePlay()
+            KeyEvent.KEYCODE_MENU -> toggleMenu()
         }
     }
 
@@ -263,20 +297,15 @@ class KtvActivity : AppCompatActivity() {
         }
     }
 
-    private fun playPrevious() {
-        // TODO: 实现上一曲逻辑
-    }
-
-    private fun playNext() {
-        // TODO: 实现下一曲逻辑
-    }
-
+    private fun playPrevious() {}
+    private fun playNext() {}
+    
     private fun toggleMenu() {
         isMenuVisible = !isMenuVisible
-        // TODO: 显示/隐藏歌曲选择菜单
     }
 
-    // JSON解析
+    // ==================== JSON解析 ====================
+
     private fun parseSingerJson(json: String): List<KtvSingerFragment.KtvSinger> {
         val result = mutableListOf<KtvSingerFragment.KtvSinger>()
         try {

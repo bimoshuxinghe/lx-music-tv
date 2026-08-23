@@ -13,7 +13,7 @@ import cn.toside.music.mobile.R
 
 /**
  * 原生KTV全屏播放Fragment
- * 使用VideoView + MediaController，响应式控制条
+ * 使用VideoView，响应式控制条
  */
 class KtvPlayerFragment : Fragment() {
 
@@ -31,8 +31,11 @@ class KtvPlayerFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         videoView = view.findViewById(R.id.video_view)
-        mediaController = MediaController(context)
+        
+        // 创建MediaController并隐藏
+        mediaController = MediaController(context, true)
         mediaController?.setAnchorView(videoView)
+        mediaController?.setFullScreenIcon(android.R.drawable.ic_menu_sort_by_size)
     }
 
     fun playVideo(uri: String) {

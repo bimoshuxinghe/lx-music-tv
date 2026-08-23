@@ -110,7 +110,8 @@
         android:name=".ktv.KtvActivity"
         android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
         android:screenOrientation="landscape"
-        android:theme="@style/AppTheme" />
+        android:theme="@style/KtvTheme"
+        android:windowSoftInputMode="stateAlwaysHidden|adjustPan" />
 
       <!-- 夏杰语音音乐指令接收服务 -->
       <service
