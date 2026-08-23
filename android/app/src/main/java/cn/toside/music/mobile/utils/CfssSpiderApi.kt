@@ -1,13 +1,12 @@
 package cn.toside.music.mobile.utils
 
-import android.os.Handler
-import android.os.Looper
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * KTV 网络请求工具类
@@ -19,6 +18,8 @@ class CfssSpiderApi {
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
+
+    private val result = AtomicReference<String?>(null)
 
     /**
      * 同步执行网络请求（内部使用后台线程）
@@ -44,61 +45,44 @@ class CfssSpiderApi {
     }
 
     private fun synchronousRequest(method: String, params: Map<String, String>): String {
-        val result = arrayOfNullRef<String>(1)
-        val lock = Any()
+        result.set(null)
+        val latch = java.util.concurrent.CountDownLatch(1)
 
         Thread {
-            synchronized(lock) {
-                try {
-                    val url = buildUrl(method, params)
-                    val request = Request.Builder().url(url).build()
+            try {
+                val url = buildUrl(method, params)
+                val request = Request.Builder().url(url).build()
 
-                    client.newCall(request).enqueue(object : Callback {
-                        override fun onFailure(call: Call, e: IOException) {
-                            synchronized(lock) {
-                                result[0] = "{\"error\":\"${e.message}\"}"
-                                lock.notify()
-                            }
-                        }
-
-                        override fun onResponse(call: Call, response: okhttp3.Response) {
-                            response.use {
-                                val body = it.body?.string() ?: ""
-                                synchronized(lock) {
-                                    result[0] = body
-                                    lock.notify()
-                                }
-                            }
-                        }
-                    })
-
-                    lock.wait()
-                } catch (e: Exception) {
-                    synchronized(lock) {
-                        result[0] = "{\"error\":\"${e.message}\"}"
-                        lock.notify()
+                client.newCall(request).enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) {
+                        result.set("{\"error\":\"${e.message}\"}")
+                        latch.countDown()
                     }
-                }
+
+                    override fun onResponse(call: Call, response: okhttp3.Response) {
+                        response.use {
+                            val body = it.body?.string() ?: ""
+                            result.set(body)
+                            latch.countDown()
+                        }
+                    }
+                })
+
+                latch.await()
+            } catch (e: Exception) {
+                result.set("{\"error\":\"${e.message}\"}")
+                latch.countDown()
             }
         }.start()
 
-        synchronized(lock) {
-            lock.wait()
-        }
+        latch.await()
 
-        return result[0] ?: "{\"error\":\"请求失败\"}"
+        return result.get() ?: "{\"error\":\"请求失败\"}"
     }
 
     private fun buildUrl(method: String, params: Map<String, String>): String {
         val baseUrl = "https://cfss.cc/mv/$method"
         val query = params.entries.joinToString("&") { "${it.key}=${it.value}" }
         return "$baseUrl?$query"
-    }
-
-    companion object {
-        @Suppress("UNCHECKED_CAST")
-        private fun <T> arrayOfNullRef(size: Int): Array<T?> {
-            return arrayOfNulls(size)
-        }
     }
 }
