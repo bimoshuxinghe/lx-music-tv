@@ -60,7 +60,11 @@ class KtvActivity : AppCompatActivity() {
         // 初始化UI
         setupViews()
         
-        // 加载初始数据
+        // 显示加载状态
+        findViewById<TextView>(R.id.txt_loading).visibility = View.VISIBLE
+        
+        // 延迟加载初始数据，避免界面闪烁
+        findViewById<TextView>(R.id.txt_loading).visibility = View.GONE
         loadSingerList(1) // 默认男歌手
     }
 
@@ -97,14 +101,20 @@ class KtvActivity : AppCompatActivity() {
             try {
                 val json = cfssApi.singers(gender)
                 val singers = parseSingerJson(json)
-                    runOnUiThread {
+                runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    showSingerFragment(singers)
+                    if (singers.isNotEmpty()) {
+                        showSingerFragment(singers)
+                    } else {
+                        findViewById<TextView>(R.id.txt_error).text = "歌手列表为空"
+                        findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
+                    }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
                     findViewById<TextView>(R.id.txt_error).text = "加载失败: ${e.message}"
+                    findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
                 }
             }
         }.start()
@@ -118,12 +128,18 @@ class KtvActivity : AppCompatActivity() {
                 val songs = parseMvJson(json)
                 runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    showSongFragment(songs)
+                    if (songs.isNotEmpty()) {
+                        showSongFragment(songs)
+                    } else {
+                        findViewById<TextView>(R.id.txt_error).text = "歌曲列表为空"
+                        findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
+                    }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
                     findViewById<TextView>(R.id.txt_error).text = "加载失败: ${e.message}"
+                    findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
                 }
             }
         }.start()
@@ -142,12 +158,18 @@ class KtvActivity : AppCompatActivity() {
                 val mvList = parseMvJson(json)
                 runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
-                    showMvFragment(mvList, singerName)
+                    if (mvList.isNotEmpty()) {
+                        showMvFragment(mvList, singerName)
+                    } else {
+                        findViewById<TextView>(R.id.txt_error).text = "${singerName} 的歌曲列表为空"
+                        findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
+                    }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
                     findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
                     findViewById<TextView>(R.id.txt_error).text = "加载失败: ${e.message}"
+                    findViewById<TextView>(R.id.txt_error).visibility = View.VISIBLE
                 }
             }
         }.start()
