@@ -97,8 +97,8 @@ class KtvActivity : AppCompatActivity() {
             try {
                 val json = cfssApi.singers(gender)
                 val singers = parseSingerJson(json)
-                runOnUiThread {
-                    findViewById<ProgressBar>(的progressBar).visibility = View.GONE
+                    runOnUiThread {
+                    findViewById<ProgressBar>(R.id.progressBar).visibility = View.GONE
                     showSingerFragment(singers)
                 }
             } catch (e: Exception) {
@@ -134,7 +134,7 @@ class KtvActivity : AppCompatActivity() {
         loadSingerMvList(singer.name)
     }
 
-    private fun loadSingerMvList(singerName: string) {
+    private fun loadSingerMvList(singerName: String) {
         findViewById<ProgressBar>(R.id.progressBar).visibility = View.VISIBLE
         Thread {
             try {
