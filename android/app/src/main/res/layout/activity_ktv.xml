@@ -69,7 +69,7 @@
                 android:layout_height="40dp"
                 android:background="#2A6BE0"
                 android:gravity="center"
-                android:text="歌手"
+                android:text="MV"
                 android:textColor="#FFFFFF"
                 android:textSize="14dp" />
 
