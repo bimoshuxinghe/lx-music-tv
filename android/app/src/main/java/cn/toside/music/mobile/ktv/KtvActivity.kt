@@ -48,8 +48,7 @@ class KtvActivity : AppCompatActivity() {
     private val keyEventReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val keyCode = intent?.getIntExtra("keyCode", -1) ?: return
-            val event = intent.getParcelableExtra<KeyEvent>("event")
-            handleNativeKeyCode(keyCode, event)
+            handleNativeKeyCode(keyCode, null)
         }
     }
 
@@ -359,7 +358,7 @@ class KtvActivity : AppCompatActivity() {
         Thread {
             try {
                 // 加载男女歌手共2页
-                val jsonMale = cfssApi.sengersSync(1)
+                val jsonMale = cfssApi.singersSync(1)
                 val singersMale = parseSingerJson(jsonMale)
                 val jsonFemale = cfssApi.singersSync(2)
                 val singersFemale = parseSingerJson(jsonFemale)
