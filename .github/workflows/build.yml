@@ -32,26 +32,39 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 9123335
+          packages: |
+            platform-tools
+            build-tools;35.0.0
+            platforms;android-35
+            ndk;26.1.10909125
+            licenses
+
       - name: Setup keystore.properties
         working-directory: android
         run: |
-          cat > keystore.properties <<'EOF'
+          cat > keystore.properties <<'KEYSTORE'
           storeFile=debug.keystore
           storePassword=android
           keyAlias=androiddebugkey
           keyPassword=android
-          EOF
+          KEYSTORE
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'ndk;26.1.10909125 build-tools;35.0.0 platforms;android-36'
-
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses || true
+      - name: Create local.properties
+        working-directory: android
+        run: |
+          echo "sdk.dir=${{ env.ANDROID_HOME }}" > local.properties
+          echo "ndk.dir=${{ env.ANDROID_NDK_HOME }}" >> local.properties
 
       - name: Build Release APK (armeabi-v7a)
         working-directory: android
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+          JAVA_HOME: ${{ env.JAVA_HOME }}
         run: ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=armeabi-v7a
 
       - name: Upload APK
