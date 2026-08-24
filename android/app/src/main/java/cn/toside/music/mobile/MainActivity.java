@@ -325,7 +325,7 @@ public class MainActivity extends NavigationActivity {
                         public void run() {
                             focusViewAtLocation(x, y);
                         }
-                    }, 80);
+                    }, 120);
                 }
                 break;
             default:
@@ -342,6 +342,12 @@ public class MainActivity extends NavigationActivity {
             if (contentRootView == null || !contentRootView.isShown()) return;
             View target = findFocusableAt(contentRootView, x, y);
             if (target != null && !target.isFocused()) {
+                // 确保点击位置有白框 foreground
+                applyFocusSelectorToView(target);
+                // 触摸模式下 focusableInTouchMode=false 的 View 会被系统拒绝 requestFocus
+                // （checkFocus 检查触摸模式），必须允许触摸模式聚焦后才能把原生焦点移过来，
+                // 白色光标（foreground selector 跟随真实焦点）才会移动到点击位置。
+                target.setFocusableInTouchMode(true);
                 target.requestFocus();
             }
         } catch (Throwable t) {
@@ -362,7 +368,8 @@ public class MainActivity extends NavigationActivity {
                 if (found != null) return found;
             }
         }
-        if (view.isFocusable() && view.getWidth() > 0 && view.getHeight() > 0) {
+        // 可聚焦或可点击（点击命中的交互元素，即使尚未被应用过焦点框）
+        if ((view.isFocusable() || view.isClickable()) && view.getWidth() > 0 && view.getHeight() > 0) {
             int[] loc = new int[2];
             view.getLocationOnScreen(loc);
             if (x >= loc[0] && x <= loc[0] + view.getWidth()
