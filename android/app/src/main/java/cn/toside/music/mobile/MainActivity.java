@@ -123,7 +123,18 @@ public class MainActivity extends NavigationActivity {
                 // 不做整棵树遍历（否则每次移动焦点都扫全树，界面会卡）；
                 // 各 View 的焦点前景是持久标记（focusAppliedTagId），新挂载的 View 由下方
                 // 防抖的布局监听器统一补齐，这里只处理当前焦点本身。
-                applyFocusSelectorToView(newFocus);
+                //
+                // 注意：必须手动强制刷新新旧焦点 View 的 drawable state。
+                // 原生 StateListDrawable 理论上会随 View 焦点变化自动刷新，但部分 RN View
+                // 的刷新并不可靠（曾出现白框残留在旧焦点上、不跟随新焦点的问题），
+                // 因此失焦后显式刷新旧焦点（白框立即消失）、聚焦后显式刷新新焦点（白框立即出现）。
+                if (oldFocus != null && oldFocus != newFocus) {
+                    oldFocus.refreshDrawableState();
+                }
+                if (newFocus != null) {
+                    applyFocusSelectorToView(newFocus);
+                    newFocus.refreshDrawableState();
+                }
                 // Modal / Dialog（如播放页设置弹窗）是独立 Window，Activity content 树遍历不到，
                 // 需基于当前焦点向上找到 Dialog 根并全量遍历，保证弹窗内控件也能被应用焦点高亮
                 if (newFocus != null) {
