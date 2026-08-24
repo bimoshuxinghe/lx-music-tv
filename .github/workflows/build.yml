@@ -16,27 +16,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 18
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'npm'
-
-      - name: Setup JDK 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'microsoft'
+          distribution: 'temurin'
           java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Setup Android SDK and Accept Licenses
-        run: |
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Setup keystore.properties
+      - name: Setup keystore
         working-directory: android
         run: |
           cat > keystore.properties <<'KEYSTORE'
@@ -45,12 +40,9 @@ jobs:
           keyAlias=androiddebugkey
           keyPassword=android
           KEYSTORE
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-      - name: Create local.properties
-        working-directory: android
-        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
-
-      - name: Build Release APK (armeabi-v7a)
+      - name: Build Release APK
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a
 
