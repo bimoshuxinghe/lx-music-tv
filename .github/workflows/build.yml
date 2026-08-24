@@ -28,8 +28,8 @@ jobs:
           
       - name: Setup Android SDK
         run: |
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;26.1.10909125"
+          sdkmanager --licenses < /dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;35.0.0" "ndk;26.1.10909125"
           
       - name: Setup keystore
         working-directory: android
@@ -41,7 +41,6 @@ jobs:
           keyPassword=android
           EOF
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          echo "ndk.dir=$ANDROID_NDK_HOME" >> local.properties
           
       - name: Build
         working-directory: android
