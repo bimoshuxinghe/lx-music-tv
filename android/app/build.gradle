@@ -103,7 +103,7 @@ def verName = npmPackageJson["version"]
 def applicationName = npmPackageJson["name"]
 
 android {
-    ndkVersion rootProject.ext.ndkVersion
+    # ndkVersion rootProject.ext.ndkVersion
 
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
