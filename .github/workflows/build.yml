@@ -13,43 +13,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          
+      - run: npm install --legacy-peer-deps
+      
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
+          
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android licenses
-        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
-
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          
       - name: Setup keystore
         working-directory: android
         run: |
-          cat > keystore.properties <<'KEYSTORE'
+          cat > keystore.properties <<'EOF'
           storeFile=debug.keystore
           storePassword=android
           keyAlias=androiddebugkey
           keyPassword=android
-          KEYSTORE
+          EOF
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-
-      - name: Build Release APK
+          
+      - name: Build
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+        
+      - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: lx-music-tv-release-apk
+          name: apk
           path: android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
