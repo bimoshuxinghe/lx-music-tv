@@ -364,7 +364,6 @@ export default () => {
       {paused && (
         <TouchableOpacity
           style={styles.fsCenterBtn}
-          nativeID="tv_no_focus_highlight_fs_center"
           focusStyle={styles.fsCenterFocus}
           hasTVPreferredFocus={!showControls}
           onPress={() => { setPaused(false); setShowControls(false) }}
@@ -406,7 +405,6 @@ export default () => {
           <TouchableOpacity
             key={btn.key}
             style={{ ...styles.ctrlBtn, ...(btn.menu ? styles.ctrlBtnMenu : {}) }}
-            nativeID="tv_no_focus_highlight_fs_ctrl"
             onPress={btn.onPress}
             onFocus={() => { setShowControls(true); setLastCtrlIndex(index) }}
             onBlur={() => { setShowControls(false) }}
@@ -437,7 +435,6 @@ export default () => {
               return (
                 <TouchableOpacity
                   style={{ ...styles.menuRow, ...(active ? styles.menuRowActive : {}) }}
-                  nativeID="tv_no_focus_highlight_fs_menu"
                   focusStyle={styles.rowFocus}
                   onPress={() => { setMenuVisible(false); void playAt(mvList, index) }}
                   hasTVPreferredFocus={index == currentIndex || index == 0}

@@ -51,6 +51,17 @@ Entries discovered by the Agent during task execution should follow this format:
   - CI only runs gradle assembleRelease (no eslint/tsc gate); eslint passes separately, and tsc has pre-existing errors in unrelated files
 
 [Project Knowledge Summary]
+- Date: 2026-08-24
+- Context: Discovered by Agent while removing the white focus frame around full-screen MV playback on lx-music-tv (user complained twice it was not fully removed)
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - MainActivity 会遍历整棵视图树，对所有可聚焦/可点击 View 调用 `view.setForeground(tv_focus_selector)`（白色 3dp 边框前景），这是"画面四周白框"的根本来源；仅靠 RN focusStyle 或禁 view 自身焦点高亮无法消除，因为 foreground 是另一层
+  - 根治方式：给不需要系统焦点前景的 View 设置 `tv_no_focus_highlight_` 前缀的 nativeID，MainActivity 的 `applyFocusSelectorToView` 通过 `isNoFocusHighlightView()` 沿祖先链查 tag（`com.facebook.react.R.id.view_tag_native_id`）命中后跳过 setForeground
+  - RN 版 KTV 全屏播放页（src/screens/Home/Views/Ktv/index.tsx）的全屏透明焦点锚点 TouchableOpacity 是焦点白框的主要承载者：菜单选歌后 focus 落回锚点即出现整屏白框，已给锚点加 `tv_no_focus_highlight_fs_anchor` nativeID 跳过
+  - 双重保障：MainActivity.applyFocusSelectorToView 在 `fullscreenKeyCapture=true`（KTV 全屏且无菜单/控制条）时全局直接 return 不画任何焦点框，保证播放画面四周绝无白框；菜单/控制条打开时（keyCaptureOn=false）恢复焦点框，菜单行/控制条按钮/居中按钮的聚焦样式全部保留，不得再给这些元素加 tv_no_focus_highlight_ nativeID
+  - 排行榜长按 OK 全部播放：MainActivity.onKeyLongPress 已把长按（longPress=true）转发 JS "tvRemoteKey" 事件；Leaderboard/MusicList.tsx 监听该事件（keyCode 23/66 且 longPress），直接复用 listAction.handlePlay(boardId)（内含 getListDetailAll 全量拉取），无需另写拉取逻辑
+
+[Project Knowledge Summary]
 - Date: 2026-08-21
 - Context: Discovered by Agent while reverse-engineering wexguard OLLVM-obfuscated shell (wexguard_v7.so in spider.jar) to decrypt .guard file
 - Category: Troubleshooting & Debugging

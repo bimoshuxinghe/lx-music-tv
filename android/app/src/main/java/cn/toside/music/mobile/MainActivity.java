@@ -206,6 +206,9 @@ public class MainActivity extends NavigationActivity {
      */
     private void applyFocusSelectorToView(View view) {
         if (view == null || focusSelectorResId == 0) return;
+        // 全屏播放拦截按键时（KTV 全屏画面，无菜单/控制条），不绘制任何系统焦点框，
+        // 确保播放画面四周始终无白框；菜单/控制条打开时恢复焦点框。
+        if (fullscreenKeyCapture) return;
         // 无需焦点高亮前景的 View（如 KTV 全屏播放的透明焦点锚点）跳过，避免画面四周出现白框
         if (isNoFocusHighlightView(view)) return;
         // 用 id tag 标记已设置过，避免与 RN 内部使用的 tag 冲突
