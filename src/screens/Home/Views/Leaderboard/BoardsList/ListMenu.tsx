@@ -43,7 +43,7 @@ export default forwardRef<ListMenuType, ListMenuProps>((props, ref) => {
 
   const menus = useMemo(() => {
     return [
-      { action: 'play', label: t('play') },
+      { action: 'play', label: t('play_all') },
       { action: 'collect', label: t('collect') },
     ] as const
   }, [t])

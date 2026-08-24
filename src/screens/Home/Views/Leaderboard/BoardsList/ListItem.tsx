@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react'
+import { View } from 'react-native'
 import Text from '@/components/common/Text'
 import { useTheme } from '@/store/theme/hook'
 import Button, { type BtnType } from '@/components/common/Button'
@@ -36,24 +37,36 @@ export default ({ item, activeId, index, longPressIndex, onBoundChange, onShowMe
   const active = activeId == item.id
 
   return (
-    <Button
-      ref={buttonRef}
-      style={{ ...styles.button, backgroundColor: index == longPressIndex ? theme['c-button-background-active'] : undefined }}
-      key={item.id} onLongPress={setPosition}
-      onPress={() => { onBoundChange(item) }}
-    >
-      {
-        active
-          ? <Icon style={styles.listActiveIcon} name="chevron-right" size={12} color={theme['c-primary-font']} />
-          : null
-      }
-      <Text style={styles.listName} size={14} textBreakStrategy="simple" color={active ? theme['c-primary-font-active'] : theme['c-font']} numberOfLines={1}>{item.name}</Text>
-    </Button>
+    <View style={styles.item}>
+      <Button
+        ref={buttonRef}
+        style={{ ...styles.button, backgroundColor: index == longPressIndex ? theme['c-button-background-active'] : undefined }}
+        key={item.id} onLongPress={setPosition}
+        onPress={() => { onBoundChange(item) }}
+      >
+        {
+          active
+            ? <Icon style={styles.listActiveIcon} name="chevron-right" size={12} color={theme['c-primary-font']} />
+            : null
+        }
+        <Text style={styles.listName} size={14} textBreakStrategy="simple" color={active ? theme['c-primary-font-active'] : theme['c-font']} numberOfLines={1}>{item.name}</Text>
+      </Button>
+      <Button style={styles.moreButton} onPress={setPosition}>
+        <Icon name="dots-vertical" color={theme['c-350']} size={12} />
+      </Button>
+    </View>
   )
 }
 
 const styles = createStyle({
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   button: {
+    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
     paddingLeft: 5,
     paddingRight: 10,
     paddingTop: 10,
@@ -72,5 +85,11 @@ const styles = createStyle({
     justifyContent: 'center',
     paddingLeft: 6,
     // backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  moreButton: {
+    height: '80%',
+    paddingLeft: 16,
+    paddingRight: 16,
+    justifyContent: 'center',
   },
 })
