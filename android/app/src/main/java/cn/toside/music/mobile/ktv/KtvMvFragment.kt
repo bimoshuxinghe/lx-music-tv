@@ -32,7 +32,7 @@ class KtvMvFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         recyclerView = view.findViewById(R.id.recycler_mv_list)
-        recyclerView.layoutManager = GridLayoutManager(context, 4)
+        recyclerView.layoutManager = GridLayoutManager(requireContext(), 4)
         adapter = MvAdapter(mvList) { mvItem ->
             (activity as? KtvActivity)?.onMvSelected(mvItem)
         }

@@ -33,9 +33,8 @@ class KtvPlayerFragment : Fragment() {
         videoView = view.findViewById(R.id.video_view)
         
         // 创建MediaController并隐藏
-        mediaController = MediaController(context, true)
+        mediaController = MediaController(requireContext(), true)
         mediaController?.setAnchorView(videoView)
-        mediaController?.setFullScreenIcon(android.R.drawable.ic_menu_sort_by_size)
     }
 
     fun playVideo(uri: String) {

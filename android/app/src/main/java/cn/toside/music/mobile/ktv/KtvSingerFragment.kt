@@ -33,7 +33,7 @@ class KtvSingerFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         recyclerView = view.findViewById(R.id.recycler_singers)
-        recyclerView.layoutManager = GridLayoutManager(context, 6)
+        recyclerView.layoutManager = GridLayoutManager(requireContext(), 6)
         adapter = SingerAdapter(singerList) { singer ->
             (activity as? KtvActivity)?.onSingerSelected(singer)
         }
