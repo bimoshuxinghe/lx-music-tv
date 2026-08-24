@@ -44,6 +44,11 @@ class KtvActivity : AppCompatActivity() {
     private var txtError: TextView? = null
     private var txtLoading: TextView? = null
     
+    // 列表缓存，加速Tab切换
+    private var singerMaleCache: List<KtvSingerFragment.KtvSinger>? = null
+    private var singerFemaleCache: List<KtvSingerFragment.KtvSinger>? = null
+    private var songListCache: List<KtvMvFragment.KtvMvItem>? = null
+    
     // 按键事件接收器
     private val keyEventReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -91,9 +96,9 @@ class KtvActivity : AppCompatActivity() {
         val tabSearch = findViewById<TextView>(R.id.txt_tab_search)
         
         tabSinger.setOnClickListener { switchTab(0) }
-        tabFemale.setOnClickListener { switchTab(0) }
-        tabSong.setOnClickListener { switchTab(1) }
-        tabSearch.setOnClickListener { switchTab(2) }
+        tabFemale.setOnClickListener { switchTab(1) }
+        tabSong.setOnClickListener { switchTab(2) }
+        tabSearch.setOnClickListener { switchTab(3) }
         
         // 返回键
         findViewById<View>(R.id.btn_back).setOnClickListener { onBackPressed() }
@@ -112,15 +117,10 @@ class KtvActivity : AppCompatActivity() {
         }
         
         when (tab) {
-            0 -> {
-                showLoading()
-                startLoadSingerList(if (selectedSinger == null) 1 else 2)
-            }
-            1 -> {
-                showLoading()
-                startLoadSongList()
-            }
-            2 -> {}
+            0 -> showSingerListCached(1)
+            1 -> showSingerListCached(2)
+            2 -> showSongListCached()
+            3 -> {}
         }
     }
 
@@ -132,6 +132,7 @@ class KtvActivity : AppCompatActivity() {
                 val json = cfssApi.singersSync(gender)
                 val singers = parseSingerJson(json)
                 if (singers.isNotEmpty()) {
+                    if (gender == 1) singerMaleCache = singers else singerFemaleCache = singers
                     mainHandler.post { showSingerFragment(singers) }
                 } else {
                     mainHandler.post { showError("歌手列表为空") }
@@ -142,12 +143,23 @@ class KtvActivity : AppCompatActivity() {
         }.start()
     }
 
+    private fun showSingerListCached(gender: Int) {
+        val cache = if (gender == 1) singerMaleCache else singerFemaleCache
+        if (cache != null && cache.isNotEmpty()) {
+            showSingerFragment(cache)
+        } else {
+            showLoading()
+            startLoadSingerList(gender)
+        }
+    }
+
     private fun startLoadSongList() {
         Thread {
             try {
                 val json = cfssApi.songsSync("", 1)
                 val songs = parseMvJson(json)
                 if (songs.isNotEmpty()) {
+                    songListCache = songs
                     mainHandler.post { showSongFragment(songs) }
                 } else {
                     mainHandler.post { showError("歌曲列表为空") }
@@ -156,6 +168,16 @@ class KtvActivity : AppCompatActivity() {
                 mainHandler.post { showError("加载失败: ${e.message}") }
             }
         }.start()
+    }
+
+    private fun showSongListCached() {
+        val cache = songListCache
+        if (cache != null && cache.isNotEmpty()) {
+            showSongFragment(cache)
+        } else {
+            showLoading()
+            startLoadSongList()
+        }
     }
 
     // ==================== 用户操作回调 ====================

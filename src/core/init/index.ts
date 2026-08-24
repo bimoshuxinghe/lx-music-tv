@@ -49,7 +49,7 @@ export default async() => {
   await initUserApi(setting)
   bootLog('User Api inited.')
 
-  setApiSource(setting['common.apiSource'])
+  setApiSource(settingState.setting['common.apiSource'])
   bootLog('Api inited.')
 
   registerPlaybackService()

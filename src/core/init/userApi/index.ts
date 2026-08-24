@@ -2,6 +2,7 @@ import { type InitParams, onScriptAction, sendAction, type ResponseParams, type 
 import { log, setUserApiList, setUserApiStatus, importUserApi } from '@/core/userApi'
 import { state as userApiState } from '@/store/userApi'
 import settingState from '@/store/setting/state'
+import { updateSetting } from '@/core/common'
 import BackgroundTimer from 'react-native-background-timer'
 import { fetchData } from './request'
 import { getUserApiList } from '@/utils/data'
@@ -260,6 +261,7 @@ export default async(setting: LX.AppSetting) => {
   try {
     const files = await RNFS.readDirAssets('script')
     const existingNames = new Set(userApiState.list.map(s => s.name))
+    let defaultApiId: string | null = null
     for (const file of files) {
       if (file.name === 'user-api-preload.js') continue
       if (!file.name.endsWith('.js')) continue
@@ -270,8 +272,14 @@ export default async(setting: LX.AppSetting) => {
       const sourceName = nameMatch ? nameMatch[1].trim() : file.name
       // 如果已有同名源则跳过（避免重复导入）
       if (existingNames.has(sourceName)) continue
-      await importUserApi(script)
+      const info = await importUserApi(script)
+      if (!defaultApiId) defaultApiId = info.id
       console.log(`内置源已自动导入: ${sourceName}`)
+    }
+    // 用户未选择音源时，自动勾选第一个内置源
+    if (defaultApiId && !settingState.setting['common.apiSource']) {
+      updateSetting({ 'common.apiSource': defaultApiId })
+      console.log('自动勾选内置音源:', defaultApiId)
     }
   } catch (err) {
     // assets/script/ 目录可能不存在或读取失败，静默忽略
