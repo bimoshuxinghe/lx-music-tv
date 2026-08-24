@@ -41,6 +41,9 @@ public class MainActivity extends NavigationActivity {
     /** 可调节控件（滑块/进度条）的 nativeID 前缀，命中则 D-pad 左右键被 JS 消费 */
     private static final String TV_ADJUSTABLE_PREFIX = "tv_adjustable_";
 
+    /** 无需系统焦点高亮前景的 View 的 nativeID 前缀（如 KTV 全屏播放的透明焦点锚点） */
+    private static final String TV_NO_FOCUS_HIGHLIGHT_PREFIX = "tv_no_focus_highlight_";
+
     /**
      * 全屏按键拦截开关（KTV 全屏播放用）：
      * 开启时，D-pad 上下键 / OK / Enter 键被转发到 JS 侧统一处理（暂停播放、呼出控制条），
@@ -179,11 +182,32 @@ public class MainActivity extends NavigationActivity {
     }
 
     /**
+     * 判断 View 是否无需系统焦点高亮前景。
+     * 沿祖先链查找带 `tv_no_focus_highlight_` 前缀 nativeID 的 View
+     * （如 KTV 全屏播放的透明焦点锚点），命中则跳过应用白色焦点框。
+     */
+    private boolean isNoFocusHighlightView(View view) {
+        View v = view;
+        while (v != null) {
+            Object tag = v.getTag(com.facebook.react.R.id.view_tag_native_id);
+            if (tag instanceof String && ((String) tag).startsWith(TV_NO_FOCUS_HIGHLIGHT_PREFIX)) {
+                return true;
+            }
+            Object parent = v.getParent();
+            if (!(parent instanceof View)) break;
+            v = (View) parent;
+        }
+        return false;
+    }
+
+    /**
      * 给单个 View 设置焦点前景选择器
      * 对所有可点击或已可聚焦的 View 应用焦点高亮前景
      */
     private void applyFocusSelectorToView(View view) {
         if (view == null || focusSelectorResId == 0) return;
+        // 无需焦点高亮前景的 View（如 KTV 全屏播放的透明焦点锚点）跳过，避免画面四周出现白框
+        if (isNoFocusHighlightView(view)) return;
         // 用 id tag 标记已设置过，避免与 RN 内部使用的 tag 冲突
         if (focusAppliedTagId != 0 && view.getTag(focusAppliedTagId) != null) return;
 

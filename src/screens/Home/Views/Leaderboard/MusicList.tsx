@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { DeviceEventEmitter } from 'react-native'
 import OnlineList, { type OnlineListType, type OnlineListProps } from '@/components/OnlineList'
 import { clearListDetail, getListDetail, setListDetail, setListDetailInfo } from '@/core/leaderboard'
 import boardState from '@/store/leaderboard/state'
@@ -48,6 +49,24 @@ export default forwardRef<MusicListType, {}>((props, ref) => {
     isUnmountedRef.current = false
     return () => {
       isUnmountedRef.current = true
+    }
+  }, [])
+
+  // 排行榜长按 OK 键：全部播放当前榜单
+  // MainActivity.onKeyLongPress 会把长按事件转发到这里（longPress=true）
+  useEffect(() => {
+    const handleLongPress = (event: { keyCode?: number, longPress?: boolean } | null) => {
+      if (!event || event.longPress !== true) return
+      // OK / Enter
+      if (event.keyCode != 23 && event.keyCode != 66) return
+      const id = boardState.listDetailInfo.id
+      if (!id) return
+      // handlePlay(id) 会拉取全量列表后从 index 0 播放
+      void handlePlay(id)
+    }
+    const listener = DeviceEventEmitter.addListener('tvRemoteKey', handleLongPress)
+    return () => {
+      listener.remove()
     }
   }, [])
 

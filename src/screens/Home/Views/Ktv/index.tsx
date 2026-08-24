@@ -350,9 +350,11 @@ export default () => {
         </View>
       )}
 
-      {/* 全屏透明焦点锚点：播放时承载焦点，无任何视觉；OK 键切换暂停 */}
+      {/* 全屏透明焦点锚点：播放时承载焦点，无任何视觉；OK 键切换暂停
+          nativeID 标记后原生侧(MainActivity)跳过为其设置白色焦点前景框 */}
       <TouchableOpacity
         style={StyleSheet.absoluteFill}
+        nativeID="tv_no_focus_highlight_fs_anchor"
         focusStyle={styles.fsAnchorFocus}
         onPress={() => { setPaused(p => !p); setShowControls(false) }}
         onFocus={() => { setShowControls(false) }}
@@ -362,6 +364,7 @@ export default () => {
       {paused && (
         <TouchableOpacity
           style={styles.fsCenterBtn}
+          nativeID="tv_no_focus_highlight_fs_center"
           focusStyle={styles.fsCenterFocus}
           hasTVPreferredFocus={!showControls}
           onPress={() => { setPaused(false); setShowControls(false) }}
@@ -403,6 +406,7 @@ export default () => {
           <TouchableOpacity
             key={btn.key}
             style={{ ...styles.ctrlBtn, ...(btn.menu ? styles.ctrlBtnMenu : {}) }}
+            nativeID="tv_no_focus_highlight_fs_ctrl"
             onPress={btn.onPress}
             onFocus={() => { setShowControls(true); setLastCtrlIndex(index) }}
             onBlur={() => { setShowControls(false) }}
@@ -433,6 +437,7 @@ export default () => {
               return (
                 <TouchableOpacity
                   style={{ ...styles.menuRow, ...(active ? styles.menuRowActive : {}) }}
+                  nativeID="tv_no_focus_highlight_fs_menu"
                   focusStyle={styles.rowFocus}
                   onPress={() => { setMenuVisible(false); void playAt(mvList, index) }}
                   hasTVPreferredFocus={index == currentIndex || index == 0}

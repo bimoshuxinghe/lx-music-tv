@@ -67,6 +67,11 @@ class KtvActivity : AppCompatActivity() {
         // 隐藏系统导航栏和Cursor
         hideSystemUI()
         
+        // 全局禁用系统默认焦点高亮（白色聚焦边框），保留自定义焦点样式
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            window.decorView.defaultFocusHighlightEnabled = false
+        }
+        
         // 缓存View引用
         progressBar = findViewById(R.id.progressBar)
         txtError = findViewById(R.id.txt_error)
