@@ -62,6 +62,15 @@ Entries discovered by the Agent during task execution should follow this format:
   - 排行榜长按 OK 全部播放：MainActivity.onKeyLongPress 已把长按（longPress=true）转发 JS "tvRemoteKey" 事件；Leaderboard/MusicList.tsx 监听该事件（keyCode 23/66 且 longPress），直接复用 listAction.handlePlay(boardId)（内含 getListDetailAll 全量拉取），无需另写拉取逻辑
 
 [Project Knowledge Summary]
+- Date: 2026-08-24
+- Context: Discovered by Agent while fixing global lag (all screens stutter after MV section) and the full-screen pause bug on lx-music-tv
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - RN @ReactMethod 默认在「原生模块单线程」上同步执行；若在方法体内直接做网络请求（如 CfssSpider.singerAvatar 最长 30s 超时），该线程被占满会导致 App 内所有 native 调用（播放器、存储、图片加载）全部排队，表现为 MV 板块后全界面卡顿、返回失灵。根治：网络调用提交到独立线程池（newFixedThreadPool(4)），native 线程立即返回，Promise 在线程池回调中 resolve
+  - 全屏播放暂停/恢复按键错乱根因：KTV 全屏控制条按钮用 opacity 0 隐藏但仍是可聚焦 View；暂停恢复播放时居中按钮卸载、焦点可能抢入控制条按钮，触发其 onFocus 把 showControls 置 true → keyCaptureOn 变 false → 原生停止拦截 OK，后续暂停/播放按键全部错乱。修复：控制条按钮加 `focusable={showControls}`（隐藏时不可聚焦），恢复后焦点必然回落到全屏锚点
+  - KTV 全屏遥控器键位约定（MainActivity.isFullscreenCaptureKey 拦截转发 JS tvRemoteKey）：OK/Enter=暂停/播放，DPAD_UP=上一曲，DPAD_DOWN=下一曲，DPAD_LEFT/RIGHT=快退/快进 10s（Video ref.seek），MENU=呼出歌曲菜单；暂停时左上角展示视频分辨率（Video onLoad 的 e.naturalSize.width×height）
+
+[Project Knowledge Summary]
 - Date: 2026-08-21
 - Context: Discovered by Agent while reverse-engineering wexguard OLLVM-obfuscated shell (wexguard_v7.so in spider.jar) to decrypt .guard file
 - Category: Troubleshooting & Debugging
@@ -72,3 +81,4 @@ Entries discovered by the Agent during task execution should follow this format:
   - .mytext (0x5960-0x95a4) holds the OLLVM-flattened getLoader/decrypt code; fully emulating the JNI call chain (GetMethodID on android classes etc.) is high-effort
   - guard file is strong-encrypted (entropy 7.99, no dex magic), offline decrypt infeasible without running the so
   - unicorn 2.1.4 installed globally (import unicorn), capstone 5.0.9 (CS_ARCH_ARM, CS_MODE_THUMB); map so ELF LOAD segments at vaddr==offset into mem 0x0..0x20000, stack at 0x30000000 with 0x10000 size
+
