@@ -106,12 +106,17 @@ public class CfssSpider {
   /**
    * MV 列表。keyword: 歌手名/歌曲单id/空(热门)。page 从 1 开始。
    * 返回 catvod list JSON（每页 300 首）。
+   *
+   * 注意：cfss.cc 的 ss 搜索对含空格的字符串匹配失败（如 "MC 张天赋"/"G.E.M. 邓紫棋"
+   * 均返回空列表，而去空格后 "MC张天赋"/"G.E.M.邓紫棋" 正常），
+   * 因此发送前需去除关键词中的全部空格。
    */
   public static String songs(String keyword, int page) throws Exception {
     int p = Math.max(0, page - 1);
     StringBuilder body = new StringBuilder();
     if (keyword != null && !keyword.isEmpty()) {
-      body.append("ss=").append(encode(keyword));
+      String kw = keyword.replace(" ", "").replace("\u3000", "");
+      body.append("ss=").append(encode(kw));
       body.append('&');
     }
     body.append("p=").append(p);

@@ -77,7 +77,7 @@ export default memo(() => {
     >
       <View style={styles.header}>
         <Icon name="logo" color={theme['c-primary-dark-100-alpha-300']} size={24} />
-        <Text style={styles.headerText} size={15} color={theme['c-primary-dark-100-alpha-300']}>LX Music</Text>
+        <Text style={styles.headerText} size={15} color={theme['c-primary-dark-100-alpha-300']}>XH music</Text>
       </View>
       <View style={styles.right}>
         <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps={'always'} style={styles.navScroll}>

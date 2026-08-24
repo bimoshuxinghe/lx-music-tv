@@ -32,9 +32,9 @@ interface MvSong {
   vod_remarks?: string
 }
 
-// 一级页面 Tab（歌手=男歌手，女歌手独立）
+// 一级页面 Tab（男歌手/女歌手独立）
 const MAIN_TABS = [
-  { id: 'singer', name: '歌手' },
+  { id: 'singer', name: '男歌手' },
   { id: 'female', name: '女歌手' },
   { id: 'song', name: '歌曲' },
   { id: 'search', name: '搜索' },
@@ -108,6 +108,14 @@ export default () => {
   const [singerGridW, setSingerGridW] = useState(0)
   const [mvGridW, setMvGridW] = useState(0)
 
+  // 进入搜索 Tab 时，把焦点交给输入框（弹出光标/软键盘），而非外层容器的焦点框
+  useEffect(() => {
+    if (activeTab == 'search') {
+      const t = setTimeout(() => { searchInputRef.current?.focus() }, 150)
+      return () => { clearTimeout(t) }
+    }
+  }, [activeTab])
+
   // 控制条焦点索引 ref（用于回调中取最新值）
   const lastCtrlIndexRef = useRef(lastCtrlIndex)
   lastCtrlIndexRef.current = lastCtrlIndex
@@ -115,10 +123,10 @@ export default () => {
   const gender = activeTab == 'female' ? 2 : 1
 
   // ===== 歌手列表 =====
-  const loadSingers = useCallback(async() => {
+  const loadSingers = useCallback(async(g: number) => {
     setStatus('loading')
     try {
-      const json = JSON.parse(await mvSingers(gender))
+      const json = JSON.parse(await mvSingers(g))
       const arr: MvSong[] = Array.isArray(json.list) ? json.list : []
       setSingers(arr)
       setStatus('idle')
@@ -131,9 +139,9 @@ export default () => {
       setStatus('error')
       setErrorMsg((err as Error).message ?? String(err))
     }
-  }, [gender])
+  }, [])
 
-  useEffect(() => { void loadSingers() }, [loadSingers])
+  useEffect(() => { void loadSingers(gender) }, [gender, loadSingers])
 
   // ===== 歌曲列表 =====
   const loadSongs = useCallback(async() => {
@@ -223,7 +231,6 @@ export default () => {
       setPlayer({ url, name: item.vod_name, pic: item.vod_pic })
       setFullScreen(true)
       setShowControls(false)
-      setMenuVisible(false)
     } catch (err) {
       toast(`播放失败：${(err as Error).message ?? err}`)
     } finally {
@@ -436,7 +443,7 @@ export default () => {
                 <TouchableOpacity
                   style={{ ...styles.menuRow, ...(active ? styles.menuRowActive : {}) }}
                   focusStyle={styles.rowFocus}
-                  onPress={() => { setMenuVisible(false); void playAt(mvList, index) }}
+                  onPress={() => { void (async() => { await playAt(mvList, index); setMenuVisible(false) })() }}
                   hasTVPreferredFocus={index == currentIndex || index == 0}
                 >
                   <Text style={styles.menuIdx} size={12} color={active ? GOLD : '#FFFFFF77'}>{index + 1}</Text>
@@ -619,7 +626,6 @@ export default () => {
             style={{ ...styles.tabItem, ...(activeTab == id ? styles.tabItemActive : {}) }}
             onPress={() => {
               setActiveTab(id)
-              if (id == 'singer' || id == 'female') void loadSingers()
               if (id == 'song' && songs.length == 0) void loadSongs()
             }}
             hasTVPreferredFocus={tabIndex == 0}
