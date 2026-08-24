@@ -27,15 +27,14 @@ jobs:
         with:
           distribution: 'microsoft'
           java-version: '17'
-          cache: gradle
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Setup Android SDK
+      - name: Setup Android SDK and Accept Licenses
         run: |
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;26.1.10909125" 2>/dev/null || true
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Setup keystore.properties
         working-directory: android
@@ -49,13 +48,11 @@ jobs:
 
       - name: Create local.properties
         working-directory: android
-        run: |
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          echo "ndk.dir=$ANDROID_NDK_HOME" >> local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - name: Build Release APK (armeabi-v7a)
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=armeabi-v7a
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
