@@ -1,6 +1,7 @@
 package cn.toside.music.mobile;
 
 import android.app.Application;
+import android.content.res.ConstantState;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
@@ -77,7 +78,9 @@ public class MainActivity extends NavigationActivity {
     private View contentRootView;
     /** 布局防抖标志：频繁布局变化时合并为一次全量处理，避免每帧全树遍历拖慢 UI */
     private boolean layoutRefreshPending = false;
-    /** 缓存的焦点选择器 drawable，避免每个 View 都重新加载资源 */
+    /** 缓存的焦点选择器 drawable 模板。只用于克隆（newDrawable），
+     *  不得直接把同一实例 setForeground 给多个 View：StateListDrawable 的状态
+     *  是共享的，一个 View 聚焦会改写 state 导致所有共享该实例的 View 同时显示白框 */
     private Drawable focusSelectorDrawable;
 
     /** 视图树全局焦点变化监听器，确保动态新增的 View 也能被适配 */
@@ -223,6 +226,23 @@ public class MainActivity extends NavigationActivity {
     }
 
     /**
+     * 创建独立的焦点选择器实例。
+     * 每个 View 必须持有独立 state 的实例：getConstantState().newDrawable() 生成
+     * 一个共享底层资源数据但互不影响状态的 drawable，再 mutate() 确保其 state 可写，
+     * 否则多个 View 共用同一个 StateListDrawable 会互相覆盖焦点状态。
+     */
+    private Drawable createFocusSelectorInstance() {
+        if (focusSelectorDrawable == null) return null;
+        try {
+            ConstantState cs = focusSelectorDrawable.getConstantState();
+            Drawable d = cs != null ? cs.newDrawable() : focusSelectorDrawable;
+            return d.mutate();
+        } catch (Throwable t) {
+            return focusSelectorDrawable.mutate();
+        }
+    }
+
+    /**
      * 给单个 View 设置焦点前景选择器
      * 对所有可点击或已可聚焦的 View 应用焦点高亮前景
      */
@@ -244,7 +264,7 @@ public class MainActivity extends NavigationActivity {
                 view.setFocusable(true);
                 view.setFocusableInTouchMode(false);
             }
-            view.setForeground(focusSelectorDrawable);
+            view.setForeground(createFocusSelectorInstance());
             if (focusAppliedTagId != 0) view.setTag(focusAppliedTagId, true);
             view.setClipToOutline(false);
         } catch (Throwable t) {
