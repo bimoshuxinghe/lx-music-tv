@@ -1,7 +1,6 @@
 package cn.toside.music.mobile;
 
 import android.app.Application;
-import android.content.res.ConstantState;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
@@ -234,8 +233,9 @@ public class MainActivity extends NavigationActivity {
     private Drawable createFocusSelectorInstance() {
         if (focusSelectorDrawable == null) return null;
         try {
-            ConstantState cs = focusSelectorDrawable.getConstantState();
-            Drawable d = cs != null ? cs.newDrawable() : focusSelectorDrawable;
+            Drawable d = focusSelectorDrawable.getConstantState() != null
+                ? focusSelectorDrawable.getConstantState().newDrawable()
+                : focusSelectorDrawable;
             return d.mutate();
         } catch (Throwable t) {
             return focusSelectorDrawable.mutate();
