@@ -11,7 +11,7 @@ import { mvSingerAvatar } from '@/utils/nativeModules/ktvSpider'
  */
 
 const CACHE_FILE = temporaryDirectoryPath + '/ktv_singer_avatar.json'
-const CONCURRENCY = 8
+const CONCURRENCY = 4
 
 // ---- 内存缓存 ----
 let memCache: Record<string, string> | null = null
@@ -46,6 +46,7 @@ const loadDiskCache = async(): Promise<Record<string, string>> => {
       const raw = await readFile(CACHE_FILE, 'utf8')
       const parsed = JSON.parse(raw) as Record<string, string>
       if (parsed && typeof parsed === 'object') {
+        // eslint-disable-next-line require-atomic-updates
         memCache = parsed
         return memCache
       }
@@ -53,6 +54,7 @@ const loadDiskCache = async(): Promise<Record<string, string>> => {
   } catch (e) {
     // 缓存损坏忽略
   }
+  // eslint-disable-next-line require-atomic-updates
   memCache = {}
   return memCache
 }
@@ -75,7 +77,8 @@ export const clearAvatarCache = async(): Promise<void> => {
 export const getSingerAvatar = async(name: string): Promise<string> => {
   if (!name) return ''
   // 1. 内存命中
-  if (memCache !== null && memCache[name]) return memCache[name]
+  const cached = memCache?.[name]
+  if (cached) return cached
   // 2. 确保磁盘已加载
   const cache = await loadDiskCache()
   if (cache[name]) return cache[name]

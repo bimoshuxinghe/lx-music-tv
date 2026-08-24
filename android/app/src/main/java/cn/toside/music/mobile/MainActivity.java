@@ -73,6 +73,13 @@ public class MainActivity extends NavigationActivity {
     /** 主线程 Handler，用于延迟检查焦点 */
     private Handler mainHandler;
 
+    /** Activity 内容根 View（android.R.id.content），用于区分 Dialog/Modal 独立 Window */
+    private View contentRootView;
+    /** 布局防抖标志：频繁布局变化时合并为一次全量处理，避免每帧全树遍历拖慢 UI */
+    private boolean layoutRefreshPending = false;
+    /** 缓存的焦点选择器 drawable，避免每个 View 都重新加载资源 */
+    private Drawable focusSelectorDrawable;
+
     /** 视图树全局焦点变化监听器，确保动态新增的 View 也能被适配 */
     private ViewTreeObserver.OnGlobalFocusChangeListener focusListener;
     /** 全局布局变化监听器，确保每次新页面/新弹窗出现时都能重新应用焦点高亮 */
@@ -102,14 +109,19 @@ public class MainActivity extends NavigationActivity {
             getWindow().getDecorView().setDefaultFocusHighlightEnabled(false);
         }
 
-        final View rootView = getWindow().getDecorView().findViewById(android.R.id.content);
+        contentRootView = getWindow().getDecorView().findViewById(android.R.id.content);
+        focusSelectorDrawable = focusSelectorResId != 0 ? getResources().getDrawable(focusSelectorResId) : null;
+
+        final View rootView = contentRootView;
 
         // 注册全局焦点变化监听
         focusListener = new ViewTreeObserver.OnGlobalFocusChangeListener() {
             @Override
             public void onGlobalFocusChanged(View oldFocus, View newFocus) {
-                // 每次焦点变化都全量遍历一次（处理新增 View）
-                applyFocusSelectorToTree(rootView);
+                // 不做整棵树遍历（否则每次移动焦点都扫全树，界面会卡）；
+                // 各 View 的焦点前景是持久标记（focusAppliedTagId），新挂载的 View 由下方
+                // 防抖的布局监听器统一补齐，这里只处理当前焦点本身。
+                applyFocusSelectorToView(newFocus);
                 // Modal / Dialog（如播放页设置弹窗）是独立 Window，Activity content 树遍历不到，
                 // 需基于当前焦点向上找到 Dialog 根并全量遍历，保证弹窗内控件也能被应用焦点高亮
                 if (newFocus != null) {
@@ -121,13 +133,21 @@ public class MainActivity extends NavigationActivity {
         };
         rootView.getViewTreeObserver().addOnGlobalFocusChangeListener(focusListener);
 
-        // 注册全局布局监听（新页面、弹窗出现时会触发）
+        // 注册全局布局监听（新页面、弹窗出现时会触发），带防抖合并
         layoutListener = new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
-                applyFocusSelectorToTree(rootView);
-                // 布局变化后重新探测活跃 Overlay，弹窗打开/关闭时更新缓存
-                updateActiveOverlayRoot();
+                if (layoutRefreshPending) return;
+                layoutRefreshPending = true;
+                mainHandler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        layoutRefreshPending = false;
+                        applyFocusSelectorToTree(rootView);
+                        // 布局变化后重新探测活跃 Overlay，弹窗打开/关闭时更新缓存
+                        updateActiveOverlayRoot();
+                    }
+                }, 120);
             }
         };
         rootView.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
@@ -146,7 +166,7 @@ public class MainActivity extends NavigationActivity {
     protected void onDestroy() {
         AISharjeckUtils.unregisterDynamicReceiver(this);
         if (focusListener != null || layoutListener != null) {
-            View rootView = getWindow().getDecorView().findViewById(android.R.id.content);
+            View rootView = contentRootView;
             if (rootView != null) {
                 ViewTreeObserver vto = rootView.getViewTreeObserver();
                 if (focusListener != null) {
@@ -171,6 +191,8 @@ public class MainActivity extends NavigationActivity {
      */
     private void applyFocusSelectorToTree(View view) {
         if (view == null) return;
+        // 全屏播放拦截按键时（KTV 全屏画面，无菜单/控制条），整棵树都不绘制焦点框，直接返回
+        if (fullscreenKeyCapture) return;
         applyFocusSelectorToView(view);
         if (view instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) view;
@@ -205,31 +227,28 @@ public class MainActivity extends NavigationActivity {
      * 对所有可点击或已可聚焦的 View 应用焦点高亮前景
      */
     private void applyFocusSelectorToView(View view) {
-        if (view == null || focusSelectorResId == 0) return;
+        if (view == null || focusSelectorDrawable == null) return;
         // 全屏播放拦截按键时（KTV 全屏画面，无菜单/控制条），不绘制任何系统焦点框，
         // 确保播放画面四周始终无白框；菜单/控制条打开时恢复焦点框。
         if (fullscreenKeyCapture) return;
+        // 非可交互 View（不可点击且不可聚焦，如普通文本/容器）直接跳过，
+        // 避免整树遍历时对每个节点都沿祖先链查 nativeID 拖慢 UI
+        if (!(view.isClickable() || view.isFocusable())) return;
+        // 用 id tag 标记已设置过，避免与 RN 内部使用的 tag 冲突；已标记的直接跳过（快路径）
+        if (focusAppliedTagId != 0 && view.getTag(focusAppliedTagId) != null) return;
         // 无需焦点高亮前景的 View（如 KTV 全屏播放的透明焦点锚点）跳过，避免画面四周出现白框
         if (isNoFocusHighlightView(view)) return;
-        // 用 id tag 标记已设置过，避免与 RN 内部使用的 tag 冲突
-        if (focusAppliedTagId != 0 && view.getTag(focusAppliedTagId) != null) return;
 
-        // 可点击的 View（有交互能力）或已经可聚焦的 View（如 FlatList/ScrollView）
-        if (view.isClickable() || view.isFocusable()) {
-            try {
-                if (!view.isFocusable()) {
-                    view.setFocusable(true);
-                    view.setFocusableInTouchMode(false);
-                }
-                Drawable selector = getResources().getDrawable(focusSelectorResId);
-                if (selector != null) {
-                    view.setForeground(selector);
-                    if (focusAppliedTagId != 0) view.setTag(focusAppliedTagId, true);
-                    view.setClipToOutline(false);
-                }
-            } catch (Throwable t) {
-                // 忽略，不影响正常运行
+        try {
+            if (!view.isFocusable()) {
+                view.setFocusable(true);
+                view.setFocusableInTouchMode(false);
             }
+            view.setForeground(focusSelectorDrawable);
+            if (focusAppliedTagId != 0) view.setTag(focusAppliedTagId, true);
+            view.setClipToOutline(false);
+        } catch (Throwable t) {
+            // 忽略，不影响正常运行
         }
     }
 
@@ -324,12 +343,15 @@ public class MainActivity extends NavigationActivity {
      *   OK/Enter  → 暂停/播放
      *   DPAD_UP   → 上一曲
      *   DPAD_DOWN → 下一曲
+     *   DPAD_LEFT/RIGHT → 快退/快进（seek）
      *   MENU      → 呼出歌曲选择菜单
      */
     private boolean isFullscreenCaptureKey(int keyCode) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_DPAD_UP:
             case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
@@ -374,8 +396,9 @@ public class MainActivity extends NavigationActivity {
                 while (root.getParent() != null && root.getParent() instanceof View) {
                     root = (View) root.getParent();
                 }
-                // 全量遍历 Dialog/Modal 的视图树
-                if (root != null && root != currentFocus) {
+                // 仅当焦点位于独立 Window（Dialog/Modal，根不是 Activity content 树）时才全量遍历，
+                // Activity 内容树由防抖的布局监听器统一处理，避免每次按键都重复扫全树
+                if (root != null && root != contentRootView) {
                     applyFocusSelectorToTree(root);
                 }
             }

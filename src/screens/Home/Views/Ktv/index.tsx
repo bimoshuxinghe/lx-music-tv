@@ -102,8 +102,11 @@ export default () => {
   const [showControls, setShowControls] = useState(false)
   const [lastCtrlIndex, setLastCtrlIndex] = useState(1)
   const [menuVisible, setMenuVisible] = useState(false)
+  // 视频分辨率（onLoad 时取 naturalSize，暂停时左上角展示）
+  const [videoSize, setVideoSize] = useState<{ w: number, h: number } | null>(null)
 
   const searchInputRef = useRef<InputType>(null)
+  const videoRef = useRef<Video | null>(null)
   const loadingRef = useRef(false)
   const [singerGridW, setSingerGridW] = useState(0)
   const [mvGridW, setMvGridW] = useState(0)
@@ -120,6 +123,20 @@ export default () => {
   const lastCtrlIndexRef = useRef(lastCtrlIndex)
   lastCtrlIndexRef.current = lastCtrlIndex
 
+  // 进度 ref（用于 seek 回调中取最新值）
+  const progressRef = useRef(progress)
+  progressRef.current = progress
+
+  // 左右键快进/快退（秒）
+  const SEEK_STEP = 10
+  const seekBy = useCallback((delta: number) => {
+    const cur = progressRef.current
+    const duration = cur.duration || 0
+    const target = Math.max(0, Math.min(duration, cur.time + delta))
+    if (videoRef.current) videoRef.current.seek(target)
+    setProgress(p => ({ ...p, time: target }))
+  }, [])
+
   const gender = activeTab == 'female' ? 2 : 1
 
   // ===== 歌手列表 =====
@@ -131,7 +148,9 @@ export default () => {
       setSingers(arr)
       setStatus('idle')
       if (arr.length > 0) {
-        const names = arr.map(i => i.vod_name).filter(Boolean)
+        // 只预取首屏可见的歌手头像（约前 30 个），避免对全部上千歌手并发发起
+        // 头像请求拖垮网络与线程池、导致整个软件卡顿；其余按需加载。
+        const names = arr.slice(0, 30).map(i => i.vod_name).filter(Boolean)
         // 先入栈预取，再延迟一次确保 UI 线程空闲
         setTimeout(() => { void preloadSingerAvatars(names) }, 50)
       }
@@ -211,6 +230,7 @@ export default () => {
     setProgress({ time: 0, duration: 0 })
     setShowControls(false)
     setMenuVisible(false)
+    setVideoSize(null)
     const arr = await loadMvListForSinger(singer)
     setMvList(arr)
   }, [loadMvListForSinger])
@@ -258,7 +278,7 @@ export default () => {
   // 返回键：菜单 → 全屏 → 二级 → 退出 Ktv 回主页
   const handleBack = useCallback((): boolean => {
     if (menuVisible) { setMenuVisible(false); return true }
-    if (fullScreen) { setFullScreen(false); setPlayer(null); setShowControls(false); return true }
+    if (fullScreen) { setFullScreen(false); setPlayer(null); setShowControls(false); setVideoSize(null); return true }
     if (playingSinger) { setPlayingSinger(''); setMvList([]); return true }
     setNavActiveId('nav_search')
     return true
@@ -296,10 +316,16 @@ export default () => {
       } else if (code === 20) {
         // DPAD_DOWN → 下一曲（有下一首才响应）
         if (currentIndex < mvList.length - 1) playNext()
+      } else if (code === 21) {
+        // DPAD_LEFT → 快退 10s
+        seekBy(-SEEK_STEP)
+      } else if (code === 22) {
+        // DPAD_RIGHT → 快进 10s
+        seekBy(SEEK_STEP)
       }
     })
     return () => { listener.remove() }
-  }, [keyCaptureOn, currentIndex, mvList.length, playPrev, playNext])
+  }, [keyCaptureOn, currentIndex, mvList.length, playPrev, playNext, seekBy])
 
   const videoSource = useMemo(() => {
     if (!player) return null
@@ -338,12 +364,17 @@ export default () => {
       {player && videoSource ? (
         <Video
           key={player.url}
+          ref={videoRef}
           source={videoSource}
           style={StyleSheet.absoluteFill}
           resizeMode="contain"
           controls={false}
           paused={paused}
-          onLoad={(e: any) => { setProgress({ time: 0, duration: e?.duration ?? 0 }) }}
+          onLoad={(e: any) => {
+            setProgress({ time: 0, duration: e?.duration ?? 0 })
+            const ns = e?.naturalSize
+            setVideoSize(ns && ns.width > 0 && ns.height > 0 ? { w: ns.width, h: ns.height } : null)
+          }}
           onProgress={(e: any) => { setProgress(p => ({ ...p, time: e?.currentTime ?? p.time })) }}
           onEnd={onEnd}
           onError={(e: any) => { toast(`播放出错：${e?.error?.localizedDescription || e?.error || ''}`) }}
@@ -378,6 +409,14 @@ export default () => {
         >
           <IconMaterial name="play-arrow" size={72} color="#FFFFFF" />
         </TouchableOpacity>
+      )}
+
+      {/* 暂停时左上角显示视频分辨率 */}
+      {paused && videoSize && (
+        <View style={styles.fsInfoTag}>
+          <IconMaterial name="fullscreen" size={13} color="#FFFFFFBB" />
+          <Text style={styles.fsInfoText} size={12} color="#FFFFFF">{videoSize.w}×{videoSize.h}</Text>
+        </View>
       )}
 
       {/* 顶栏：控制条显示时出现 */}
@@ -416,6 +455,7 @@ export default () => {
             onFocus={() => { setShowControls(true); setLastCtrlIndex(index) }}
             onBlur={() => { setShowControls(false) }}
             hasTVPreferredFocus={showControls && index == lastCtrlIndex}
+            focusable={showControls}
             focusStyle={styles.ctrlFocus}
           >
             <IconMaterial name={btn.icon as any} size={index == 1 ? 30 : 24} color="#FFFFFF" />
@@ -867,6 +907,20 @@ const styles = createStyle({
     paddingTop: 14,
     paddingBottom: 10,
     backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  fsInfoTag: {
+    position: 'absolute',
+    top: 14,
+    left: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  fsInfoText: {
+    marginLeft: 6,
   },
   fsSinger: {
     marginLeft: 8,
