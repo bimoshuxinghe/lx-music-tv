@@ -13,6 +13,7 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.widget.Toast;
 
 import android.content.Intent;
 
@@ -96,6 +97,9 @@ public class MainActivity extends NavigationActivity {
     private float touchDownY;
     private boolean touchMoved;
     private int touchSlop = 24;
+
+    /** 调试用 Toast（白框不跟随问题定位） */
+    private Toast debugToast;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -319,6 +323,7 @@ public class MainActivity extends NavigationActivity {
                 if (!touchMoved) {
                     final float x = ev.getRawX();
                     final float y = ev.getRawY();
+                    debugToast("TAP (" + (int) x + "," + (int) y + ")");
                     // 延迟到 RN 触摸处理（onPress 切换页面等）完成后，避免焦点被后续渲染影响
                     mainHandler.postDelayed(new Runnable() {
                         @Override
@@ -339,20 +344,50 @@ public class MainActivity extends NavigationActivity {
      */
     private void focusViewAtLocation(float x, float y) {
         try {
-            if (contentRootView == null || !contentRootView.isShown()) return;
+            if (contentRootView == null || !contentRootView.isShown()) {
+                debugToast("TAP root not shown");
+                return;
+            }
             View target = findFocusableAt(contentRootView, x, y);
-            if (target != null && !target.isFocused()) {
+            if (target == null) {
+                debugToast("TAP no hit at (" + (int) x + "," + (int) y + ")");
+                return;
+            }
+            debugToast("TAP hit " + simpleName(target) + (target.isFocused() ? " alreadyFocused" : ""));
+            if (!target.isFocused()) {
                 // 确保点击位置有白框 foreground
                 applyFocusSelectorToView(target);
                 // 触摸模式下 focusableInTouchMode=false 的 View 会被系统拒绝 requestFocus
                 // （checkFocus 检查触摸模式），必须允许触摸模式聚焦后才能把原生焦点移过来，
                 // 白色光标（foreground selector 跟随真实焦点）才会移动到点击位置。
                 target.setFocusableInTouchMode(true);
-                target.requestFocus();
+                boolean ok = target.requestFocus();
+                debugToast("TAP requestFocus=" + ok + " nowFocused=" + target.isFocused());
             }
         } catch (Throwable t) {
-            // 忽略，不影响正常运行
+            debugToast("TAP err " + t.getClass().getSimpleName() + ": " + t.getMessage());
         }
+    }
+
+    /** 调试用 Toast（复用单例，避免叠加） */
+    private void debugToast(String msg) {
+        try {
+            if (debugToast == null) {
+                debugToast = Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_LONG);
+            } else {
+                debugToast.setText(msg);
+            }
+            debugToast.show();
+        } catch (Throwable t) {
+            // 忽略
+        }
+    }
+
+    /** 调试用：简化 view 类名 */
+    private String simpleName(View v) {
+        String s = v.getClass().getName();
+        int idx = s.lastIndexOf('.');
+        return idx >= 0 ? s.substring(idx + 1) : s;
     }
 
     /**
