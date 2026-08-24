@@ -8,7 +8,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.FocusFinder;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 
@@ -89,6 +91,12 @@ public class MainActivity extends NavigationActivity {
     /** 当前活跃的 Overlay 根 View（弹窗焦点守门用），避免每次按键全量查找 */
     private View activeOverlayRoot;
 
+    /** 触摸点击聚焦：手机/触摸操作时，点击可聚焦元素后把白色光标移到点击位置 */
+    private float touchDownX;
+    private float touchDownY;
+    private boolean touchMoved;
+    private int touchSlop = 24;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -113,6 +121,7 @@ public class MainActivity extends NavigationActivity {
 
         contentRootView = getWindow().getDecorView().findViewById(android.R.id.content);
         focusSelectorDrawable = focusSelectorResId != 0 ? getResources().getDrawable(focusSelectorResId) : null;
+        touchSlop = ViewConfiguration.get(getApplicationContext()).getScaledTouchSlop();
 
         final View rootView = contentRootView;
 
@@ -281,6 +290,87 @@ public class MainActivity extends NavigationActivity {
         } catch (Throwable t) {
             // 忽略，不影响正常运行
         }
+    }
+
+    /**
+     * 触摸点击聚焦（手机/触摸设备）：
+     * 触摸模式下 View 的 focusableInTouchMode 为 false，点击不会自动移动焦点，
+     * 导致白色光标停留在上一个焦点位置。因此在一次「点击」（按下到抬起无明显位移）
+     * 结束后，把焦点移动到被点击位置的可聚焦 View，让光标跟随点击位置。
+     */
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        switch (ev.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                touchDownX = ev.getRawX();
+                touchDownY = ev.getRawY();
+                touchMoved = false;
+                break;
+            case MotionEvent.ACTION_MOVE:
+                if (!touchMoved) {
+                    if (Math.abs(ev.getRawX() - touchDownX) > touchSlop
+                        || Math.abs(ev.getRawY() - touchDownY) > touchSlop) {
+                        touchMoved = true;
+                    }
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+                // 仅无位移的「点击」才聚焦；滚动/滑动结束不移动焦点，避免列表跳动
+                if (!touchMoved) {
+                    final float x = ev.getRawX();
+                    final float y = ev.getRawY();
+                    // 延迟到 RN 触摸处理（onPress 切换页面等）完成后，避免焦点被后续渲染影响
+                    mainHandler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            focusViewAtLocation(x, y);
+                        }
+                    }, 80);
+                }
+                break;
+            default:
+                break;
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    /**
+     * 把焦点移动到屏幕坐标 (x, y) 处可聚焦的 View。
+     */
+    private void focusViewAtLocation(float x, float y) {
+        try {
+            if (contentRootView == null || !contentRootView.isShown()) return;
+            View target = findFocusableAt(contentRootView, x, y);
+            if (target != null && !target.isFocused()) {
+                target.requestFocus();
+            }
+        } catch (Throwable t) {
+            // 忽略，不影响正常运行
+        }
+    }
+
+    /**
+     * 从 view 树中查找屏幕坐标 (x, y) 处可聚焦的 View。
+     * 优先匹配最深层的子 View（与点击命中最上层子元素一致）。
+     */
+    private View findFocusableAt(View view, float x, float y) {
+        if (view == null || view.getVisibility() != View.VISIBLE) return null;
+        if (view instanceof ViewGroup) {
+            ViewGroup vg = (ViewGroup) view;
+            for (int i = vg.getChildCount() - 1; i >= 0; i--) {
+                View found = findFocusableAt(vg.getChildAt(i), x, y);
+                if (found != null) return found;
+            }
+        }
+        if (view.isFocusable() && view.getWidth() > 0 && view.getHeight() > 0) {
+            int[] loc = new int[2];
+            view.getLocationOnScreen(loc);
+            if (x >= loc[0] && x <= loc[0] + view.getWidth()
+                && y >= loc[1] && y <= loc[1] + view.getHeight()) {
+                return view;
+            }
+        }
+        return null;
     }
 
     /**
