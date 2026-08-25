@@ -7,7 +7,7 @@ import SourceSelector, {
 } from '@/components/SourceSelector'
 import BoardsList, { type BoardsListType, type BoardsListProps } from '../BoardsList'
 import { BorderWidths } from '@/theme'
-import { createStyle } from '@/utils/tools'
+import { createStyle, toast } from '@/utils/tools'
 import { handleCollect, handlePlay } from '../listAction'
 import boardState, { type InitState } from '@/store/leaderboard/state'
 import { useTheme } from '@/store/theme/hook'
@@ -35,7 +35,10 @@ export default forwardRef<LeftBarType, LeftBarProps>(({ onChangeList }, ref) => 
       boundInfo.current = { source, id: listId }
       sourceSelectorRef.current?.setSourceList(boardState.sources, source)
       void getBoardsList(source).then(list => {
+        toast(`BOARDS n=${list.length} src=${source} id=${listId}`)
         boardsListRef.current?.setList(list, listId)
+      }).catch(e => {
+        toast(`BOARDS ERR ${e?.message ?? String(e)}`)
       })
     },
   }), [])
