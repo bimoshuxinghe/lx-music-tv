@@ -46,12 +46,14 @@ export default forwardRef<OverlayType, OverlayProps>(({
   bgColor = 'rgba(0,0,0,0)',
   statusBarPadding = true,
   zIndex = 9999,
+  focusAnchorRef,
   children,
 }: OverlayProps, ref) => {
   const [visible, setVisible] = useState(false)
   const statusBarHeight = useStatusbarHeight()
   const { addPortal, removePortal, updatePortal } = usePortal()
   const portalIdRef = useRef<number | null>(null)
+  const lastFocusedRef = useRef<any>(null)
 
   const handleBgClose = () => {
     if (bgHide) {
@@ -60,11 +62,26 @@ export default forwardRef<OverlayType, OverlayProps>(({
     }
   }
 
+  // 恢复焦点到锚点元素
+  const restoreFocus = () => {
+    if (focusAnchorRef?.current) {
+      focusAnchorRef.current.focus()
+    }
+  }
+
   useImperativeHandle(ref, () => ({
     setVisible(_visible) {
       if (visible == _visible) return
       setVisible(_visible)
-      if (!_visible) onHide()
+      if (!_visible) {
+        onHide()
+        // 弹窗关闭时恢复焦点到上一个焦点元素
+        if (lastFocusedRef.current) {
+          setTimeout(() => {
+            lastFocusedRef.current?.focus()
+          }, 100)
+        }
+      }
     },
   }))
 
@@ -79,8 +96,20 @@ export default forwardRef<OverlayType, OverlayProps>(({
       }
       return false
     })
-    return () => subscription.remove()
+    return () => {
+      subscription.remove()
+    }
   }, [visible, keyHide, onHide])
+
+  // 弹窗显示时，延迟恢复焦点到锚点
+  useEffect(() => {
+    if (!visible || !focusAnchorRef) return
+    const timer = setTimeout(restoreFocus, 200)
+    return () => {
+      clearTimeout(timer)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
 
   const memoChildren = useMemo(() => children, [children])
 

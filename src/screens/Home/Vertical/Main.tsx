@@ -165,9 +165,7 @@ const SettingPage = () => {
   useEffect(() => {
     const handleNavIdUpdate = (id: CommonState['navActiveId']) => {
       if (id == 'nav_setting') {
-        requestAnimationFrame(() => {
-          setVisible(true)
-        })
+        setVisible(true)
       }
     }
     global.state_event.on('navActiveIdUpdated', handleNavIdUpdate)

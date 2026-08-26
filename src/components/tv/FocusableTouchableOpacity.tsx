@@ -46,9 +46,9 @@ const FocusableTouchableOpacity = forwardRef<TouchableOpacity, FocusableTouchabl
   const focusedStyle = useMemo<ViewStyle | null>(() => {
     if (!isFocused) return null
     return {
-      // 醒目焦点高亮：粗白边框 + 实色绿背景 + 缩放放大 + 阴影
+      // 醒目焦点高亮：粗粉红边框（深/浅色背景均可见）+ 实色背景 + 缩放放大 + 阴影
       backgroundColor: theme['c-primary'],
-      borderColor: '#FFFFFF',
+      borderColor: '#FF69B4',
       borderWidth: 3,
       borderRadius: 6,
       elevation: 8,
