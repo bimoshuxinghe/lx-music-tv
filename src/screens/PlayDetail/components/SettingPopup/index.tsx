@@ -22,6 +22,7 @@ export interface SettingPopupType {
 export default forwardRef<SettingPopupType, SettingPopupProps>(({ direction, ...props }, ref) => {
   const [visible, setVisible] = useState(false)
   const popupRef = useRef<PopupType>(null)
+  const firstItemRef = useRef<any>(null)
   //
   const t = useI18n()
 
@@ -41,9 +42,9 @@ export default forwardRef<SettingPopupType, SettingPopupProps>(({ direction, ...
   return (
     visible
       ? (
-        <Popup ref={popupRef} title={t('play_detail_setting_title')} {...props}>
-          <ScrollView focusable={false}>
-            <View onStartShouldSetResponder={() => true}>
+        <Popup ref={popupRef} title={t('play_detail_setting_title')} {...props} focusAnchorRef={firstItemRef}>
+          <ScrollView focusable={false} keyboardShouldPersistTaps={'always'}>
+            <View onStartShouldSetResponder={() => true} ref={firstItemRef}>
               <SettingLyricProgress />
               <SettingVolume />
               <SettingPlaybackRate />
