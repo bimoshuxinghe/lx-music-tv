@@ -1,7 +1,11 @@
 package cn.toside.music.mobile;
 
 import android.app.Application;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -68,13 +72,13 @@ public class MainActivity extends NavigationActivity {
      * 动态设置焦点框颜色，由 JS 侧通过 UtilsModule 调用
      * @param colorStr 十六进制颜色字符串，如 "#FF69B4" 或 "#FFFFFF"，空字符串则重置为粉红
      */
-    public static void setFocusBorderColor(String colorStr) {
+    public void setFocusBorderColor(String colorStr) {
         if (colorStr == null || colorStr.isEmpty()) {
             focusBorderColor = 0xFFFF69B4;
         } else {
             try {
                 String hex = colorStr.startsWith("#") ? colorStr.substring(1) : colorStr;
-                focusBorderColor = android.graphics.Color.parseColor("#" + hex);
+                focusBorderColor = Color.parseColor("#" + hex);
             } catch (NumberFormatException e) {
                 focusBorderColor = 0xFFFF69B4;
             }
@@ -294,35 +298,23 @@ public class MainActivity extends NavigationActivity {
      */
     private Drawable createCustomFocusSelectorInstance() {
         try {
-            android.graphics.drawable.GradientDrawable focusedShape = new android.graphics.drawable.GradientDrawable();
-            focusedShape.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            GradientDrawable focusedShape = new GradientDrawable();
+            focusedShape.setShape(GradientDrawable.OVAL);
             focusedShape.setCornerRadius(6f);
             focusedShape.setColor(0x26FFFFFF); // 半透明白色填充
             focusedShape.setStroke(3, focusBorderColor); // 用户自定义边框色
 
-            android.graphics.drawable.GradientDrawable pressedShape = new android.graphics.drawable.GradientDrawable();
-            pressedShape.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            GradientDrawable pressedShape = new GradientDrawable();
+            pressedShape.setShape(GradientDrawable.OVAL);
             pressedShape.setCornerRadius(6f);
             pressedShape.setColor(0x44FFFFFF); // 按压时半透明白色填充
 
-            android.content.res.ColorStateList colorStateList = new android.content.res.ColorStateList(
-                new int[][] {
-                    new int[] { android.R.attr.state_focused },
-                    new int[] { android.R.attr.state_pressed },
-                    new int[] {}
-                },
-                new int[] {
-                    focusedShape,
-                    pressedShape,
-                    android.graphics.Color.TRANSPARENT
-                }
-            );
+            ColorStateList colorStateList = ColorStateList.valueOf(focusBorderColor);
 
-            // 使用 StateListDrawable 组合
-            android.graphics.drawable.StateListDrawable sld = new android.graphics.drawable.StateListDrawable();
+            StateListDrawable sld = new StateListDrawable();
             sld.addState(new int[] { android.R.attr.state_focused }, focusedShape);
             sld.addState(new int[] { android.R.attr.state_pressed }, pressedShape);
-            sld.addState(new int[] {}, new android.graphics.drawable.GradientDrawable());
+            sld.addState(new int[] {}, new GradientDrawable());
 
             return sld.mutate();
         } catch (Throwable t) {

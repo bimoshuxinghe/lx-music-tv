@@ -200,7 +200,8 @@ public class UtilsModule extends ReactContextBaseJavaModule {
     */
    @ReactMethod
    public void setFocusBorderColor(String colorStr) {
-     cn.toside.music.mobile.MainActivity.setFocusBorderColor(colorStr);
+     cn.toside.music.mobile.MainActivity mainActivity = (cn.toside.music.mobile.MainActivity) getCurrentActivity();
+     if (mainActivity != null) mainActivity.setFocusBorderColor(colorStr);
    }
 
    /**
