@@ -1,11 +1,5 @@
 import { forwardRef, useState, useMemo } from 'react'
-import {
-  Pressable,
-  type PressableProps,
-  type ViewStyle,
-  type View,
-  StyleSheet,
-} from 'react-native'
+import { Pressable, type PressableProps, type ViewStyle, type View, StyleSheet, type NativeSyntheticEvent, type TargetedEvent } from 'react-native'
 import { useTheme } from '@/store/theme/hook'
 
 export interface FocusablePressableProps extends PressableProps {
@@ -29,11 +23,11 @@ const FocusablePressable = forwardRef<View, FocusablePressableProps>(({
   const [isFocused, setIsFocused] = useState(false)
   const theme = useTheme()
 
-  const handleFocus = (e: any) => {
+  const handleFocus = (e: NativeSyntheticEvent<TargetedEvent>) => {
     setIsFocused(true)
     onFocus?.(e)
   }
-  const handleBlur = (e: any) => {
+  const handleBlur = (e: NativeSyntheticEvent<TargetedEvent>) => {
     setIsFocused(false)
     onBlur?.(e)
   }
