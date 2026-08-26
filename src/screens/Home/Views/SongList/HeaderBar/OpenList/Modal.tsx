@@ -62,13 +62,11 @@ export default forwardRef<ModalType, ModalProps>(({ onOpenId }, ref) => {
 
   const handleShow = (source: Source) => {
     alertRef.current?.setVisible(true)
-    requestAnimationFrame(() => {
+    // 延迟设置焦点，确保弹窗已渲染
+    setTimeout(() => {
       inputRef.current?.setText('')
-      // sourceSelectorRef.current?.setSource(source)
-      setTimeout(() => {
-        inputRef.current?.focus()
-      }, 300)
-    })
+      inputRef.current?.focus()
+    }, 300)
   }
   useImperativeHandle(ref, () => ({
     show(source) {
