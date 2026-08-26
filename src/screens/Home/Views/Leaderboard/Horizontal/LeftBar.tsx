@@ -84,9 +84,9 @@ export default forwardRef<LeftBarType, LeftBarProps>(({ onChangeList }, ref) => 
 const styles = createStyle({
   container: {
     flexDirection: 'column',
-    width: '26%',
-    maxWidth: 180,
-    minWidth: 110,
+    width: '35%',
+    maxWidth: 260,
+    minWidth: 160,
     flexGrow: 0,
     flexShrink: 0,
     borderRightWidth: BorderWidths.normal,
