@@ -8,7 +8,6 @@ export default ({ autoUpdate }: { autoUpdate: boolean }) => {
   const { text } = useLrcPlay(autoUpdate)
   const statusText = useStatusText()
   const isPlay = useIsPlay()
-  // console.log('render status')
 
   const status = isPlay ? text : statusText
 

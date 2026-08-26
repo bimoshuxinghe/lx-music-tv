@@ -130,7 +130,6 @@ const heartbeatTools = {
       if (data == 'ping') this.heartbeat()
     })
     socket.addEventListener('close', (event) => {
-      // console.log(event.code)
       switch (event.code) {
         case SYNC_CLOSE_CODE.normal:
         case SYNC_CLOSE_CODE.failed:

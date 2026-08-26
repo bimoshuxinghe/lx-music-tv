@@ -29,32 +29,26 @@ const registerPlaybackService = async() => {
 
   console.log('reg services...')
   TrackPlayer.addEventListener(TPEvent.RemotePlay, () => {
-    // console.log('remote-play')
     play()
   })
 
   TrackPlayer.addEventListener(TPEvent.RemotePause, () => {
-    // console.log('remote-pause')
     void pause()
   })
 
   TrackPlayer.addEventListener(TPEvent.RemoteNext, () => {
-    // console.log('remote-next')
     void playNext()
   })
 
   TrackPlayer.addEventListener(TPEvent.RemotePrevious, () => {
-    // console.log('remote-previous')
     void playPrev()
   })
 
   TrackPlayer.addEventListener(TPEvent.RemoteStop, () => {
-    // console.log('remote-stop')
     void handleExitApp('Remote Stop')
   })
 
   // TrackPlayer.addEventListener(TPEvent.RemoteDuck, async({ permanent, paused, ducking }) => {
-  //   console.log('remote-duck')
   //   if (paused) {
   //     store.dispatch(playerAction.setStatus({ status: STATUS.pause, text: '已暂停' }))
   //     lrcPause()
@@ -82,7 +76,6 @@ const registerPlaybackService = async() => {
 
     switch (info.state) {
       case TPState.None:
-        // console.log('state', 'State.NONE')
         break
       case TPState.Ready:
       case TPState.Stopped:
@@ -102,23 +95,18 @@ const registerPlaybackService = async() => {
         global.app_event.playerLoadstart()
         break
       default:
-        // console.log('playback-state', info)
         break
     }
     if (global.lx.isPlayedStop) return handleExitApp('Timeout Exit')
 
-    // console.log('currentIsPlaying', currentIsPlaying, global.lx.playInfo.isPlaying)
     // void updateMetaData(global.lx.store_playMusicInfo.musicInfo, currentIsPlaying)
   })
   TrackPlayer.addEventListener(TPEvent.PlaybackTrackChanged, async info => {
-    // console.log('PlaybackTrackChanged====>', info)
     global.lx.playerTrackId = await getCurrentTrackId()
     if (info.track == null) return
     if (global.lx.isPlayedStop) return handleExitApp('Timeout Exit')
 
-    // console.log('global.lx.playerTrackId====>', global.lx.playerTrackId)
     if (isEmpty()) {
-      // console.log('====TEMP PAUSE====')
       await TrackPlayer.pause()
       global.app_event.playerPause()
       global.app_event.pause()
@@ -199,7 +187,6 @@ const registerPlaybackService = async() => {
   //   // }
   // })
   // TrackPlayer.addEventListener('playback-destroy', async() => {
-  //   console.log('playback-destroy')
   //   store.dispatch(playerAction.destroy())
   // })
   isInitialized = true

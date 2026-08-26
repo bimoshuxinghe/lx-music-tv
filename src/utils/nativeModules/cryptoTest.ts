@@ -47,29 +47,21 @@ BL/KT6V2h9E8eNQVIOpwjxjR9wPBeHVSLhRV0Rh0Lkog4tGwvWVOh+W+ICr+s6Xn9xxvMUiL3Uw6
 `
 
 // void rsaEncrypt(Buffer.from('hello').toString('base64'), publicKey, RSA_PADDING.OAEPWithSHA1AndMGF1Padding).then((text) => {
-//   console.log(text)
 //   void rsaDecrypt(text, privateKey, RSA_PADDING.OAEPWithSHA1AndMGF1Padding).then((text) => {
-//     console.log(text)
 //   })
 // })
 // void generateRsaKey().then((key) => {
-//   console.log(key.publicKey)
-//   console.log(key.privateKey)
 // })
 
 const aesKey = Buffer.from('123456789abcdefg').toString('base64')
 const vi = Buffer.from('012345678901234a').toString('base64')
 
 // void aesEncrypt(Buffer.from('hello').toString('base64'), aesKey, vi, AES_MODE.CBC_PKCS7Padding).then((text) => {
-//   console.log('hello', text)
 //   void aesDecrypt(text, aesKey, vi, AES_MODE.CBC_PKCS7Padding).then((text) => {
-//     console.log(text)
 //   })
 // })
 
 // void aesEncrypt(Buffer.from('hello2').toString('base64'), aesKey, '', AES_MODE.ECB_NoPadding).then((text) => {
-//   console.log('hello2', text)
 //   void aesDecrypt(text, aesKey, '', AES_MODE.ECB_NoPadding).then((text) => {
-//     console.log(text)
 //   })
 // })

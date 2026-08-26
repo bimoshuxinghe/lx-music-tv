@@ -19,7 +19,6 @@ export const request = async(url: string, { timeout = 10000, ...options }: Reque
       code: response.status,
     }
   }).catch(err => {
-    // console.log(err, err.code, err.message)
     throw err
   }).finally(() => {
     if (id == null) return
@@ -86,7 +85,6 @@ export const decryptMsg = async(keyInfo: LX.Sync.KeyInfo, enMsg: string): Promis
   // try {
   //   msg = aesDecrypt(enMsg, keyInfo.key, keyInfo.iv)
   // } catch (err) {
-  //   console.log(err)
   // }
   // return msg
 }
@@ -94,7 +92,6 @@ export const decryptMsg = async(keyInfo: LX.Sync.KeyInfo, enMsg: string): Promis
 
 export const parseUrl = (href: string): LX.Sync.UrlInfo => {
   // const url = new URL(host)
-  // console.log(host)
   // let hostPath = url.host + url.pathname
   // let href = url.href
   if (href.endsWith('/')) href = href.replace(/\/$/, '')

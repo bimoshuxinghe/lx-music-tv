@@ -47,9 +47,7 @@ const codeAuth = async(urlInfo: LX.Sync.UrlInfo, serverId: string, authCode: str
     .replace('-----BEGIN PUBLIC KEY-----', '')
     .replace('-----END PUBLIC KEY-----', '')
   const msg = aesEncrypt(`${SYNC_CODE.authMsg}\n${publicKey}\n${await getDeviceName()}\nlx_music_mobile`, key)
-  // console.log(msg, key)
   return request(`${urlInfo.httpProtocol}//${urlInfo.hostPath}/ah`, { headers: { m: msg } }).then(async({ text, code }) => {
-    // console.log(text)
     switch (text) {
       case SYNC_CODE.msgBlockedIp:
         throw new Error(SYNC_CODE.msgBlockedIp)
@@ -65,7 +63,6 @@ const codeAuth = async(urlInfo: LX.Sync.UrlInfo, serverId: string, authCode: str
       log.error('[auth] codeAuth decryptMsg error', err.message)
       throw new Error(SYNC_CODE.authFailed)
     }
-    // console.log(msg)
     if (!msg) return Promise.reject(new Error(SYNC_CODE.authFailed))
     const info = JSON.parse(msg) as LX.Sync.KeyInfo
     void setSyncAuthKey(serverId, info)

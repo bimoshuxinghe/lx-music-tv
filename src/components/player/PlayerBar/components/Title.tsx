@@ -18,8 +18,6 @@ export default ({ isHome }: { isHome: boolean }) => {
   const theme = useTheme()
 
   const handlePress = () => {
-    // console.log('')
-    // console.log(playMusicInfo)
     if (!musicInfo.id) return
     navigations.pushPlayDetailScreen(commonState.componentIds.home!)
     // toast(global.i18n.t('play_detail_todo_tip'), 'long')
@@ -30,14 +28,12 @@ export default ({ isHome }: { isHome: boolean }) => {
     if (!listId || listId == LIST_IDS.DOWNLOAD) return
     global.app_event.jumpListPosition()
   }
-  // console.log('render title')
 
   const title = musicInfo.id
     ? musicInfo.singer
       ? formatMusicName(downloadFileName, musicInfo.name, musicInfo.singer)
       : musicInfo.name
     : ''
-  // console.log(playMusicInfo)
   return (
     <TouchableOpacity style={styles.container} onLongPress={handleLongPress} onPress={handlePress} activeOpacity={0.7} >
       <Text color={theme['c-font-label']} numberOfLines={1}>{title}</Text>

@@ -178,7 +178,6 @@ export const userListsUpdate = (listInfos: LX.List.UserListInfo[]) => {
 export const userListsUpdatePosition = (position: number, ids: string[]) => {
   const newUserLists = [...userLists]
 
-  // console.log(position, ids)
 
   const updateLists: LX.List.UserListInfo[] = []
 

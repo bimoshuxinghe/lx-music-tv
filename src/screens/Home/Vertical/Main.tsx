@@ -203,7 +203,6 @@ const Main = () => {
   // const scrollPositionRef = useRef(-1)
 
   // const handlePageScroll = useCallback(({ nativeEvent }) => {
-  //   console.log(nativeEvent.offset, activeIndexRef.current)
   //   // if (activeIndexRef.current == -1) return
   //   // if (nativeEvent.offset == 0) {
   //   //   isScrollingRef.current = false
@@ -218,7 +217,6 @@ const Main = () => {
   // }, [setNavActiveIndex])
 
   const onPageSelected = useCallback(({ nativeEvent }: PagerViewOnPageSelectedEvent) => {
-    // console.log(nativeEvent)
     activeIndexRef.current = nativeEvent.position
     if (activeIndexRef.current != viewMap[commonState.navActiveId]) {
       setNavActiveId(indexMap[activeIndexRef.current])
@@ -226,7 +224,6 @@ const Main = () => {
   }, [])
 
   const onPageScrollStateChanged = useCallback(({ nativeEvent }: PageScrollStateChangedNativeEvent) => {
-    // console.log(nativeEvent)
     const idle = nativeEvent.pageScrollState == 'idle'
     if (global.lx.homePagerIdle != idle) global.lx.homePagerIdle = idle
     // if (nativeEvent.pageScrollState != 'idle') return

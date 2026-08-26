@@ -25,7 +25,6 @@ const DrawerLayoutFixed = forwardRef<DrawerLayoutFixedType, Props>(({ visibleNav
   const fixDrawerWidth = useCallback(() => {
     if (!changedRef.current.width) return
     changedRef.current.changed = true
-    // console.log('usePageVisible', visible, changedRef.current.width)
     setW(changedRef.current.width - 1)
   }, [])
 
@@ -49,7 +48,6 @@ const DrawerLayoutFixed = forwardRef<DrawerLayoutFixedType, Props>(({ visibleNav
 
 
   const handleLayout = useCallback((e: LayoutChangeEvent) => {
-    // console.log('handleLayout', e.nativeEvent.layout.width, changedRef.current.width)
     if (changedRef.current.changed) {
       // setW(e.nativeEvent.layout.width - 1)
       setW('100%')
@@ -61,7 +59,6 @@ const DrawerLayoutFixed = forwardRef<DrawerLayoutFixedType, Props>(({ visibleNav
 
       // 重新设置面板宽度
       const wp = Math.floor(width * widthPercentage)
-      // console.log(wp, widthPercentageMax)
       setDrawerWidth(widthPercentageMax ? Math.min(wp, widthPercentageMax) : wp)
 
       // 强制触发渲染以应用更改

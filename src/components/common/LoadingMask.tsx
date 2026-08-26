@@ -27,7 +27,6 @@ export default forwardRef<LoadingMaskType, {}>((props, ref) => {
   }))
 
   const handleShow = useCallback(() => {
-    // console.log('handleShow')
     setMaskVisible(true)
 
     Animated.parallel([
@@ -41,7 +40,6 @@ export default forwardRef<LoadingMaskType, {}>((props, ref) => {
 
   const handleHide = useCallback(() => {
     // Will change fadeAnim value to 0 in 5 seconds
-    // console.log('handleHide')
     Animated.parallel([
       Animated.timing(animFade, {
         toValue: 0,
@@ -49,7 +47,6 @@ export default forwardRef<LoadingMaskType, {}>((props, ref) => {
         useNativeDriver: true,
       }),
     ]).start((finished) => {
-      // console.log(finished)
       if (!finished) return
       setMaskVisible(false)
     })

@@ -34,7 +34,6 @@ export default memo(({ isHome = false }: { isHome?: boolean }) => {
     </View>
   ), [theme, isHome])
 
-  // console.log('render pb')
 
   return autoHidePlayBar && keyboardShown ? null : playerComponent
 })

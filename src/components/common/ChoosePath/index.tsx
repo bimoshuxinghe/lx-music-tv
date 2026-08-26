@@ -66,7 +66,6 @@ export default forwardRef<ChoosePathType, ChoosePathProps>(({
           extTypes: options.filter,
           toPath: TEMP_FILE_PATH,
         }).then((file) => {
-          // console.log(file)
           if (!file || isUnmounted.current) return
           if (options.filter && !options.filter.some(ext => file.data.toLowerCase().endsWith('.' + ext))) {
             toast(t('storage_file_no_match'), 'long')
@@ -90,7 +89,6 @@ export default forwardRef<ChoosePathType, ChoosePathProps>(({
   const handleTipsConfirm = () => {
     confirmAlertRef.current?.setVisible(false)
     void requestStoragePermission().then(result => {
-      // console.log(result)
       setDeny(result == null)
       if (result) {
         listRef.current?.show(readOptions.current.title, '', readOptions.current.dirOnly, readOptions.current.filter)

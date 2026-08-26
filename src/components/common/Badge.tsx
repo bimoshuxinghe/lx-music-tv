@@ -28,7 +28,6 @@ export default memo(({ type = 'normal', children }: {
   children: string
 }) => {
   const theme = useTheme()
-  // console.log(visible)
   const colors = useMemo(() => {
     const colors = { textColor: '' }
     switch (type) {

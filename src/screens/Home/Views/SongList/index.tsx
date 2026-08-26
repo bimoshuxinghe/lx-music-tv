@@ -39,7 +39,6 @@ export default () => {
   }, [])
 
   const navigationView = () => <TagList />
-  // console.log('render drawer content')
 
   return (
     <DrawerLayoutFixed

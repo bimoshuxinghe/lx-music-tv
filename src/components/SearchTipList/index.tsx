@@ -43,7 +43,6 @@ const Component = <T extends ItemT<T>>({ onPressBg = noop, ...props }: SearchTip
 
 
   const handleShow = useCallback(() => {
-    // console.log('handleShow', height, visible)
     if (!heightRef.current) return
     setVisible(true)
     setAnimatPlayed(false)
@@ -92,7 +91,6 @@ const Component = <T extends ItemT<T>>({ onPressBg = noop, ...props }: SearchTip
         useNativeDriver: true,
       }),
     ]).start((finished) => {
-      // console.log(finished)
       if (!finished) return
       setVisible(false)
       setAnimatPlayed(true)

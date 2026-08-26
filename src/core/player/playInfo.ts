@@ -29,7 +29,6 @@ export const setPlayListId = (listId: string | null) => {
  */
 export const updatePlayIndex = () => {
   const indexInfo = getPlayIndex(playerState.playMusicInfo.listId, playerState.playMusicInfo.musicInfo, playerState.playMusicInfo.isTempPlay)
-  // console.log('indexInfo', indexInfo)
   playerActions.updatePlayIndex(indexInfo.playIndex, indexInfo.playerPlayIndex)
   return indexInfo
 }

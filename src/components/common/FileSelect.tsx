@@ -9,7 +9,7 @@ export default forwardRef<FileSelectType, {}>((props, ref) => {
   const [visible, setVisible] = useState(false)
   const choosePathRef = useRef<ChoosePathType>(null)
   const onSelectRef = useRef<typeof noop>(noop)
-  // console.log('render import export')
+  //
 
   useImperativeHandle(ref, () => ({
     show(options, onSelect) {

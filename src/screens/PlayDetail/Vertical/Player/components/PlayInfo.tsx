@@ -13,7 +13,6 @@ import { useBufferProgress } from '@/plugins/player'
 
 const PlayTimeCurrent = ({ timeStr }: { timeStr: string }) => {
   const theme = useTheme()
-  // console.log(timeStr)
   return <Text color={theme['c-500']}>{timeStr}</Text>
 }
 
@@ -26,7 +25,6 @@ export default () => {
   const { maxPlayTimeStr, nowPlayTimeStr, progress, maxPlayTime } = useProgress()
   const buffered = useBufferProgress()
 
-  // console.log('render playInfo')
 
   return (
     <>

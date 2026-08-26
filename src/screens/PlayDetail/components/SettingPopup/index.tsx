@@ -22,7 +22,7 @@ export interface SettingPopupType {
 export default forwardRef<SettingPopupType, SettingPopupProps>(({ direction, ...props }, ref) => {
   const [visible, setVisible] = useState(false)
   const popupRef = useRef<PopupType>(null)
-  // console.log('render import export')
+  //
   const t = useI18n()
 
   useImperativeHandle(ref, () => ({

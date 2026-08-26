@@ -34,6 +34,5 @@ export default async(setting: LX.AppSetting) => {
   //   global.lx.windowInfo.screenH = screenH
   //   global.lx.windowInfo.screenPxW = PixelRatio.getPixelSizeForLayoutSize(screenW)
   //   global.lx.windowInfo.screenPxH = PixelRatio.getPixelSizeForLayoutSize(screenH)
-  //   console.log('change', global.lx.windowInfo)
   // })
 }

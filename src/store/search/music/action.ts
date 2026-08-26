@@ -59,7 +59,6 @@ const setLists = (results: SearchResult[], page: number, text: string): LX.Music
 }
 
 const setList = (datas: SearchResult, page: number, text: string): LX.Music.MusicInfoOnline[] => {
-  // console.log(datas.source, datas.list)
   let listInfo = state.listInfos[datas.source]!
   const list = datas.list.map(s => toNewMusicInfo(s) as LX.Music.MusicInfoOnline)
   listInfo.list = deduplicationList(page == 1 ? list : [...listInfo.list, ...list])

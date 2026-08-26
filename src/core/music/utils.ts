@@ -296,7 +296,6 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
   isFromCache: boolean
 }> => {
   if (!await global.lx.apiInitPromise[0]) throw new Error('source init failed')
-  // console.log(musicInfo.source)
   const targetQuality = quality ?? getPlayQuality(settingState.setting['player.playQuality'], musicInfo)
 
   let reqPromise
@@ -313,7 +312,6 @@ export const handleGetOnlineMusicUrl = async({ musicInfo, quality, onToggleSourc
     onToggleSource()
     // eslint-disable-next-line @typescript-eslint/promise-function-async
     return getOtherSource(musicInfo).then(otherSource => {
-      // console.log('find otherSource', otherSource.length)
       if (otherSource.length) {
         return getOnlineOtherSourceMusicUrl({
           musicInfos: [...otherSource],
@@ -382,7 +380,6 @@ export const handleGetOnlinePicUrl = async({ musicInfo, isRefresh, onToggleSourc
   musicInfo: LX.Music.MusicInfoOnline
   isFromCache: boolean
 }> => {
-  // console.log(musicInfo.source)
   let reqPromise
   try {
     reqPromise = musicSdk[musicInfo.source].getPic(toOldMusicInfo(musicInfo))
@@ -397,7 +394,6 @@ export const handleGetOnlinePicUrl = async({ musicInfo, isRefresh, onToggleSourc
     onToggleSource()
     // eslint-disable-next-line @typescript-eslint/promise-function-async
     return getOtherSource(musicInfo).then(otherSource => {
-      // console.log('find otherSource', otherSource.length)
       if (otherSource.length) {
         return getOnlineOtherSourcePicUrl({
           musicInfos: [...otherSource],
@@ -473,7 +469,6 @@ export const handleGetOnlineLyricInfo = async({ musicInfo, onToggleSource, isRef
   lyricInfo: LX.Music.LyricInfo | LX.Player.LyricInfo
   isFromCache: boolean
 }> => {
-  // console.log(musicInfo.source)
   let reqPromise
   try {
     // TODO: remove any type
@@ -494,7 +489,6 @@ export const handleGetOnlineLyricInfo = async({ musicInfo, onToggleSource, isRef
     onToggleSource()
     // eslint-disable-next-line @typescript-eslint/promise-function-async
     return getOtherSource(musicInfo).then(otherSource => {
-      // console.log('find otherSource', otherSource.length)
       if (otherSource.length) {
         return getOnlineOtherSourceLyricInfo({
           musicInfos: [...otherSource],

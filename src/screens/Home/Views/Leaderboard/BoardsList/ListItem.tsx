@@ -28,7 +28,6 @@ export default ({ item, activeId, index, longPressIndex, onBoundChange, onShowMe
   const setPosition = useCallback(() => {
     if (buttonRef.current?.measure) {
       buttonRef.current.measure((fx, fy, width, height, px, py) => {
-        // console.log(fx, fy, width, height, px, py)
         onShowMenu(item.id, item.name, index, { x: Math.ceil(px), y: Math.ceil(py), w: Math.ceil(width), h: Math.ceil(height) })
       })
     }

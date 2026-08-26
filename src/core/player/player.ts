@@ -34,7 +34,6 @@ import { addDislikeInfo } from '@/core/dislikeList'
 const createDelayNextTimeout = (delay: number) => {
   let timeout: number | null
   const clearDelayNextTimeout = () => {
-    // console.log(this.timeout)
     if (timeout) {
       BackgroundTimer.clearTimeout(timeout)
       timeout = null
@@ -119,7 +118,6 @@ const getMusicPlayUrl = async(musicInfo: LX.Music.MusicInfo | LX.Download.ListIt
 
     return url
   }).catch(async err => {
-    // console.log('err', err.message)
     if (global.lx.isPlayedStop ||
       diffCurrentMusicInfo(musicInfo) ||
       err.message == requestMsg.cancelRequest) return null
@@ -326,7 +324,6 @@ export const getNextPlayMusicInfo = async(): Promise<LX.Player.PlayMusicInfo | n
 
   const playMusicInfo = playerState.playMusicInfo
   const playInfo = playerState.playInfo
-  // console.log(playInfo.playerListId)
   const currentListId = playInfo.playerListId
   if (!currentListId) return null
   const currentList = getList(currentListId)
@@ -420,7 +417,6 @@ export const playNext = async(isAutoToggle = false): Promise<void> => {
   const playInfo = playerState.playInfo
   if (playMusicInfo.musicInfo == null) return handleToggleStop()
 
-  // console.log(playInfo.playerListId)
   const currentListId = playInfo.playerListId
   if (!currentListId) return handleToggleStop()
   const currentList = getList(currentListId)

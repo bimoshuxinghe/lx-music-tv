@@ -23,7 +23,6 @@ export default async(setting: LX.AppSetting) => {
   const sendScriptRequest = (requestKey: string, url: string, options: RequestParams['options']) => {
     let req = fetchData(url, options)
     req.request.then(response => {
-      // console.log(response)
       sendAction('response', {
         error: null,
         requestKey,
@@ -75,7 +74,6 @@ export default async(setting: LX.AppSetting) => {
     else target.reject(new Error(errorMessage ?? 'failed'))
   }
   const handleStateChange = ({ status, errorMessage, info }: InitParams) => {
-    // console.log(status, message, info)
     setUserApiStatus(status, errorMessage)
     if (!info || info.id !== settingState.setting['common.apiSource']) return
     if (status) {
@@ -106,7 +104,6 @@ export default async(setting: LX.AppSetting) => {
                       },
                       // eslint-disable-next-line @typescript-eslint/promise-function-async
                     }).then(res => {
-                      // console.log(res)
                       return { type, url: res.data.url }
                     }).catch(err => {
                       console.log(err.message)
@@ -134,7 +131,6 @@ export default async(setting: LX.AppSetting) => {
                       },
                       // eslint-disable-next-line @typescript-eslint/promise-function-async
                     }).then(res => {
-                      // console.log(res)
                       return res.data
                     }).catch(async err => {
                       console.log(err.message)
@@ -162,7 +158,6 @@ export default async(setting: LX.AppSetting) => {
                       },
                       // eslint-disable-next-line @typescript-eslint/promise-function-async
                     }).then(res => {
-                      // console.log(res)
                       return res.data
                     }).catch(async err => {
                       console.log(err.message)
@@ -207,7 +202,6 @@ export default async(setting: LX.AppSetting) => {
   }
 
   onScriptAction((event) => {
-    // console.log('script actuon: ', event)
     switch (event.action) {
       case 'init':
         if ((event as unknown as { errorMessage?: string }).errorMessage) event.data.errorMessage = (event as unknown as { errorMessage: string }).errorMessage

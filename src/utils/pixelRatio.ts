@@ -14,7 +14,6 @@ const designHeight = 667.0
 
 // 获取屏幕的dp
 const size = windowSizeTools.getSize()
-// console.log('size', size)
 let screenW = size.width
 let screenH = size.height
 if (screenW > screenH) {
@@ -27,12 +26,10 @@ let pixelRatio = PixelRatio.get()
 // 根据dp获取屏幕的px
 let screenPxW = PixelRatio.getPixelSizeForLayoutSize(screenW)
 let screenPxH = PixelRatio.getPixelSizeForLayoutSize(screenH)
-// console.log(screenPxW, screenPxH)
 
 const scaleW = screenPxW / designWidth
 const scaleH = screenPxH / designHeight
 const scale = Math.min(scaleW, scaleH, 3.1)
-// console.log(scale)
 
 /**
  * 设置text
@@ -40,14 +37,10 @@ const scale = Math.min(scaleW, scaleH, 3.1)
  * @returns dp
  */
 export function getTextSize(size: number) {
-  // console.log('screenW======' + screenW)
-  // console.log('screenPxW======' + screenPxW)
   let scaleWidth = screenW / designWidth
   let scaleHeight = screenH / designHeight
-  // console.log(scaleWidth, scaleHeight)
   let scale = Math.min(scaleWidth, scaleHeight, 1.3)
   size = Math.floor(size * scale / fontScale)
-  // console.log(size)
   return size
 }
 export function setSpText(size: number) {
@@ -60,7 +53,6 @@ export function setSpText(size: number) {
  * @returns dp
  */
 export function scaleSizeH(size: number) {
-  // console.log(screenPxH / designHeight)
   // let scaleHeight = size * Math.min(screenPxH / designHeight, 3.1)
   let scaleHeight = size * scale
   size = Math.floor(scaleHeight / pixelRatio)
@@ -73,7 +65,6 @@ export function scaleSizeH(size: number) {
  * @returns dp
  */
 export function scaleSizeW(size: number) {
-  // console.log(screenPxW / designWidth)
   // let scaleWidth = size * Math.min(screenPxW / designWidth, 3.1)
   let scaleWidth = size * scale
   size = Math.floor(scaleWidth / pixelRatio)

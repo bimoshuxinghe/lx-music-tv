@@ -98,7 +98,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
       return
     }
     let cancelled = false
-    const update = async () => {
+    const update = async() => {
       try {
         const pos = await getPosition()
         if (cancelled || pos == null) return
@@ -158,7 +158,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
         transform: [{ scale: animScale }, { translateY: animTranslateY }],
         opacity: animOpacity,
       }}>
-        {isActiveLine && words && words.length ? (
+        {isActiveLine && words?.length ? (
           <View style={[styles.wordLine, { justifyContent: wordAlign }]}>
             {words.map((w, i) => (
               <LrcWord key={i} word={w} active={wordProgress >= w.time} size={wordSize} color={colors[0]} lineHeight={wordLineHeight} />
@@ -222,7 +222,6 @@ export default ({ fullScreen = false }: { fullScreen?: boolean }) => {
   const handleScrollToActive = (index = lineRef.current.line) => {
     if (index < 0) return
     if (flatListRef.current) {
-      // console.log('handleScrollToActive', index)
       if (scrollInfoRef.current && lineRef.current.line - lineRef.current.prevLine == 1) {
         let offset = listLayoutInfoRef.current.spaceHeight
         for (let line = 0; line < index; line++) {

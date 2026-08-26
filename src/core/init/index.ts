@@ -39,7 +39,6 @@ export default async() => {
   bootLog('Font size changed.')
   const setting = await initSetting()
   bootLog('Setting inited.')
-  // console.log(setting)
 
   await initTheme(setting)
   bootLog('Theme inited.')

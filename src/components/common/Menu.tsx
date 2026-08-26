@@ -80,7 +80,6 @@ const Menu = ({
   const theme = useTheme()
   const windowSize = useWindowSize()
   // const fadeAnim = useRef(new Animated.Value(0)).current
-  // console.log(buttonPosition)
   // const firstItemRef = useRef<TouchableOpacity>(null)
 
   // 注：弹窗打开后的初始焦点由 MainActivity 原生层负责：
@@ -130,10 +129,6 @@ const Menu = ({
     onHide()
   }
 
-  // console.log('render menu')
-  // console.log(activeId)
-  // console.log(menuStyle)
-  // console.log(menuItemStyle)
   return (
     <View style={{ ...styles.menu, ...menuStyle, backgroundColor: theme['c-content-background'] }}>
       <Animated.ScrollView keyboardShouldPersistTaps={'always'} focusable={false}>
@@ -158,7 +153,7 @@ const Menu = ({
                     >
                       <Text style={{ textAlign: center ? 'center' : 'left' }} color={menu.action == activeId ? theme['c-primary-font-active'] : undefined} size={fontSize} numberOfLines={1}>{menu.label}</Text>
                     </TouchableOpacity>
-                  )
+                )
 
           ))
         }
@@ -184,7 +179,6 @@ export interface MenuType {
 }
 
 const Component = <M extends Menus>({ menus, width, height, activeId, onHide, onPress, fontSize, center }: MenuProps<M>, ref: Ref<MenuType>) => {
-  // console.log(visible)
   const overlayRef = useRef<OverlayType>(null)
   const firstItemRef = useRef<TouchableOpacity>(null)
   const [position, setPosition] = useState<Position>({ w: 0, h: 0, x: 0, y: 0 })

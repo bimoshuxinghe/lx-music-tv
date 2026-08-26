@@ -41,7 +41,6 @@ export const usePlaybackState = () => {
 //       const allowedTypes = Object.values(Event)
 //       const invalidTypes = events.filter(type => !allowedTypes.includes(type))
 //       if (invalidTypes.length) {
-//         console.warn(
 //           'One or more of the events provided to useTrackPlayerEvents is ' +
 //             `not a valid TrackPlayer event: ${invalidTypes.join("', '")}. ` +
 //             'A list of available events can be found at ' +
@@ -131,7 +130,6 @@ export function useBufferProgress() {
         duration = _duration
         return buffered
       }))
-      // console.log('updateBuffer', buffered, duration, buffered > 0, buffered == duration)
       // After the asynchronous code is executed, if the component has been uninstalled, do not update the status
       if (buffered > 0 && buffered == duration) clearItv()
       if (buffered == preBuffered || isUnmounted) return
@@ -142,33 +140,25 @@ export function useBufferProgress() {
     const sub = TrackPlayer.addEventListener(Event.PlaybackState, data => {
       switch (data.state) {
         case State.None:
-          // console.log('state', 'None')
           setProgress(0)
           break
         // case State.Ready:
-        //   console.log('state', 'Ready')
         //   break
         // case State.Stopped:
-        //   console.log('state', 'Stopped')
         //   break
         // case State.Paused:
-        //   console.log('state', 'Paused')
         //   break
         // case State.Playing:
-        //   console.log('state', 'Playing')
         //   break
         case State.Buffering:
-          // console.log('state', 'Buffering')
           clearItv()
           duration = 0
           interval = setInterval(updateBuffer, 1000)
           void updateBuffer()
           break
         // case State.Connecting:
-        //   console.log('state', 'Connecting')
         //   break
         // default:
-        //   console.log('playback-state', data)
         //   break
       }
     })

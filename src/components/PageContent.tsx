@@ -37,7 +37,6 @@ export default ({ children }: Props) => {
   //   // console.log(Dimensions.get('screen'))
   //   setWH({ width: e.nativeEvent.layout.width, height: Dimensions.get('screen').height })
   // }
-  // console.log('render page content')
 
   const themeComponent = useMemo(() => (
     <View style={{ flex: 1, overflow: 'hidden' }}>

@@ -24,7 +24,6 @@ export default forwardRef<DorpDownPanelType, DorpDownPanelProps>(({
 
   const showMenu = () => {
     buttonRef.current?.measure((fx, fy, width, height, px, py) => {
-      // console.log(fx, fy, width, height, px, py)
       panelRef.current?.show({ x: Math.ceil(px), y: Math.ceil(py), w: Math.ceil(width), h: Math.ceil(height) })
     })
   }

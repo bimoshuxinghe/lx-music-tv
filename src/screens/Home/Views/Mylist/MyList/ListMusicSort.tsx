@@ -116,7 +116,6 @@ export default forwardRef<ListMusicSortType, {}>((props, ref) => {
 
   const handleSort = async() => {
     const [name, type] = formTypeRef.current!.getForm()
-    // console.log(type, name)
     if (!type || (!name && type != 'random')) return
     const id = selectedListInfo.current.id
     let list = [...(await getListMusics(id))]

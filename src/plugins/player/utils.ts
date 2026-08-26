@@ -11,13 +11,11 @@ export { useBufferProgress } from './hook'
 const emptyIdRxp = /\/\/default$/
 const tempIdRxp = /\/\/default$|\/\/default\/\/restorePlay$/
 export const isEmpty = (trackId = global.lx.playerTrackId) => {
-  // console.log(trackId)
   return !trackId || emptyIdRxp.test(trackId)
 }
 export const isTempId = (trackId = global.lx.playerTrackId) => !trackId || tempIdRxp.test(trackId)
 
 // export const replacePlayTrack = async(newTrack, oldTrack) => {
-//   console.log('replaceTrack')
 //   await TrackPlayer.add(newTrack)
 //   await TrackPlayer.skip(newTrack.id)
 //   await TrackPlayer.remove(oldTrack.id)

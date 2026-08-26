@@ -64,8 +64,6 @@ export const checkUpdate = async() => {
       showModal()
     }
   }
-  // console.log(compareVer(process.versions.app, versionInfo.version))
-  // console.log(process.versions.app, versionInfo.version)
 }
 
 export const downloadUpdate = () => {
@@ -73,13 +71,11 @@ export const downloadUpdate = () => {
   versionActions.setProgress({ total: 0, current: 0 })
 
   downloadNewVersion(versionState.versionInfo.newVersion!.version, (total: number, current: number) => {
-    // console.log(total, current)
     versionActions.setProgress({ total, current })
   }).then(() => {
     versionActions.setVersionInfo({ status: 'downloaded' })
   }).catch(() => {
     versionActions.setVersionInfo({ status: 'error' })
-    // console.log(err)
   })
 }
 

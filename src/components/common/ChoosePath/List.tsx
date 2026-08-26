@@ -22,12 +22,10 @@ const handleReadDir = async(path: string, dirOnly: boolean, filter?: string[], i
   const cacheKey = `${path}_${dirOnly ? 'true' : 'false'}_${filter ? filter.toString() : 'null'}`
   if (!isRefresh && caches.has(cacheKey)) return caches.get(cacheKey)!
   return readDir(path).then(paths => {
-    // console.log('read')
     // prevPath = path
     let list = [] as PathItem[]
-    // console.log(paths)
     for (const path of paths) {
-      // console.log(path)
+      //
       if (filterRxp != null && path.isFile && !filterRxp.test(path.name)) continue
 
       const isDirectory = path.isDirectory
@@ -133,7 +131,6 @@ export default forwardRef<ListType, ListProps>(({
       return list
     }).catch((err: any) => {
       toast(`Read dir error: ${err.message as string}`, 'long')
-      // console.log('prevPath', prevPath)
       // if (isReadingDir.current) return
       // setPath(prevPath)
       return []
@@ -143,7 +140,6 @@ export default forwardRef<ListType, ListProps>(({
   }
 
   const onSetPath = (pathInfo: PathItem) => {
-    // console.log('onSetPath')
     if (pathInfo.isDir) {
       void readDir(pathInfo.path, readOptions.current.dirOnly, readOptions.current.filter)
     } else {

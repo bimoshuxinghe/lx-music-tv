@@ -113,7 +113,6 @@ export const filterList = async({ playedList, listId, list, playerMusicInfo, isN
   isNext: boolean
 }) => {
   // if (this.list.listName === null) return
-  // console.log(isCheckFile)
   let { filteredList, canPlayList, playerIndex } = filterMusicList({
     listId,
     list,

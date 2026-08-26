@@ -77,9 +77,6 @@ export const requestStoragePermission = async() => {
       //   buttonPositive: '确定',
       // },
     )
-    // console.log(granted)
-    // console.log(Object.values(granted).every(r => r === PermissionsAndroid.RESULTS.GRANTED))
-    // console.log(PermissionsAndroid.RESULTS)
     const granteds = Object.values(granted)
     return granteds.every(r => r === PermissionsAndroid.RESULTS.GRANTED)
       ? true
@@ -87,12 +84,9 @@ export const requestStoragePermission = async() => {
         ? null
         : false
     // if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-    //   console.log('You can use the storage')
     // } else {
-    //   console.log('Storage permission denied')
     // }
   } catch (err: any) {
-    // console.warn(err)
     return false
   }
 }
@@ -538,7 +532,6 @@ export const getRowInfo = (type: RowInfoType = 'full'): RowInfo => {
   const win = windowSizeTools.getSize()
   let isMultiRow = isHorizontalMode(win.width, win.height)
   if (type == 'medium' && win.width / win.height < 1.8) isMultiRow = false
-  // console.log('getRowInfo')
   return {
     rowNum: isMultiRow ? 2 : undefined,
     rowWidth: isMultiRow ? '50%' : '100%',

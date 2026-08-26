@@ -27,7 +27,6 @@ export default ({ componentId }: { componentId: string }) => {
   useNavigationComponentDidAppear(componentId, () => {
     setAnimated(true)
   })
-  // console.log('render pic')
 
   // 旋转动画：播放时旋转，暂停时停止
   const rotateAnim = useRef(new Animated.Value(0)).current

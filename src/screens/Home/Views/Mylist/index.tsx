@@ -50,7 +50,6 @@ export default () => {
   }, [])
 
   const navigationView = () => <MyList />
-  // console.log('render drawer content')
 
   return (
     <DrawerLayoutFixed

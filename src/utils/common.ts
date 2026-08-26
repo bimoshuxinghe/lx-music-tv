@@ -22,7 +22,6 @@ export const sizeFormate = (size: number): string => {
  * @returns 时间对象或空字符串
  */
 export const toDateObj = (date?: number | string | Date): Date | '' => {
-  // console.log(date)
   if (!date) return ''
   switch (typeof date) {
     case 'string':
@@ -45,7 +44,6 @@ const numFix = (n: number): string => n < 10 ? (`0${n}`) : n.toString()
  * @param format Y-M-D h:m:s Y年 M月 D日 h时 m分 s秒
  */
 export const dateFormat = (_date: number | string | Date, format = 'Y-M-D h:m:s') => {
-  // console.log(date)
   const date = toDateObj(_date)
   if (!date) return ''
   return format
@@ -69,7 +67,6 @@ export const formatPlayTime2 = (time: number) => {
   let s = Math.trunc(time % 60)
   return numFix(m) + ':' + numFix(s)
 }
-
 
 
 export const isUrl = (path: string) => /https?:\/\//.test(path)

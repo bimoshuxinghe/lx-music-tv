@@ -103,7 +103,6 @@ export const initSetting = async() => {
     }
   }
 
-  // console.log(setting)
   const updatedSetting = updateSetting(setting, true)
   void saveData(storageDataPrefix.setting, updatedSetting.setting)
 

@@ -22,7 +22,6 @@ const getIntv = (musicInfo: LX.Music.MusicInfo) => {
  * @returns
  */
 export const sortListMusicInfo = (list: LX.Music.MusicInfo[], sortType: 'up' | 'down' | 'random', fieldName: 'name' | 'singer' | 'album' | 'time' | 'source', localeId: string) => {
-  // console.log(sortType, fieldName, localeId)
   localeId = localeId.replaceAll('_', '-')
   switch (sortType) {
     case 'random':
@@ -137,7 +136,6 @@ export const filterDuplicateMusic = async(list: LX.Music.MusicInfo[], isFilterVa
       handleFilter(musicInfoName, index, musicInfo)
     })
   }
-  // console.log(duplicateList)
   const duplicateNames = Array.from(duplicateList)
   duplicateNames.sort((a, b) => a.localeCompare(b))
   return duplicateNames.map(name => listMap.get(name)!).flat()

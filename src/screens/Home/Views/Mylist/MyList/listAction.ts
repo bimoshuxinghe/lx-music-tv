@@ -160,7 +160,6 @@ const createThrottleAddMusics = (add: (listId: string, musicInfos: LX.Music.Musi
 
 const handleUpdateMusics = async(filePaths: string[],
   throttleUpdateMusics: (musicInfos: LX.Music.MusicInfoLocal[], errorPath?: string[]) => void, index: number = -1, total: number = 0, errorPath: string[] = []) => {
-  // console.log(index + 1, index + 201)
   if (!total) total = filePaths.length
   const paths = filePaths.slice(index + 1, index + 11)
   const musicInfos = await createLocalMusicInfos(paths, errorPath)

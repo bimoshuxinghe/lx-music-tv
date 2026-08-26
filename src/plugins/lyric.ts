@@ -5,7 +5,7 @@ export type Line = Lines[number]
 type PlayHook = (line: number, text: string) => void
 type SetLyricHook = (lines: Lines) => void
 
-export type Word = { text: string, time: number, duration: number }
+export interface Word { text: string, time: number, duration: number }
 
 const timeExp = /\d{1,3}(:\d{1,3}){0,2}(?:\.\d{1,3})/g
 const msTimeRxp = /\[\d{1,3}(:\d{1,3}){0,2}\.\d{3}]/
@@ -24,10 +24,10 @@ const parseTimeLabel = (label: string, isMsTime: boolean) => {
   if (timeArr.length < 3) for (let i = 3 - timeArr.length; i--;) timeArr.unshift('0')
   if (timeArr[2].includes('.')) timeArr.splice(2, 1, ...timeArr[2].split('.'))
   const msTime = timeArr[3] || '0'
-  return parseInt(timeArr[0]) * 60 * 60 * 1000
-    + parseInt(timeArr[1]) * 60 * 1000
-    + parseInt(timeArr[2]) * 1000
-    + parseInt(isMsTime ? msTime : msTime.padEnd(3, '0'))
+  return parseInt(timeArr[0]) * 60 * 60 * 1000 +
+    parseInt(timeArr[1]) * 60 * 1000 +
+    parseInt(timeArr[2]) * 1000 +
+    parseInt(isMsTime ? msTime : msTime.padEnd(3, '0'))
 }
 
 // 解析逐字歌词 lxlrc：格式为 [mm:ss.ms]字<起始ms,持续ms>字<起始ms,持续ms>...
@@ -47,7 +47,7 @@ const parseLxlyric = (lxlrc: string): Map<number, Word[]> => {
     const content = line.slice(field[0].length)
     if (!content.includes('<')) continue
     const wordTimeRe = /<(\d+),(\d+)>/g
-    const tags: { start: number, dur: number, index: number, length: number }[] = []
+    const tags: Array<{ start: number, dur: number, index: number, length: number }> = []
     let m
     while ((m = wordTimeRe.exec(content)) !== null) {
       tags.push({ start: parseInt(m[1]), dur: parseInt(m[2]), index: m.index, length: m[0].length })
@@ -95,7 +95,6 @@ const lrcTools = {
   },
   onPlay(line: number, text: string) {
     this.currentLineData.line = line
-    // console.log(line)
     this.currentLineData.text = text
     for (const hook of this.playHooks) hook(line, text)
   },
@@ -155,12 +154,10 @@ export const toggleRoma = (isShow: boolean) => {
   lrcTools.setLyric()
 }
 export const play = (time: number) => {
-  // console.log(time)
   lrcTools.isPlay = true
   lrcTools.lrc!.play(time)
 }
 export const pause = () => {
-  // console.log('pause')
   lrcTools.isPlay = false
   lrcTools.lrc!.pause()
 }

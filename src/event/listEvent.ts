@@ -195,7 +195,6 @@ export class ListEvent extends Event {
    */
   async list_music_remove(listId: string, ids: string[], isRemote: boolean = false) {
     const changedIds = await listMusicRemove(listId, ids)
-    // console.log(changedIds)
     await checkUpdateList(changedIds)
     this.emit('list_music_remove', listId, ids, isRemote)
   }

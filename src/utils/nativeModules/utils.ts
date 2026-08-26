@@ -17,7 +17,6 @@ export const screenkeepAwake = () => {
   UtilsModule.screenkeepAwake()
 }
 export const screenUnkeepAwake = () => {
-  // console.log('screenUnkeepAwake')
   if (!global.lx.isScreenKeepAwake) return
   global.lx.isScreenKeepAwake = false
   UtilsModule.screenUnkeepAwake()

@@ -12,7 +12,6 @@ const getListId = (id: string, source: LX.OnlineSource) => `${source}__${id}`
 export const handlePlay = async(id: string, source: Source, list?: LX.Music.MusicInfoOnline[], index = 0) => {
   const listId = getListId(id, source)
   let isPlayingList = false
-  // console.log(list)
   if (!list?.length) list = (await getListDetail(id, source, 1)).list
   if (list?.length) {
     await setTempList(listId, [...list])

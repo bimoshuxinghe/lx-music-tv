@@ -46,9 +46,7 @@ const Panel = ({
   const windowSize = useWindowSize()
   // const theme = useGetter('common', 'theme')
   // const fadeAnim = useRef(new Animated.Value(0)).current
-  // console.log(buttonPosition)
 
-  // console.log(dimensions)
   const style = useMemo(() => {
     const isBottom = buttonPosition.y > windowSize.height / 2
     let top: number
@@ -113,7 +111,6 @@ export default forwardRef<PanelType, PanelProps>(({ onHide, keyHide, bgHide, chi
     },
   }))
 
-  // console.log(visible)
   return (
     <Modal ref={modalRef} onHide={onHide} onStartShouldSetResponder={() => true} keyHide={keyHide} bgHide={bgHide}>
       <Panel buttonPosition={position} onHide={() => modalRef.current?.setVisible(false)}>

@@ -38,7 +38,6 @@ export const handleUpdateMusicPosition = (position: number, listId: SelectInfo['
     void updateListMusicPosition(listId, position, selectedList.map(s => s.id))
     onCancelSelect()
   } else {
-    // console.log(listId, position, [musicInfo.id])
     void updateListMusicPosition(listId, position, [musicInfo.id])
   }
 }

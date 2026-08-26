@@ -12,7 +12,6 @@ import { debounce } from '@/utils'
 export const ITEM_HEIGHT = scaleSizeH(36)
 
 export const debounceTipSearch = debounce((keyword: string, source: SearchState['temp_source'], callback: (list: string[]) => void) => {
-  // console.log(reslutList)
   void musicSdk[source].tipSearch.search(keyword).then(callback)
 }, 200)
 

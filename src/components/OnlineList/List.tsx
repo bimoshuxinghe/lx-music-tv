@@ -72,7 +72,6 @@ const List = forwardRef<ListType, ListProps>(({
   const isShowAlbumName = useSettingValue('list.isShowAlbumName')
   const isShowInterval = useSettingValue('list.isShowInterval')
   // const currentListIdRef = useRef('')
-  // console.log('render music list')
 
   useImperativeHandle(ref, () => ({
     setList(list, isAppend, showSource) {
@@ -160,7 +159,6 @@ const List = forwardRef<ListType, ListProps>(({
         if (settingState.setting['list.isClickPlayList'] && onPlayList != null) {
           onPlayList(index)
         } else {
-          // console.log(currentList[index])
           handlePlay(currentList[index])
         }
       }

@@ -3,16 +3,12 @@ import { updateOptions, setVolume, setPlaybackRate, migratePlayerCache } from '.
 
 // const listenEvent = () => {
 //   TrackPlayer.addEventListener('playback-error', err => {
-//     console.log('playback-error', err)
 //   })
 //   TrackPlayer.addEventListener('playback-state', info => {
-//     console.log('playback-state', info)
 //   })
 //   TrackPlayer.addEventListener('playback-track-changed', info => {
-//     console.log('playback-track-changed', info)
 //   })
 //   TrackPlayer.addEventListener('playback-queue-ended', info => {
-//     console.log('playback-queue-ended', info)
 //   })
 // }
 

@@ -50,7 +50,6 @@ export const usePageVisible = (visibleNames: COMPONENT_IDS[], onChange: (visible
     let visible = hasVisible(visibleNames, state.componentIds)
     const handlecheck = (ids: InitState['componentIds']) => {
       const res = hasVisible(visibleNames, ids)
-      // console.log(visible, res, res == visible)
       if (res == visible) return
       visible = res
       onChange(visible)

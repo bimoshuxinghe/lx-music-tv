@@ -8,7 +8,6 @@ import { handleFileMusicAction, handleFileJSAction, handleFileLXMCAction } from 
 
 
 const handleLinkAction = async(link: string) => {
-  // console.log(link)
   const [url, search] = link.split('?')
   const [type, action, ...paths] = url.replace('lxmusic://', '').split('/')
   const params: {
@@ -43,7 +42,6 @@ const handleLinkAction = async(link: string) => {
 
 const handleFileAction = async(link: string) => {
   const file = await stat(link)
-  // console.log(file)
   switch (extname(file.name)) {
     case 'json':
     case 'lxmc':

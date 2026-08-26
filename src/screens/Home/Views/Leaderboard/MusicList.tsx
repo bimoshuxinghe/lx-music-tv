@@ -73,7 +73,6 @@ export default forwardRef<MusicListType, {}>((props, ref) => {
 
   const handlePlayList: OnlineListProps['onPlayList'] = (index) => {
     const listDetailInfo = boardState.listDetailInfo
-    // console.log(boardState.listDetailInfo)
     void handlePlay(listDetailInfo.id, listDetailInfo.list, index)
   }
   const handleRefresh: OnlineListProps['onRefresh'] = () => {

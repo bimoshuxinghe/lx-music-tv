@@ -31,7 +31,6 @@ const Content = () => {
   }, [])
 
   const navigationView = () => <DrawerNav />
-  // console.log('render drawer content')
 
   return (
     <DrawerLayoutFixed

@@ -113,8 +113,6 @@ export const registerListActionEvent = (sendListAction: (action: LX.Sync.List.Ac
 }
 
 export const handleRemoteListAction = async({ action, data }: LX.Sync.List.ActionList) => {
-  // console.log('handleRemoteListAction', action)
-
   switch (action) {
     case 'list_data_overwrite':
       await global.list_event.list_data_overwrite(data, true)

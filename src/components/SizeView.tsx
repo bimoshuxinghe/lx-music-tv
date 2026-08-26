@@ -19,11 +19,9 @@ export default memo(() => {
   const sizeRef = useRef([0, 0])
   const dimensionsChangedRef = useRef(true)
   const handleLayout = useCallback(({ nativeEvent: { layout } }: LayoutChangeEvent | { nativeEvent: { layout: { width: number, height: number } } }) => {
-    // console.log('handleLayout')
     if (!dimensionsChangedRef.current) return
     void getWindowSize().then(size => {
       dimensionsChangedRef.current = false
-      // console.log(layout, size)
       sizeRef.current = [size.height, layout.height]
       const height = getStatusbarHeight(size.height, layout.height)
 
@@ -31,7 +29,6 @@ export default memo(() => {
         currentHeightRef.current = height
         setStatusbarHeight(height)
       }
-      // console.log(layout, size)
       const currentSize = windowSizeTools.getSize()
       if (currentSize.width != layout.width || currentSize.height != layout.height) {
         windowSizeTools.setWindowSize(layout.width, layout.height)

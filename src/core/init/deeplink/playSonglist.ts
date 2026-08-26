@@ -15,7 +15,6 @@ const getListPlayIndex = (list: LX.Music.MusicInfoOnline[], index?: number) => {
 }
 
 const playSongListDetail = async(source: LX.OnlineSource, link: string, playIndex?: number) => {
-  // console.log(source, link, playIndex)
   if (link == null) return
   let isPlayingList = false
   const id = decodeURIComponent(link)

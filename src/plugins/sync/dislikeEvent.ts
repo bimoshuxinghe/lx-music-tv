@@ -33,8 +33,6 @@ export const registerDislikeActionEvent = (sendDislikeAction: (action: LX.Sync.D
 }
 
 export const handleRemoteDislikeAction = async(event: LX.Sync.Dislike.ActionList) => {
-  // console.log('handleRemoteDislikeAction', event)
-
   switch (event.action) {
     case 'dislike_music_add':
       await global.dislike_event.dislike_music_add(event.data, true)

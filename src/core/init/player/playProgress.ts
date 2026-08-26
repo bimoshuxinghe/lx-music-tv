@@ -42,8 +42,6 @@ export default () => {
     setMaxplayTime(await getDuration())
 
     if (playerState.playMusicInfo.musicInfo && 'source' in playerState.playMusicInfo.musicInfo && !playerState.playMusicInfo.musicInfo.interval) {
-      // console.log(formatPlayTime2(playProgress.maxPlayTime))
-
       if (playerState.playMusicInfo.listId) {
         void updateListMusics([{
           id: playerState.playMusicInfo.listId,
@@ -72,7 +70,6 @@ export default () => {
 
   const setProgress = (time: number, maxTime?: number) => {
     if (!playerState.musicInfo.id) return
-    // console.log('setProgress', time, maxTime)
     setNowPlayTime(time)
     void setCurrentTime(time)
 
@@ -105,7 +102,6 @@ export default () => {
 
   const handleError = () => {
     // if (!restorePlayTime) restorePlayTime = getCurrentTime() // 记录出错的播放时间
-    // console.log('handleError')
     // prevProgressStatus = 'error'
     // handleSetTaskBarState(playProgress.progress, prevProgressStatus)
     clearUpdateTimeout()

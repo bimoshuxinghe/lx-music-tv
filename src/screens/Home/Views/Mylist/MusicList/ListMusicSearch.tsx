@@ -23,7 +23,6 @@ export interface ListMusicSearchType {
 }
 
 export const debounceSearchList = debounce((text: string, list: LX.List.ListMusics, callback: (list: LX.List.ListMusics) => void) => {
-  // console.log(reslutList)
   callback(searchListMusic(list, text))
 }, 200)
 

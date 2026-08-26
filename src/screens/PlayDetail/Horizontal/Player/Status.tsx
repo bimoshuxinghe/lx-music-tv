@@ -7,7 +7,6 @@ import Text from '@/components/common/Text'
 export default () => {
   // const { text } = useLrcPlay()
   const statusText = useStatusText()
-  // console.log('render status')
 
   // const status = playerStatus.isPlay ? text : playerStatus.statusText
 

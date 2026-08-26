@@ -21,7 +21,6 @@ const PADDING_TOP_PROGRESS = PADDING_TOP + MARGIN_TOP
 
 const PlayTimeCurrent = ({ timeStr }: { timeStr: string }) => {
   const theme = useTheme()
-  // console.log(timeStr)
   return <Text size={FONT_SIZE} color={theme['c-500']}>{timeStr}</Text>
 }
 

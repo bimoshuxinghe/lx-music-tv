@@ -59,7 +59,6 @@ const List = forwardRef<ListType, ListProps>(({ onShowMenu, onMuiltSelectMode, o
   const rowInfo = useRef(getRowInfo())
   const isShowAlbumName = useSettingValue('list.isShowAlbumName')
   const isShowInterval = useSettingValue('list.isShowInterval')
-  // console.log('render music list')
 
   useImperativeHandle(ref, () => ({
     setIsMultiSelectMode(isMultiSelectMode) {
@@ -221,9 +220,7 @@ const List = forwardRef<ListType, ListProps>(({ onShowMenu, onMuiltSelectMode, o
   }
 
   const handlePress = (item: LX.Music.MusicInfo, index: number) => {
-    // console.log(global.lx.homePagerIdle)
     requestAnimationFrame(() => {
-      // console.log(global.lx.homePagerIdle)
       if (!global.lx.homePagerIdle) return
       if (isMultiSelectModeRef.current) {
         handleSelect(item, index)

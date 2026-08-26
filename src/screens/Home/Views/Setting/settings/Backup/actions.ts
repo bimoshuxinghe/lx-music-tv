@@ -159,7 +159,6 @@ const importPlayList = async(path: string) => {
 }
 
 export const handleImportList = (path: string) => {
-  console.log(path)
   toast(global.i18n.t('setting_backup_part_import_list_tip_unzip'))
   void importPlayList(path).then((skipTip) => {
     if (skipTip) return

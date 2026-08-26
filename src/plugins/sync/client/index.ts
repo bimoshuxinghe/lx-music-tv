@@ -9,7 +9,6 @@ let connectId = 0
 
 const handleConnect = async(host: string, authCode?: string) => {
   // const hostInfo = await getSyncHost()
-  // console.log(hostInfo)
   // if (!hostInfo || !hostInfo.host || !hostInfo.port) throw new Error(SYNC_CODE.unknownServiceAddress)
   const id = connectId
   const urlInfo = parseUrl(host)

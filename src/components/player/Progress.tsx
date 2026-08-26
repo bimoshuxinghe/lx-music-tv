@@ -22,7 +22,6 @@ const DefaultBar = memo(() => {
 })
 
 const BufferedBar = memo(({ progress }: { progress: number }) => {
-  // console.log(bufferedProgress)
   const theme = useTheme()
   return <View style={{ ...styles.progressBar, backgroundColor: theme['c-primary-light-600-alpha-900'], position: 'absolute', width: `${progress * 100}%`, left: 0, top: 0 }}></View>
 })
@@ -52,7 +51,6 @@ const PreassBar = memo(({ onDragState, setDragProgress, onSetProgress }: {
         onDrag(gestureState.dx)
       },
       onPanResponderGrant: (evt, gestureState) => {
-        // console.log(evt.nativeEvent.locationX, gestureState)
         onDragStart(gestureState.dx, evt.nativeEvent.locationX)
       },
       onPanResponderRelease: () => {
@@ -76,7 +74,6 @@ export const ProgressPlain = ({ progress, duration, buffered, paddingTop }: {
 }) => {
   // const { progress } = usePlayTimeBuffer()
   const theme = useTheme()
-  // console.log(progress)
   const progressStr: `${number}%` = `${progress * 100}%`
 
   const durationRef = useRef(duration)
@@ -107,7 +104,6 @@ const Progress = ({ progress, duration, buffered, paddingTop }: {
   const [draging, setDraging] = useState(false)
   const [dragProgress, setDragProgress] = useState(0)
   const [isFocused, setIsFocused] = useState(false)
-  // console.log(progress)
   const progressStr: `${number}%` = `${progress * 100}%`
 
   const durationRef = useRef(duration)

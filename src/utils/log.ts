@@ -12,7 +12,6 @@ const logTools = {
   async initLogFile() {
     try {
       let isExists = await existsFile(logPath)
-      // console.log(isExists)
       if (!isExists) await writeFile(logPath, '')
       if (this.tempLog?.length) this.writeLog(this.tempLog.map(m => `${m.time} ${m.type} ${m.text}`).join('\n----lx log----\n'))
       this.tempLog = null
@@ -45,7 +44,6 @@ export const log = {
     } else logTools.writeLog(`${time} LOG ${msg}`)
   },
   warn(...msgs: any[]) {
-    // console.warn(...msgs)
     const msg = msgs.map(m => typeof m == 'string' ? m : m instanceof Error ? m.stack ?? m.message : JSON.stringify(m)).join(' ')
     const time = new Date().toLocaleString()
     if (logTools.tempLog) {

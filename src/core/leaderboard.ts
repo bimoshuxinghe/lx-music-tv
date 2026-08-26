@@ -106,7 +106,6 @@ const getListLimit = async(source: LX.OnlineSource, bangId: string, page: number
  * @returns
  */
 export const getListDetail = async(id: string, page: number, isRefresh = false): Promise<ListDetailInfo> => {
-  // console.log(tabId)
   const [source, bangId] = id.split('__') as [LX.OnlineSource, string]
   const listKey = `${source}__${bangId}`
   const pageKey = `${source}__${bangId}__${page}`
@@ -130,7 +129,6 @@ export const getListDetail = async(id: string, page: number, isRefresh = false):
  */
 export const getListDetailAll = async(id: string, isRefresh = false): Promise<LX.Music.MusicInfoOnline[]> => {
   const [source, bangId] = id.split('__') as [LX.OnlineSource, string]
-  // console.log(tabId)
   const listKey = `${source}__${bangId}`
   let listCache = cache.get(listKey)!
   if (!listCache || isRefresh) {
@@ -177,7 +175,6 @@ export const getListDetailAll = async(id: string, isRefresh = false): Promise<LX
 //     setListDetail(result, id, page)
 //   }).catch((error: any) => {
 //     clearListDetail()
-//     console.log(error)
 //     throw error
 //   })
 // }

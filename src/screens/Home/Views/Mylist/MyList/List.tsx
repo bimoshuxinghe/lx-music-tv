@@ -1,6 +1,6 @@
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 import { memo, useEffect, useRef } from 'react'
-import {View, FlatList, type NativeScrollEvent, type NativeSyntheticEvent, type FlatListProps} from 'react-native'
+import { View, FlatList, type NativeScrollEvent, type NativeSyntheticEvent, type FlatListProps } from 'react-native'
 
 import { Icon } from '@/components/common/Icon'
 
@@ -35,7 +35,6 @@ const ListItem = memo(({ item, index, activeId, onPress, onShowMenu }: {
   const handleShowMenu = () => {
     if (moreButtonRef.current?.measure) {
       moreButtonRef.current.measure((fx: number, fy: number, width: number, height: number, px: number, py: number) => {
-        // console.log(fx, fy, width, height, px, py)
         onShowMenu(item, index, { x: Math.ceil(px), y: Math.ceil(py), w: Math.ceil(width), h: Math.ceil(height) })
       })
     }
