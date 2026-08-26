@@ -73,7 +73,6 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
   // 全屏歌词：逐字歌词保持原字号，其他歌词（普通歌词、翻译）放大
   const wordSize = lrcFontSize / 10
   const normalSize = (lrcFontSize / 10) * (fullScreen ? 1.6 : 1)
-  const wordLineHeight = setSpText(wordSize) * (fullScreen ? 1.5 : 1.3)
   const normalLineHeight = setSpText(normalSize) * (fullScreen ? 1.5 : 1.3)
 
   const isActiveLine = activeLine == lineNum
