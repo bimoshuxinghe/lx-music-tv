@@ -80,7 +80,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
   // 全屏歌词：逐字歌词保持原字号，其他歌词（普通歌词、翻译）放大
   const fsScale = fullScreen ? 1.6 : 1
   const activeScale = fullScreen ? 1.6 : ACTIVE_FONT_SCALE
-  const inactiveScale = fullScreen ? 0.8 : INACTIVE_FONT_SCALE
+  const inactiveScale = fullScreen ? 1.5 : INACTIVE_FONT_SCALE
   const baseSize = (lrcFontSize / 10) * fsScale
 
   const isActiveLine = activeLine == lineNum
