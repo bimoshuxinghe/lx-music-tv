@@ -392,19 +392,7 @@ public class MainActivity extends NavigationActivity {
             return true;
         }
         // KTV 全屏播放：上下/OK/Enter/菜单键转发 JS（暂停播放、上下曲、呼出歌曲菜单），不参与系统焦点导航
-        // 注意：D-pad 左右键需要优先检查是否有 Slider 获得焦点（设置弹窗内），有则处理 Slider 步进
         if (fullscreenKeyCapture && isFullscreenCaptureKey(keyCode)) {
-            // 先检查当前焦点是否在可调控件（Slider）上
-            if (isAdjustableDpadKey(keyCode)) {
-                View currentFocus = getCurrentFocus();
-                if (currentFocus != null) {
-                    String adjustableId = findAdjustableNativeId(currentFocus);
-                    if (adjustableId != null) {
-                        sendKeyToJS(keyCode, event, false, adjustableId);
-                        return true;
-                    }
-                }
-            }
             sendKeyToJS(keyCode, event);
             return true;
         }
