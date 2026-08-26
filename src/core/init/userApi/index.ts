@@ -6,7 +6,7 @@ import { updateSetting } from '@/core/common'
 import BackgroundTimer from 'react-native-background-timer'
 import { fetchData } from './request'
 import { getUserApiList } from '@/utils/data'
-import { confirmDialog, openUrl, tipDialog } from '@/utils/tools'
+import { openUrl, tipDialog } from '@/utils/tools'
 import RNFS from 'react-native-fs'
 
 
@@ -194,18 +194,9 @@ export default async(setting: LX.AppSetting) => {
   }
   const showUpdateAlert = ({ name, log, updateUrl }: UpdateInfoParams) => {
     if (updateUrl) {
-      void confirmDialog({
-        message: `${global.i18n.t('user_api_update_alert', { name })}\n${log}`,
-        // selection: true,
-        // showCancel: true,
-        confirmButtonText: global.i18n.t('user_api_update_alert_open_url'),
-        cancelButtonText: global.i18n.t('close'),
-      }).then(confirm => {
-        if (!confirm) return
-        setTimeout(() => {
-          void openUrl(updateUrl)
-        }, 300)
-      })
+      setTimeout(() => {
+        void openUrl(updateUrl)
+      }, 300)
     } else {
       void tipDialog({
         message: `${global.i18n.t('user_api_update_alert', { name })}\n${log}`,

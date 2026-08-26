@@ -4,7 +4,7 @@ import { getListDetail, getListDetailAll } from '@/core/songlist'
 import { LIST_IDS } from '@/config/constant'
 import listState from '@/store/list/state'
 import syncSourceList from '@/core/syncSourceList'
-import { confirmDialog, toMD5, toast } from '@/utils/tools'
+import { toMD5, toast } from '@/utils/tools'
 import { type Source } from '@/store/songlist/state'
 
 const getListId = (id: string, source: LX.OnlineSource) => `${source}__${id}`
@@ -36,12 +36,6 @@ export const handleCollect = async(id: string, source: Source, name: string) => 
 
   const targetList = listState.userList.find(l => l.sourceListId == listId)
   if (targetList) {
-    const confirm = await confirmDialog({
-      message: global.i18n.t('duplicate_list_tip', { name: targetList.name }),
-      cancelButtonText: global.i18n.t('list_import_part_button_cancel'),
-      confirmButtonText: global.i18n.t('confirm_button_text'),
-    })
-    if (!confirm) return
     void syncSourceList(targetList)
     return
   }

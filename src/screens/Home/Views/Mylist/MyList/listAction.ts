@@ -1,5 +1,5 @@
 import { addListMusics, getListMusics, removeListMusics, removeUserList, setFetchingListStatus, updateListMusics } from '@/core/list'
-import { confirmDialog, handleReadFile, handleSaveFile, showImportTip, toast } from '@/utils/tools'
+import { handleReadFile, handleSaveFile, showImportTip, toast } from '@/utils/tools'
 import syncSourceList from '@/core/syncSourceList'
 import { log } from '@/utils/log'
 import { filterFileName, filterMusicList, formatPlayTime2, toNewMusicInfo } from '@/utils'
@@ -10,13 +10,7 @@ import BackgroundTimer from 'react-native-background-timer'
 import { type FileType } from '@/utils/fs'
 
 export const handleRemove = (listInfo: LX.List.UserListInfo) => {
-  void confirmDialog({
-    message: global.i18n.t('list_remove_tip', { name: listInfo.name }),
-    confirmButtonText: global.i18n.t('list_remove_tip_button'),
-  }).then(isRemove => {
-    if (!isRemove) return
-    void removeUserList([listInfo.id])
-  })
+  void removeUserList([listInfo.id])
 }
 
 const readListData = async(path: string) => {
@@ -79,16 +73,10 @@ export const handleExport = (listInfo: LX.List.MyListInfo, path: string) => {
 }
 
 export const handleSync = (listInfo: LX.List.UserListInfo) => {
-  void confirmDialog({
-    message: global.i18n.t('list_sync_confirm_tip', { name: listInfo.name }),
-    confirmButtonText: global.i18n.t('list_remove_tip_button'),
-  }).then(isSync => {
-    if (!isSync) return
-    void syncSourceList(listInfo).then(() => {
-      toast(global.i18n.t('list_update_success', { name: listInfo.name }))
-    }).catch(() => {
-      toast(global.i18n.t('list_update_error', { name: listInfo.name }))
-    })
+  void syncSourceList(listInfo).then(() => {
+    toast(global.i18n.t('list_update_success', { name: listInfo.name }))
+  }).catch(() => {
+    toast(global.i18n.t('list_update_error', { name: listInfo.name }))
   })
 }
 

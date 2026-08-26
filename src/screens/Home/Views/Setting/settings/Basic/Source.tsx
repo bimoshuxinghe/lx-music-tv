@@ -4,18 +4,17 @@ import { View } from 'react-native'
 
 import SubTitle from '../../components/SubTitle'
 import CheckBox from '@/components/common/CheckBox'
-import { createStyle, tipDialog, confirmDialog } from '@/utils/tools'
+import { createStyle, tipDialog } from '@/utils/tools'
 import { setApiSource } from '@/core/apiSource'
 import { useI18n } from '@/lang'
 import apiSourceInfo from '@/utils/musicSdk/api-source-info'
 import { useSettingValue } from '@/store/setting/hook'
-import { useStatus, useUserApiList } from '@/store/userApi'
+import { useStatus, useUserApiList, state } from '@/store/userApi'
 import Button from '@/components/common/Button'
 import ScriptImportExport, { type ScriptImportExportType } from './UserApiEditModal/ScriptImportExport'
 import ScriptImportOnline, { type ScriptImportOnlineType } from './UserApiEditModal/ScriptImportOnline'
 import Text from '@/components/common/Text'
 import { useTheme } from '@/store/theme/hook'
-import { state } from '@/store/userApi'
 import { removeUserApi } from '@/core/userApi'
 import { IconMaterial } from '@/components/common/Icon'
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
@@ -46,10 +45,10 @@ const Item = ({ id, name, desc, statusLabel, change, onDelete }: {
   return (
     <CheckBox marginBottom={5} check={isActive} onChange={() => { change(id) }} need rightComponent={onDelete
       ? (
-        <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(id)}>
+        <TouchableOpacity style={styles.deleteBtn} onPress={() => { onDelete(id) }}>
           <IconMaterial name="delete" size={17} color={theme['c-600']} />
         </TouchableOpacity>
-      )
+        )
       : undefined}>
       <Text style={styles.sourceLabel}>
         {name}
@@ -128,21 +127,13 @@ export default memo(() => {
   }
 
   const handleRemoveUserApi = useCallback(async(id: string) => {
-    const api = userApiListRaw.find(item => item.id == id)
-    const confirm = await confirmDialog({
-      message: t('user_api_remove_tip', { name: api?.name ?? '' }),
-      cancelButtonText: t('cancel_button_text_2'),
-      confirmButtonText: t('confirm_button_text'),
-      bgClose: false,
-    })
-    if (!confirm) return
     await removeUserApi([id])
     if (id == apiSourceSetting) {
       let backApiId = apiSourceList.find(api => !api.disabled)?.id
       if (!backApiId) backApiId = state.list.find(item => item.id != id)?.id
       setApiSourceId(backApiId ?? '')
     }
-  }, [apiSourceSetting, setApiSourceId, t, userApiListRaw])
+  }, [apiSourceSetting, setApiSourceId])
 
   return (
     <SubTitle title={t('setting_basic_source')}>

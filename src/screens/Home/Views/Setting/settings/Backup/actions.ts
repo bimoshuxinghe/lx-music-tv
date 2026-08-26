@@ -2,7 +2,7 @@ import { LIST_IDS } from '@/config/constant'
 import { createList, getListMusics, overwriteList, overwriteListFull, overwriteListMusics } from '@/core/list'
 import { filterMusicList, fixNewMusicInfoQuality, toNewMusicInfo } from '@/utils'
 import { log } from '@/utils/log'
-import { confirmDialog, handleReadFile, handleSaveFile, showImportTip, toast } from '@/utils/tools'
+import { handleReadFile, handleSaveFile, showImportTip, toast } from '@/utils/tools'
 import listState from '@/store/list/state'
 
 
@@ -79,23 +79,14 @@ const importNewListData = async(lists: Array<LX.List.MyDefaultListInfoFull | LX.
 export const handleImportListPart = async(listData: LX.ConfigFile.MyListInfoPart['data'], position: number = listState.userList.length) => {
   const targetList = listState.allList.find(l => l.id === listData.id)
   if (targetList) {
-    const confirm = await confirmDialog({
-      message: global.i18n.t('list_import_part_confirm', { importName: listData.name, localName: targetList.name }),
-      cancelButtonText: global.i18n.t('list_import_part_button_cancel'),
-      confirmButtonText: global.i18n.t('list_import_part_button_confirm'),
-      bgClose: false,
+    listData.name = targetList.name
+    void overwriteList(listData).then(() => {
+      toast(global.i18n.t('setting_backup_part_import_list_tip_success'))
+    }).catch((err) => {
+      log.error(err)
+      toast(global.i18n.t('setting_backup_part_import_list_tip_error'))
     })
-    if (confirm) {
-      listData.name = targetList.name
-      void overwriteList(listData).then(() => {
-        toast(global.i18n.t('setting_backup_part_import_list_tip_success'))
-      }).catch((err) => {
-        log.error(err)
-        toast(global.i18n.t('setting_backup_part_import_list_tip_error'))
-      })
-      return
-    }
-    listData.id += `__${Date.now()}`
+    return
   }
   const userList = listData as LX.List.UserListInfoFull
   void createList({
@@ -114,12 +105,7 @@ export const handleImportListPart = async(listData: LX.ConfigFile.MyListInfoPart
 }
 
 const showConfirm = async() => {
-  return confirmDialog({
-    message: global.i18n.t('list_import_part_confirm_tip'),
-    cancelButtonText: global.i18n.t('dialog_cancel'),
-    confirmButtonText: global.i18n.t('confirm_button_text'),
-    bgClose: false,
-  })
+  return true
 }
 const importPlayList = async(path: string) => {
   let configData: any

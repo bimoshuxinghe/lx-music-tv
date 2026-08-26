@@ -4,7 +4,7 @@ import { playList, playNext } from '@/core/player/player'
 import { addTempPlayList } from '@/core/player/tempPlayList'
 import settingState from '@/store/setting/state'
 import { getListMusicSync } from '@/utils/listManage'
-import { confirmDialog, openUrl, shareMusic, toast } from '@/utils/tools'
+import { openUrl, shareMusic, toast } from '@/utils/tools'
 import { addDislikeInfo, hasDislike } from '@/core/dislikeList'
 import playerState from '@/store/player/state'
 import musicSdk from '@/utils/musicSdk'
@@ -39,13 +39,6 @@ export const handleShowMusicSourceDetail = async(minfo: LX.Music.MusicInfoOnline
 
 
 export const handleDislikeMusic = async(musicInfo: LX.Music.MusicInfoOnline) => {
-  const confirm = await confirmDialog({
-    message: musicInfo.singer ? global.i18n.t('lists_dislike_music_singer_tip', { name: musicInfo.name, singer: musicInfo.singer }) : global.i18n.t('lists_dislike_music_tip', { name: musicInfo.name }),
-    cancelButtonText: global.i18n.t('cancel_button_text_2'),
-    confirmButtonText: global.i18n.t('confirm_button_text'),
-    bgClose: false,
-  })
-  if (!confirm) return
   await addDislikeInfo([{ name: musicInfo.name, singer: musicInfo.singer }])
   toast(global.i18n.t('lists_dislike_music_add_tip'))
   if (hasDislike(playerState.playMusicInfo.musicInfo)) {

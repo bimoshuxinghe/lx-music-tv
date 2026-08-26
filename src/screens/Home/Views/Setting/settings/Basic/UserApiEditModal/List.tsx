@@ -1,8 +1,8 @@
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 import { useCallback } from 'react'
 import Text from '@/components/common/Text'
-import {View, ScrollView} from 'react-native'
-import { confirmDialog, createStyle } from '@/utils/tools'
+import { View, ScrollView } from 'react-native'
+import { createStyle } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
 import { useI18n } from '@/lang'
 import { useUserApiList, state as userApiState } from '@/store/userApi'
@@ -80,13 +80,6 @@ export default () => {
   const t = useI18n()
 
   const handleRemove = useCallback(async(id: string, name: string) => {
-    const confirm = await confirmDialog({
-      message: global.i18n.t('user_api_remove_tip', { name }),
-      cancelButtonText: global.i18n.t('cancel_button_text_2'),
-      confirmButtonText: global.i18n.t('confirm_button_text'),
-      bgClose: false,
-    })
-    if (!confirm) return
     void removeUserApi([id]).finally(() => {
       if (settingState.setting['common.apiSource'] == id) {
         let backApiId = apiSourceInfo.find(api => !api.disabled)?.id

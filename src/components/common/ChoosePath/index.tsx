@@ -5,7 +5,7 @@ import { useState, useRef, forwardRef, useImperativeHandle } from 'react'
 import List, { type ListType } from './List'
 
 import ConfirmAlert, { type ConfirmAlertType } from '@/components/common/ConfirmAlert'
-import { toast, TEMP_FILE_PATH, checkStoragePermissions, requestStoragePermission, confirmDialog } from '@/utils/tools'
+import { toast, TEMP_FILE_PATH, checkStoragePermissions, requestStoragePermission } from '@/utils/tools'
 import { useI18n } from '@/lang'
 import { selectFile, unlink } from '@/utils/fs'
 import { useUnmounted } from '@/utils/hooks'
@@ -77,17 +77,8 @@ export default forwardRef<ChoosePathType, ChoosePathProps>(({
         }).catch(err => {
           if (isUnmounted.current) return
           log.warn('open document failed: ' + err.message)
-          void confirmDialog({
-            message: t('storage_file_no_select_file_failed_tip'),
-            bgClose: false,
-          }).then((confirm) => {
-            if (!confirm) {
-              toast(t('disagree_tip'), 'long')
-              return
-            }
-            updateSetting({ 'common.useSystemFileSelector': false })
-            void handleOpenExternalStorage(options)
-          })
+          updateSetting({ 'common.useSystemFileSelector': false })
+          void handleOpenExternalStorage(options)
         })
       }
     },

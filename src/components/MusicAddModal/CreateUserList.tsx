@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { View } from 'react-native'
 import Input, { type InputType } from '@/components/common/Input'
-import { confirmDialog, createStyle } from '@/utils/tools'
+import { createStyle } from '@/utils/tools'
 import { useI18n } from '@/lang'
 import { createUserList } from '@/core/list'
 import listState from '@/store/list/state'
@@ -26,9 +26,7 @@ export default ({ isEdit, onHide }: {
   const handleSubmitEditing = async() => {
     onHide()
     const name = text.trim()
-    if (!name.length || (listState.userList.some(l => l.name == name) && !(await confirmDialog({
-      message: global.i18n.t('list_duplicate_tip'),
-    })))) return
+    if (!name.length) return
     void createUserList(listState.userList.length, [{ id: `userlist_${Date.now()}`, name, locationUpdateTime: null }])
   }
 

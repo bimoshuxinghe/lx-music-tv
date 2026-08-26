@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native'
 
 import SubTitle from '../../components/SubTitle'
 import Button from '../../components/Button'
-import { toast, resetNotificationPermissionCheck, confirmDialog, resetIgnoringBatteryOptimizationCheck } from '@/utils/tools'
+import { toast, resetNotificationPermissionCheck, resetIgnoringBatteryOptimizationCheck } from '@/utils/tools'
 import { getAppCacheSize, clearAppCache } from '@/utils/nativeModules/cache'
 import { getCacheSize, clearCache } from '@/plugins/player/utils'
 import { sizeFormate } from '@/utils'
@@ -30,24 +30,18 @@ export default memo(() => {
 
   const handleCleanCache = () => {
     if (cacheSize == null) return
-    void confirmDialog({
-      message: t('confirm_tip'),
-      confirmButtonText: t('list_remove_tip_button'),
-    }).then(confirm => {
-      if (!confirm) return
-      setCleaning(true)
-      void Promise.all([
-        clearAppCache(),
-        clearCache(),
-        clearMusicUrl(),
-        resetNotificationPermissionCheck(),
-        resetIgnoringBatteryOptimizationCheck(),
-      ]).then(() => {
-        toast(t('setting_other_cache_clear_success_tip'))
-      }).finally(() => {
-        handleGetAppCacheSize()
-        setCleaning(false)
-      })
+    setCleaning(true)
+    void Promise.all([
+      clearAppCache(),
+      clearCache(),
+      clearMusicUrl(),
+      resetNotificationPermissionCheck(),
+      resetIgnoringBatteryOptimizationCheck(),
+    ]).then(() => {
+      toast(t('setting_other_cache_clear_success_tip'))
+    }).finally(() => {
+      handleGetAppCacheSize()
+      setCleaning(false)
     })
   }
 
