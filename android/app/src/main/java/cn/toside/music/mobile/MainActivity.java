@@ -61,6 +61,32 @@ public class MainActivity extends NavigationActivity {
         return fullscreenKeyCapture;
     }
 
+    /** 用户选择的焦点框边框颜色（默认粉红） */
+    private static int focusBorderColor = 0xFFFF69B4;
+
+    /**
+     * 动态设置焦点框颜色，由 JS 侧通过 UtilsModule 调用
+     * @param colorStr 十六进制颜色字符串，如 "#FF69B4" 或 "#FFFFFF"，空字符串则重置为粉红
+     */
+    public static void setFocusBorderColor(String colorStr) {
+        if (colorStr == null || colorStr.isEmpty()) {
+            focusBorderColor = 0xFFFF69B4;
+        } else {
+            try {
+                String hex = colorStr.startsWith("#") ? colorStr.substring(1) : colorStr;
+                focusBorderColor = android.graphics.Color.parseColor("#" + hex);
+            } catch (NumberFormatException e) {
+                focusBorderColor = 0xFFFF69B4;
+            }
+        }
+        // 应用新颜色到所有已设置焦点的 View
+        applyFocusSelectorToTree(contentRootView);
+    }
+
+    public static int getFocusBorderColor() {
+        return focusBorderColor;
+    }
+
     /** Overlay 根容器 nativeID（JS 侧 Overlay.tsx 设置），用于弹窗焦点守门 */
     private static final String TV_OVERLAY_ROOT_ID = "tv_overlay_root";
     /** Overlay 遮罩层 nativeID（JS 侧 Overlay.tsx 设置），用于弹窗焦点守门 */
@@ -263,6 +289,48 @@ public class MainActivity extends NavigationActivity {
     }
 
     /**
+     * 创建带用户自定义颜色的焦点选择器实例
+     * 当颜色与默认白色不同时，通过 ShapeDrawable 动态生成
+     */
+    private Drawable createCustomFocusSelectorInstance() {
+        try {
+            android.graphics.drawable.GradientDrawable focusedShape = new android.graphics.drawable.GradientDrawable();
+            focusedShape.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            focusedShape.setCornerRadius(6f);
+            focusedShape.setColor(0x26FFFFFF); // 半透明白色填充
+            focusedShape.setStroke(3, focusBorderColor); // 用户自定义边框色
+
+            android.graphics.drawable.GradientDrawable pressedShape = new android.graphics.drawable.GradientDrawable();
+            pressedShape.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            pressedShape.setCornerRadius(6f);
+            pressedShape.setColor(0x44FFFFFF); // 按压时半透明白色填充
+
+            android.content.res.ColorStateList colorStateList = new android.content.res.ColorStateList(
+                new int[][] {
+                    new int[] { android.R.attr.state_focused },
+                    new int[] { android.R.attr.state_pressed },
+                    new int[] {}
+                },
+                new int[] {
+                    focusedShape,
+                    pressedShape,
+                    android.graphics.Color.TRANSPARENT
+                }
+            );
+
+            // 使用 StateListDrawable 组合
+            android.graphics.drawable.StateListDrawable sld = new android.graphics.drawable.StateListDrawable();
+            sld.addState(new int[] { android.R.attr.state_focused }, focusedShape);
+            sld.addState(new int[] { android.R.attr.state_pressed }, pressedShape);
+            sld.addState(new int[] {}, new android.graphics.drawable.GradientDrawable());
+
+            return sld.mutate();
+        } catch (Throwable t) {
+            return createFocusSelectorInstance();
+        }
+    }
+
+    /**
      * 给单个 View 设置焦点前景选择器
      * 对所有可点击或已可聚焦的 View 应用焦点高亮前景
      */
@@ -284,7 +352,13 @@ public class MainActivity extends NavigationActivity {
                 view.setFocusable(true);
                 view.setFocusableInTouchMode(false);
             }
-            view.setForeground(createFocusSelectorInstance());
+            // 如果用户自定义了焦点颜色，使用自定义 drawable；否则使用默认
+            Drawable selector = (focusBorderColor != 0xFFFFFFFF)
+                    ? createCustomFocusSelectorInstance()
+                    : createFocusSelectorInstance();
+            if (selector != null) {
+                view.setForeground(selector);
+            }
             if (focusAppliedTagId != 0) view.setTag(focusAppliedTagId, true);
             view.setClipToOutline(false);
         } catch (Throwable t) {

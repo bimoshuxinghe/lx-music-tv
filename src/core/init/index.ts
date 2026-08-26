@@ -15,6 +15,7 @@ import settingState from '@/store/setting/state'
 import { checkUpdate } from '@/core/version'
 import { bootLog } from '@/utils/bootLog'
 import { cheatTip } from '@/utils/tools'
+import { setFocusBorderColor } from '@/utils/nativeModules/utils'
 
 let isFirstPush = true
 const handlePushedHomeScreen = async() => {
@@ -44,6 +45,11 @@ export default async() => {
   bootLog('Theme inited.')
   await initI18n(setting)
   bootLog('I18n inited.')
+
+  // 应用用户自定义焦点框颜色
+  const focusBorderColor = settingState.setting['theme.focusBorderColor']
+  if (focusBorderColor) setFocusBorderColor(focusBorderColor)
+  bootLog('Focus border color applied.')
 
   await initUserApi(setting)
   bootLog('User Api inited.')

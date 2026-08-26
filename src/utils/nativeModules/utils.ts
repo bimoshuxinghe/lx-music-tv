@@ -113,3 +113,7 @@ export const requestIgnoreBatteryOptimization = async() => new Promise<boolean>(
     resolve(false)
   })
 })
+
+export const setFocusBorderColor = (color: string) => {
+  UtilsModule.setFocusBorderColor(color)
+}

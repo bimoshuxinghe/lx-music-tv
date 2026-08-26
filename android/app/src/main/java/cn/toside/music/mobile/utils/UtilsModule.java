@@ -195,6 +195,15 @@ public class UtilsModule extends ReactContextBaseJavaModule {
    }
 
    /**
+    * 动态设置 TV 遥控器焦点框边框颜色
+    * @param colorStr 十六进制颜色字符串，如 "#FF69B4"，空字符串使用默认粉红
+    */
+   @ReactMethod
+   public void setFocusBorderColor(String colorStr) {
+     cn.toside.music.mobile.MainActivity.setFocusBorderColor(colorStr);
+   }
+
+   /**
     * 启动原生KTV界面（绕过RN性能瓶颈）
     */
    @ReactMethod

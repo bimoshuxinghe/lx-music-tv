@@ -571,5 +571,15 @@
   "setting_basic_theme_apply_wallpaper_success": "桌布已套用",
   "setting_basic_theme_wallpaper_mask": "桌布遮罩不透明度",
   "setting_basic_theme_wallpaper_mask_tip": "遮罩為黑色，數值越大桌布越暗、文字越清晰",
-  "ai_search_not_found": "找不到「{name}」的歌曲"
+  "ai_search_not_found": "找不到「{name}」的歌曲",
+  "setting_theme_focus_border_color": "焦點框顏色",
+  "setting_theme_focus_border_color_pink": "粉紅色",
+  "setting_theme_focus_border_color_white": "白色",
+  "setting_theme_focus_border_color_black": "黑色",
+  "setting_theme_focus_border_color_red": "紅色",
+  "setting_theme_focus_border_color_orange": "橘色",
+  "setting_theme_focus_border_color_yellow": "黃色",
+  "setting_theme_focus_border_color_green": "綠色",
+  "setting_theme_focus_border_color_cyan": "青色",
+  "setting_theme_focus_border_color_blue": "藍色"
 }

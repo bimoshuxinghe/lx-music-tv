@@ -67,6 +67,7 @@ const defaultSetting: LX.AppSetting = {
   'theme.customBgImage': '',
   'theme.wallpaperMask': 0,
   'theme.fontColor': '',
+  'theme.focusBorderColor': '#FF69B4',
 }
 
 export default defaultSetting

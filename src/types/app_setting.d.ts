@@ -122,6 +122,11 @@ declare global {
       'theme.fontColor': string
 
       /**
+       * 用户选择的遥控器焦点框颜色（十六进制颜色值，如 #FF69B4，空字符串表示使用默认）
+       */
+      'theme.focusBorderColor': string
+
+      /**
        * 启动时自动播放歌曲
        */
       'player.startupAutoPlay': boolean
