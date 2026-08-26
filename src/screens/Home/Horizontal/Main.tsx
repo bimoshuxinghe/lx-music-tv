@@ -6,7 +6,6 @@ import Leaderboard from '../Views/Leaderboard'
 import Setting from '../Views/Setting'
 import Ktv from '../Views/Ktv'
 import commonState, { type InitState as CommonState } from '@/store/common/state'
-import { toast } from '@/utils/tools'
 
 
 const Main = () => {
@@ -14,7 +13,6 @@ const Main = () => {
 
   useEffect(() => {
     const handleUpdate = (id: CommonState['navActiveId']) => {
-      toast(`PAGE ${id}`)
       requestAnimationFrame(() => {
         setId(id)
       })

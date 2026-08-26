@@ -1,11 +1,10 @@
 import { forwardRef, useImperativeHandle, useState } from 'react'
 import { View, ScrollView } from 'react-native'
 
-import { createStyle, toast } from '@/utils/tools'
+import { createStyle } from '@/utils/tools'
 import { type Position } from './ListMenu'
 import ListItem, { type ListItemProps } from './ListItem'
 import { type BoardItem } from '@/store/leaderboard/state'
-import Text from '@/components/common/Text'
 
 export interface ListProps {
   onBoundChange: (listId: string) => void
@@ -23,7 +22,6 @@ export default forwardRef<ListType, ListProps>(({ onBoundChange, onShowMenu }, r
 
   useImperativeHandle(ref, () => ({
     setList(list, activeId) {
-      toast(`LIST_SET n=${list.length} active=${activeId}`)
       setList(list)
       setActiveId(activeId)
     },
@@ -43,28 +41,25 @@ export default forwardRef<ListType, ListProps>(({ onBoundChange, onShowMenu }, r
   }
 
   return (
-    <>
-      <Text style={styles.debugText}>{`LIST_RENDER n=${list.length} active=${activeId}`}</Text>
-      <ScrollView style={styles.scrollView} keyboardShouldPersistTaps={'always'}>
-        <View>
-          {
-            list.map((item, index) => {
-              return (
-                <ListItem
-                  key={item.id}
-                  item={item}
-                  index={index}
-                  longPressIndex={longPressIndex}
-                  activeId={activeId}
-                  onShowMenu={handleShowMenu}
-                  onBoundChange={handleBoundChange}
-                />
-              )
-            })
-          }
-        </View>
-      </ScrollView>
-    </>
+    <ScrollView style={styles.scrollView} keyboardShouldPersistTaps={'always'}>
+      <View>
+        {
+          list.map((item, index) => {
+            return (
+              <ListItem
+                key={item.id}
+                item={item}
+                index={index}
+                longPressIndex={longPressIndex}
+                activeId={activeId}
+                onShowMenu={handleShowMenu}
+                onBoundChange={handleBoundChange}
+              />
+            )
+          })
+        }
+      </View>
+    </ScrollView>
   )
 })
 
@@ -73,10 +68,6 @@ const styles = createStyle({
   scrollView: {
     flexShrink: 1,
     flexGrow: 1,
-  },
-  debugText: {
-    backgroundColor: '#333333',
-    color: '#ff5555',
   },
 })
 

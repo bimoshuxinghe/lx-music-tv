@@ -60,8 +60,9 @@ export default ({ item, activeId, index, longPressIndex, onBoundChange, onShowMe
 
 const styles = createStyle({
   item: {
+    height: 40,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
   button: {
     flex: 1,
@@ -69,8 +70,6 @@ const styles = createStyle({
     flexShrink: 1,
     paddingLeft: 5,
     paddingRight: 10,
-    paddingTop: 10,
-    paddingBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -81,13 +80,11 @@ const styles = createStyle({
     textAlign: 'center',
   },
   listName: {
-    height: '100%',
     justifyContent: 'center',
     paddingLeft: 6,
     // backgroundColor: 'rgba(0,0,0,0.1)',
   },
   moreButton: {
-    height: '80%',
     paddingLeft: 16,
     paddingRight: 16,
     justifyContent: 'center',
