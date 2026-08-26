@@ -70,7 +70,7 @@ interface LineProps {
   onLayout: (lineNum: number, height: number, width: number) => void
 }
 const ACTIVE_FONT_SCALE = 1.4
-const INACTIVE_FONT_SCALE = 0.55
+const INACTIVE_FONT_SCALE = 1
 const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, onLayout }: LineProps) => {
   const theme = useTheme()
   const lrcFontSize = useSettingValue('playDetail.horizontal.style.lrcFontSize')
