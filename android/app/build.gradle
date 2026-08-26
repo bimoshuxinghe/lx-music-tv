@@ -190,7 +190,7 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-    // # implementation("com.facebook.react:flipper-integration")  // 已移除以减小APK体积  // 已移除以减小APK体积
+    //     // implementation("com.facebook.react:flipper-integration")  // 已移除以减小APK体积
     // implementation "androidx.javascriptengine:javascriptengine:1.0.0-alpha07"
     // implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation 'wang.harlon.quickjs:wrapper-android:2.4.0'
