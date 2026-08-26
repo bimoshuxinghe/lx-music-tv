@@ -124,7 +124,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
       {isActiveLine && words?.length ? (
         <View style={[styles.wordLine, { justifyContent: wordAlign }]}>
           {words.map((w, i) => (
-            <LrcWord key={i} word={w} active={wordProgress >= w.time} size={wordSize} color={colors[0]} lineHeight={wordLineHeight} />
+            <LrcWord key={i} word={w} active={wordProgress >= w.time} size={normalSize} color={colors[0]} lineHeight={normalLineHeight} />
           ))}
         </View>
       ) : (
