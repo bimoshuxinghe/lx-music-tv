@@ -71,7 +71,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
   const lrcFontSize = useSettingValue('playDetail.vertical.style.lrcFontSize')
   const textAlign = useSettingValue('playDetail.style.align')
   // 全屏歌词：逐字歌词保持原字号，其他歌词（普通歌词、翻译）放大
-  const wordSize = lrcFontSize / 10
+  const wordSize = (lrcFontSize / 10) * 1.15
   const normalSize = (lrcFontSize / 10) * (fullScreen ? 1.6 : 1)
   const normalLineHeight = setSpText(normalSize) * (fullScreen ? 1.5 : 1.3)
 
@@ -123,7 +123,7 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
       {isActiveLine && words?.length ? (
         <View style={[styles.wordLine, { justifyContent: wordAlign }]}>
           {words.map((w, i) => (
-            <LrcWord key={i} word={w} active={wordProgress >= w.time} size={normalSize} color={colors[0]} lineHeight={normalLineHeight} />
+            <LrcWord key={i} word={w} active={wordProgress >= w.time} size={wordSize} color={colors[0]} lineHeight={wordLineHeight} />
           ))}
         </View>
       ) : (
