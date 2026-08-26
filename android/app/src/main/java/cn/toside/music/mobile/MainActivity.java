@@ -299,15 +299,15 @@ public class MainActivity extends NavigationActivity {
     private Drawable createCustomFocusSelectorInstance() {
         try {
             GradientDrawable focusedShape = new GradientDrawable();
-            focusedShape.setShape(GradientDrawable.OVAL);
+            focusedShape.setShape(GradientDrawable.RECTANGLE);
             focusedShape.setCornerRadius(6f);
-            focusedShape.setColor(0x26FFFFFF); // 半透明白色填充
-            focusedShape.setStroke(3, focusBorderColor); // 用户自定义边框色
+            focusedShape.setColor(0x26FFFFFF);
+            focusedShape.setStroke(3, focusBorderColor);
 
             GradientDrawable pressedShape = new GradientDrawable();
-            pressedShape.setShape(GradientDrawable.OVAL);
+            pressedShape.setShape(GradientDrawable.RECTANGLE);
             pressedShape.setCornerRadius(6f);
-            pressedShape.setColor(0x44FFFFFF); // 按压时半透明白色填充
+            pressedShape.setColor(0x44FFFFFF);
 
             ColorStateList colorStateList = ColorStateList.valueOf(focusBorderColor);
 
