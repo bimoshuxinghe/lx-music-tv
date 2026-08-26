@@ -6,7 +6,7 @@
             <corners android:radius="6dp" />
             <stroke
                 android:width="3dp"
-                android:color="#FFFFFFFF" />
+                android:color="#FFFF69B4" />
         </shape>
     </item>
     <item android:state_pressed="true">
