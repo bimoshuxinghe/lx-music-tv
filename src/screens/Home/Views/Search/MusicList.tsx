@@ -125,12 +125,14 @@ export default forwardRef<MusicListType, {}>((props, ref) => {
 
 const styles = createStyle({
   playAllBtn: {
-    marginHorizontal: 10,
+    // 与顶部平台选择器左缘对齐（其内边距为15），宽度随内容收缩
+    alignSelf: 'flex-start',
+    marginLeft: 15,
     marginTop: 8,
-    marginBottom: 4,
   },
   playAllBtnInner: {
-    height: 36,
+    height: 30,
+    paddingHorizontal: 15,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
