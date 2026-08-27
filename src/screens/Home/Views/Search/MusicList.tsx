@@ -1,7 +1,16 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 import OnlineList, { type OnlineListType, type OnlineListProps } from '@/components/OnlineList'
 import { search } from '@/core/search/music'
 import searchMusicState, { type Source } from '@/store/search/music/state'
+import { setTempList } from '@/core/list'
+import { playList } from '@/core/player/player'
+import { LIST_IDS } from '@/config/constant'
+import Button from '@/components/common/Button'
+import Text from '@/components/common/Text'
+import { View } from 'react-native'
+import { createStyle } from '@/utils/tools'
+import { useTheme } from '@/store/theme/hook'
+import { useI18n } from '@/lang'
 
 // export type MusicListProps = Pick<OnlineListProps,
 // 'onLoadMore'
@@ -17,13 +26,22 @@ export default forwardRef<MusicListType, {}>((props, ref) => {
   const listRef = useRef<OnlineListType>(null)
   const searchInfoRef = useRef<{ text: string, source: Source }>({ text: '', source: 'kw' })
   const isUnmountedRef = useRef(false)
+  const currentListRef = useRef<LX.Music.MusicInfoOnline[]>([])
+  const theme = useTheme()
+  const t = useI18n()
+
+  const updateList = (list: LX.Music.MusicInfoOnline[], isAppend: boolean, showSource: boolean) => {
+    currentListRef.current = isAppend ? [...currentListRef.current, ...list] : list
+    listRef.current?.setList(list, isAppend, showSource)
+  }
+
   useImperativeHandle(ref, () => ({
     async loadList(text, source) {
       // const listDetailInfo = searchMusicState.listDetailInfo
-      listRef.current?.setList([], false, source == 'all')
+      updateList([], false, source == 'all')
       if (searchMusicState.searchText == text && searchMusicState.source == source && searchMusicState.listInfos[searchMusicState.source]!.list.length) {
         requestAnimationFrame(() => {
-          listRef.current?.setList(searchMusicState.listInfos[searchMusicState.source]!.list, false, source == 'all')
+          updateList(searchMusicState.listInfos[searchMusicState.source]!.list, false, source == 'all')
         })
       } else {
         listRef.current?.setStatus('loading')
@@ -34,7 +52,7 @@ export default forwardRef<MusicListType, {}>((props, ref) => {
           // const result = setListInfo(listDetail, id, page)
           if (isUnmountedRef.current) return
           requestAnimationFrame(() => {
-            listRef.current?.setList(list, false, source == 'all')
+            updateList(list, false, source == 'all')
             listRef.current?.setStatus(searchMusicState.listInfos[searchMusicState.source]!.maxPage <= page ? 'end' : 'idle')
           })
         }).catch(() => {
@@ -58,7 +76,7 @@ export default forwardRef<MusicListType, {}>((props, ref) => {
     search(searchInfoRef.current.text, page, searchInfoRef.current.source).then((list) => {
       // const result = setListInfo(listDetail, searchMusicState.listDetailInfo.id, page)
       if (isUnmountedRef.current) return
-      listRef.current?.setList(list, false, searchInfoRef.current.source == 'all')
+      updateList(list, false, searchInfoRef.current.source == 'all')
       listRef.current?.setStatus(searchMusicState.listInfos[searchInfoRef.current.source]!.maxPage <= page ? 'end' : 'idle')
     }).catch(() => {
       listRef.current?.setStatus('error')
@@ -71,18 +89,52 @@ export default forwardRef<MusicListType, {}>((props, ref) => {
     search(searchInfoRef.current.text, page, searchInfoRef.current.source).then((list) => {
       // const result = setListInfo(listDetail, searchMusicState.listDetailInfo.id, page)
       if (isUnmountedRef.current) return
-      listRef.current?.setList(list, true, searchInfoRef.current.source == 'all')
+      updateList(list, true, searchInfoRef.current.source == 'all')
       listRef.current?.setStatus(info.maxPage <= page ? 'end' : 'idle')
     }).catch(() => {
       listRef.current?.setStatus('error')
     })
   }
 
+  const handlePlayAll = async() => {
+    const list = currentListRef.current
+    if (!list.length) return
+    await setTempList(LIST_IDS.TEMP, [...list])
+    void playList(LIST_IDS.TEMP, 0)
+  }
+
+  const ListHeaderComponent = useMemo(() => {
+    return (
+      <Button style={styles.playAllBtn} onPress={() => { void handlePlayAll() }}>
+        <View style={styles.playAllBtnInner}>
+          <Text style={{ color: theme['c-button-font'] }}>{t('play_all')}</Text>
+        </View>
+      </Button>
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme, t])
+
   return <OnlineList
     ref={listRef}
     onRefresh={handleRefresh}
     onLoadMore={handleLoadMore}
     checkHomePagerIdle
+    ListHeaderComponent={ListHeaderComponent}
   />
 })
 
+const styles = createStyle({
+  playAllBtn: {
+    marginHorizontal: 10,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  playAllBtnInner: {
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#6666',
+    borderRadius: 4,
+  },
+})
