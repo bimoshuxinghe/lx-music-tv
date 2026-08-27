@@ -1,5 +1,5 @@
-import { memo, useEffect, useRef } from 'react'
-import { Animated, Easing } from 'react-native'
+import { memo, useEffect, useRef, useState } from 'react'
+import { Animated, Easing, View } from 'react-native'
 import { type Word } from '@/plugins/lyric'
 import { AnimatedText } from '@/components/common/Text'
 
@@ -15,11 +15,15 @@ const INACTIVE_OPACITY = 0.35
 const MIN_DURATION = 120
 const MAX_DURATION = 800
 
-// 逐字高亮：每个字独立动画，opacity 由原生 UI 线程驱动（useNativeDriver），
-// 点亮时长跟随字时长（短字快、长字慢），实现卡拉OK式平滑渐亮，不占用 JS 帧。
+// 逐字卡拉OK填充（酷狗/QQ音乐式渐变扫色）：
+// 双层文字叠加，底层为暗色（低透明度），顶层为亮色文字、被一个 overflow:hidden 的
+// 裁切容器包裹。容器宽度随字时长从 0 → 字宽线性展开，视觉上形成从左到右的
+// 颜色扫过效果。宽度是布局属性，仅支持 JS 驱动动画；同一时刻只有一个字在播放
+// 动画，性能开销可忽略。
 const LrcWord = memo(({ word, active, size, color, lineHeight }: LrcWordProps) => {
   const anim = useRef(new Animated.Value(0)).current
   const startedRef = useRef(false)
+  const [wordWidth, setWordWidth] = useState(0)
 
   useEffect(() => {
     if (active) {
@@ -32,7 +36,7 @@ const LrcWord = memo(({ word, active, size, color, lineHeight }: LrcWordProps) =
         toValue: 1,
         duration,
         easing: Easing.linear,
-        useNativeDriver: true,
+        useNativeDriver: false, // width 布局属性仅支持 JS 驱动
       }).start()
     } else {
       startedRef.current = false
@@ -40,14 +44,35 @@ const LrcWord = memo(({ word, active, size, color, lineHeight }: LrcWordProps) =
     }
   }, [active, anim, word.duration])
 
-  const opacity = anim.interpolate({
+  const clipWidth = anim.interpolate({
     inputRange: [0, 1],
-    outputRange: [INACTIVE_OPACITY, 1],
+    outputRange: [0, wordWidth],
   })
 
   return (
-    <AnimatedText size={size} color={color} style={{ lineHeight, opacity }}>{word.text}</AnimatedText>
+    <View style={styles.wordBox}>
+      <AnimatedText
+        size={size}
+        color={color}
+        style={{ lineHeight, opacity: INACTIVE_OPACITY }}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width
+          if (w > 0 && Math.abs(w - wordWidth) > 0.5) setWordWidth(w)
+        }}
+      >{word.text}</AnimatedText>
+      {wordWidth > 0 && (
+        <Animated.View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: clipWidth, overflow: 'hidden' }}>
+          <AnimatedText size={size} color={color} style={{ lineHeight }}>{word.text}</AnimatedText>
+        </Animated.View>
+      )}
+    </View>
   )
 })
+
+const styles = {
+  wordBox: {
+    height: 'auto',
+  },
+} as const
 
 export default LrcWord

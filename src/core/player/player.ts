@@ -24,7 +24,7 @@ import { requestMsg } from '@/utils/message'
 import { getRandom } from '@/utils/common'
 import { filterList } from './utils'
 import BackgroundTimer from 'react-native-background-timer'
-import { checkIgnoringBatteryOptimization, checkNotificationPermission, debounceBackgroundTimer } from '@/utils/tools'
+import { checkNotificationPermission, debounceBackgroundTimer } from '@/utils/tools'
 import { LIST_IDS } from '@/config/constant'
 import { addListMusics, removeListMusics } from '@/core/list'
 import { addDislikeInfo } from '@/core/dislikeList'
@@ -227,7 +227,6 @@ const debouncePlay = debounceBackgroundTimer((musicInfo: LX.Player.PlayMusic) =>
 const handlePlay = async() => {
   if (!isInitialized()) {
     await checkNotificationPermission()
-    void checkIgnoringBatteryOptimization()
     await playerInitial({
       volume: settingState.setting['player.volume'],
       playRate: settingState.setting['player.playbackRate'],
