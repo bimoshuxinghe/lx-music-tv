@@ -9,6 +9,7 @@ import Text from '@/components/common/Text'
 import LrcWord from '@/screens/PlayDetail/components/LrcWord'
 import { LRC_ACTIVE_COLORS } from '@/screens/PlayDetail/components/lrcColor'
 import { createStyle } from '@/utils/tools'
+import { setSpText } from '@/utils/pixelRatio'
 
 const getFontInfo = (len: number) => {
   if (len <= 8) return { fontSize: 21, lines: 2 }
@@ -55,12 +56,16 @@ export default memo(() => {
   // 高亮颜色沿用全屏播放歌词（设置里的逐字歌词颜色）
   const highlightColor = LRC_ACTIVE_COLORS[lrcColor] ?? theme['c-primary']
 
+  // 行高与全屏歌词算法一致：先经 setSpText 缩放再乘系数，避免高密度屏上行高
+  // 小于实际字形高度导致顶部被裁切
+  const wordLineHeight = Math.round(setSpText(fontInfo.fontSize) * 1.4)
+
   return (
     <View style={styles.container}>
       {words?.length ? (
         <View style={styles.wordLine}>
           {words.map((w, i) => (
-            <LrcWord key={i} word={w} active={wordProgress >= w.time} size={fontInfo.fontSize} color={highlightColor} lineHeight={Math.round(fontInfo.fontSize * 1.4)} />
+            <LrcWord key={i} word={w} active={wordProgress >= w.time} size={fontInfo.fontSize} color={highlightColor} lineHeight={wordLineHeight} />
           ))}
         </View>
       ) : (
@@ -96,6 +101,5 @@ const styles = createStyle({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    fontWeight: 'bold',
   },
 })
