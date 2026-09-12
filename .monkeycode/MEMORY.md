@@ -38,3 +38,13 @@ Entries discovered by the Agent during task execution should follow this format:
   - 代码改完后只提交到本地git，不自动push
   - 等待用户明确确认后再推送和触发CI构建
   - 避免过度积极的自动推送行为
+
+[Project Knowledge: Android 6 MultiDex 修复]
+- Date: 2026-09-12
+- Context: 发现 android.graphics.ColorSpace NoClassDefFoundError 崩溃并修复
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - androidx.multidex:multidex:2.0.1 依赖已加入 android/app/build.gradle
+  - MainApplication.java 需重写 attachBaseContext() 调用 MultiDex.install(this)
+  - 原因：react-native-navigation 传递依赖 Fresco，Fresco 2.x 使用 ColorSpace（API 26+），Android 6/7 崩溃
+  - 修复后需重新构建 APK 验证
