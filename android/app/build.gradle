@@ -204,6 +204,8 @@ dependencies {
     implementation 'com.github.bumptech.glide:glide:4.16.0'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
     implementation 'com.google.android.exoplayer:exoplayer:2.18.7'
+    // Android 6/7 兼容：Fresco imagepipeline 需要 multidex 支持
+    implementation 'androidx.multidex:multidex:2.0.1'
 
   if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

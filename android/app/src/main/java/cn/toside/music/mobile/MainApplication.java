@@ -1,5 +1,7 @@
 package cn.toside.music.mobile;
 
+import android.content.Context;
+import androidx.multidex.MultiDex;
 import com.facebook.react.PackageList;
 import com.reactnativenavigation.NavigationApplication;
 import com.facebook.react.ReactNativeHost;
@@ -64,6 +66,12 @@ public class MainApplication extends NavigationApplication {
   @Override
   public ReactNativeHost getReactNativeHost() {
     return mReactNativeHost;
+  }
+
+  @Override
+  protected void attachBaseContext(Context base) {
+    super.attachBaseContext(base);
+    MultiDex.install(this);
   }
 
   @Override
