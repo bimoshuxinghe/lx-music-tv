@@ -1,7 +1,7 @@
 {
   "name": "lx-music-tv",
-  "version": "1.8.5",
-  "versionCode": 77,
+  "version": "2.1.0",
+  "versionCode": 78,
   "private": true,
   "scripts": {
     "dev": "react-native run-android --active-arch-only",

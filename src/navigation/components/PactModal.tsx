@@ -10,7 +10,6 @@ import Text from '@/components/common/Text'
 import ModalContent from './ModalContent'
 import { exitApp } from '@/utils/nativeModules/utils'
 import { updateSetting } from '@/core/common'
-import { checkUpdate } from '@/core/version'
 import { initDeeplink } from '@/core/init/deeplink'
 import settingState from '@/store/setting/state'
 
@@ -88,7 +87,6 @@ const Footer = ({ componentId }: { componentId: string }) => {
           [{
             text: Buffer.from('e5a5bde79a8420284f4b29', 'hex').toString(),
             onPress: () => {
-              void checkUpdate()
               void initDeeplink()
             },
           }],

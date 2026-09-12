@@ -12,7 +12,6 @@ import { initAISharjeck } from '@/core/aiSharjeck'
 import { setApiSource } from '@/core/apiSource'
 import commonActions from '@/store/common/action'
 import settingState from '@/store/setting/state'
-import { checkUpdate } from '@/core/version'
 import { bootLog } from '@/utils/bootLog'
 import { cheatTip } from '@/utils/tools'
 import { setFocusBorderColor } from '@/utils/nativeModules/utils'
@@ -26,7 +25,6 @@ const handlePushedHomeScreen = async() => {
   }
   if (isFirstPush) {
     isFirstPush = false
-    void checkUpdate()
     void initDeeplink()
     void initAISharjeck()
   }
