@@ -6,6 +6,13 @@ Project versioning adheres to [Semantic Versioning](http://semver.org/).
 Commit convention is based on [Conventional Commits](http://conventionalcommits.org).
 Change log format is based on [Keep a Changelog](http://keepachangelog.com/).
 
+## [2.1.1] - 2026-09-26
+
+### 修复
+
+- 修复内置 MV（KTV）列表无法加载的问题：cfss.cc 改版后 MV 条目 id 由纯数字变为 32 位十六进制酷狗哈希，原解析正则 `id='(\d+)'` 匹配不到任何条目，现改为 `id='([0-9A-Za-z]+)'`
+- 适配站点列表接口变更：`p` 参数已改为条目索引，列表单次返回全量（至多 300 条），pagecount 相应固定为 1
+
 ## [2.1.0] - 2026-09-12
 
 基于官方 lx-music-mobile v1.9.0 合入，保留 TV 遥控器操作，移除 OTA 更新。

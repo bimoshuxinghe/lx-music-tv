@@ -26,9 +26,12 @@ import javax.net.ssl.X509TrustManager;
 /**
  * 初心娱乐 MV 站（cfss.cc/mv）的纯 Java 实现。
  *
- * 已验证的接口（2026-08-22）：
+ * 已验证的接口（2026-09-25）：
  *   歌手列表   GET  /mv/gs.php?id=1(男)/2(女)   -> HTML：post('/mv/',{ss:'歌手名'})
- *   MV 列表    POST /mv/ {ss:歌手名或歌曲单id或空, p:页码} -> HTML：id/title/封面/时长，每页300首
+ *   MV 列表    POST /mv/ {ss:歌手名或歌曲单id或空, p:条目索引} -> HTML：id/title/封面/时长
+ *              一次返回该关键词的全量列表（至多300条）；p 已改为条目索引（网页点击定位用），
+ *              传不同 p 返回相同内容，因此没有翻页，pagecount 固定为 1。
+ *              注意：ss 不能显式传空值（ss=&p=0 会 302），空关键词时只发 p 即可。
  *   搜索       GET  /mv/s.php?s=20&ss=关键词(带Referer)   -> JSON：Datas[].HintInfo
  *   播放       GET  /api/kg/{id}.mp4 (带Referer)         -> 302 跳到 kugou 直链，无防盗链
  *
@@ -40,9 +43,10 @@ public class CfssSpider {
   private static final String UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
   private static final String REFERER = "https://cfss.cc/mv/";
 
-  // 歌曲列表项：<p class='jc' title='歌手 - 歌名' id='117613'><a ...><img src='封面'/><br/>歌手 - 歌名🕘05:17</a></p>
+  // 歌曲列表项：<p class='jc' title='歌手 - 歌名' id='3B1F32C55F9774501794213C09168A18'><a ...><img src='封面'/><br/>歌手 - 歌名🕘05:17</a></p>
+  // 站点改版后 id 为 32 位十六进制酷狗哈希（曾为纯数字），需用 [0-9A-Za-z]+ 匹配。
   private static final Pattern ITEM_PATTERN = Pattern.compile(
-      "<p[^>]*class='jc'[^>]*title='([^<]*)'[^>]*id='(\\d+)'[^>]*><a[^>]*><img[^>]*src='([^']*)'[^>]*/><br/>[^<]*🕘(\\d{2}:\\d{2})</a></p>");
+      "<p[^>]*class='jc'[^>]*title='([^<]*)'[^>]*id='([0-9A-Za-z]+)'[^>]*><a[^>]*><img[^>]*src='([^']*)'[^>]*/><br/>[^<]*🕘(\\d{2}:\\d{2})</a></p>");
   // 歌手列表项：<a onClick="post('/mv/',{ss:'周杰伦'})">📯周杰伦</a>
   private static final Pattern SINGER_PATTERN = Pattern.compile(
       "post\\('/mv/',\\{ss:'([^']+)'\\}\\)\">[^<]*</a>");
@@ -104,12 +108,12 @@ public class CfssSpider {
   }
 
   /**
-   * MV 列表。keyword: 歌手名/歌曲单id/空(热门)。page 从 1 开始。
-   * 返回 catvod list JSON（每页 300 首）。
+   * MV 列表。keyword: 歌手名/歌曲单id/空(热门)。page 仅兼容旧签名，站点已无翻页。
+   * 返回 catvod list JSON（单次返回全量，至多 300 首，pagecount 固定 1）。
    *
    * 注意：cfss.cc 的 ss 搜索对含空格的字符串匹配失败（如 "MC 张天赋"/"G.E.M. 邓紫棋"
    * 均返回空列表，而去空格后 "MC张天赋"/"G.E.M.邓紫棋" 正常），
-   * 因此发送前需去除关键词中的全部空格。
+   * 因此发送前需去除关键词中的全部空格；空关键词时不能发送 ss=（会 302）。
    */
   public static String songs(String keyword, int page) throws Exception {
     int p = Math.max(0, page - 1);
@@ -138,7 +142,7 @@ public class CfssSpider {
     JSONObject result = new JSONObject();
     result.put("list", list);
     result.put("page", page);
-    result.put("pagecount", 100);
+    result.put("pagecount", 1);
     return result.toString();
   }
 
