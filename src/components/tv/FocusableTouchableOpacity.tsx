@@ -19,9 +19,6 @@ export interface FocusableTouchableOpacityProps extends TouchableOpacityProps {
   nativeID?: string
 }
 
-/** JS 层自绘焦点样式的组件标记：原生侧（MainActivity）按前缀跳过前景焦点框，避免双重边框 */
-export const TV_JS_FOCUS_NATIVE_ID = 'tv_no_focus_highlight_js_focus'
-
 const DEFAULT_SCALE = 1.06
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity)
@@ -52,8 +49,8 @@ const stripScale = (style?: ViewStyle): ViewStyle | undefined => {
  * TV 遥控器可聚焦的 TouchableOpacity（酷狗TV风格焦点效果）
  *
  * - 默认 focusable，D-pad 可导航，OK 键触发 onPress
- * - 聚焦时：弹性放大 + 主题色发光描边 + 主题色淡填充
- * - 自动注入 tv_no_focus_highlight_ 前缀 nativeID，原生侧跳过焦点前景框，避免双重边框
+ * - 聚焦时：弹性放大 + 原生焦点前景框（tv_focus_selector 描边）+ 主题色淡填充
+ * - 边框由原生前景选择器绘制，JS 侧只负责缩放与淡填充，避免焦点框消失/叠加
  * - 完全兼容 TouchableOpacity 的 API（onPress/onLongPress/activeOpacity/ref 等）
  * - ref 支持 measure（与原生 TouchableOpacity 一致）
  */
@@ -98,9 +95,6 @@ const FocusableTouchableOpacity = forwardRef<TouchableOpacity, FocusableTouchabl
     if (!isFocused) return null
     return {
       backgroundColor: theme['c-primary-light-100-alpha-800'],
-      borderColor: theme['c-primary'],
-      borderWidth: 2.5,
-      borderRadius: 8,
       elevation: 6,
       zIndex: 100,
       ...stripScale(focusStyle),
@@ -112,7 +106,7 @@ const FocusableTouchableOpacity = forwardRef<TouchableOpacity, FocusableTouchabl
     <Comp
       ref={ref}
       hasTVPreferredFocus={hasTVPreferredFocus}
-      nativeID={nativeID ?? TV_JS_FOCUS_NATIVE_ID}
+      nativeID={nativeID}
       style={StyleSheet.compose(style, [
         { transform: [{ scale }] },
         focusedVisual,

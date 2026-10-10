@@ -20,83 +20,10 @@ import { scaleSizeW } from '@/utils/pixelRatio'
 import { BorderWidths } from '@/theme'
 import { useBackHandler } from '@/utils/hooks/useBackHandler'
 import { setNavActiveId } from '@/core/common'
-import { setFullscreenKeyCapture } from '@/utils/nativeModules/utils'
-import { adjustVolume } from '@/utils/nativeModules/utils'
+import { setFullscreenKeyCapture, adjustVolume } from '@/utils/nativeModules/utils'
 import { mvSingers, mvSongs, mvSearch, mvPlayer } from '@/utils/nativeModules/ktvSpider'
 import { getSingerAvatar, preloadSingerAvatars } from '@/utils/ktvAvatarCache'
-import { getLyricInfo } from '@/core/music'
-import { setLyric, play as playLyric, pause as pauseLyric, useLrcSet, useLrcWords, useLrcPlay } from '@/plugins/lyric'
-import { getPosition } from '@/plugins/player/utils'
-import LrcWord from '@/screens/PlayDetail/components/LrcWord'
-import { type Line } from '@/plugins/lyric'
-
-// ============ LRC歌词叠加层组件 ============
-/**
- * LRC歌词叠加层：底部固定区域，显示当前播放的歌词。
- * 卡拉OK风格：当前行放大高亮+逐字渐亮，上下文行缩小灰色。
- */
-const LrcOverlay = memo(({
-  lines,
-  wordLinesMap,
-  activeLine,
-  theme,
-  showControls,
-}: {
-  lines: Line[]
-  wordLinesMap: Map<number, import('@/plugins/lyric').Word[]>
-  activeLine: number
-  theme: ReturnType<typeof useTheme>
-  showControls: boolean
-}) => {
-  const { width: winW } = useWindowDimensions()
-  const baseFontSize = Math.max(14, winW * 0.025)
-  const activeFontSize = Math.max(22, winW * 0.04)
-
-  // 计算当前行前后各2行的范围
-  const startLine = Math.max(0, activeLine - 2)
-  const endLine = Math.min(lines.length - 1, activeLine + 2)
-
-  if (lines.length === 0 || activeLine < 0) return null
-
-  return (
-    <View style={[styles.lrcOverlay, { bottom: showControls ? 120 : 80 }]}>
-      {Array.from({ length: endLine - startLine + 1 }, (_, i) => startLine + i).map((lineNum) => {
-        const line = lines[lineNum]
-        if (!line) return null
-        const isActive = lineNum === activeLine
-        const words = wordLinesMap.get(lineNum) ?? []
-        return (
-          <View
-            key={lineNum}
-            style={[styles.lrcLine, isActive && styles.lrcLineActive]}
-          >
-            {words.length > 0
-              ? words.map((word, wi) => (
-                  <LrcWord
-                    key={wi}
-                    word={word}
-                    active={isActive}
-                    size={isActive ? activeFontSize : baseFontSize}
-                    color={isActive ? theme['c-primary'] : '#FFFFFF88'}
-                    lineHeight={isActive ? activeFontSize * 1.4 : baseFontSize * 1.4}
-                  />
-                ))
-              : (
-                  <Text
-                    size={isActive ? activeFontSize : baseFontSize}
-                    color={isActive ? theme['c-primary'] : '#FFFFFF88'}
-                    style={{ lineHeight: isActive ? activeFontSize * 1.4 : baseFontSize * 1.4 }}
-                  >
-                    {line.text}
-                  </Text>
-                )
-            }
-          </View>
-        )
-      })}
-    </View>
-  )
-})
+import MvLrc, { type MvLrcMusicInfo } from './MvLrc'
 
 // ============ 类型 ============
 interface MvSong {
@@ -104,16 +31,6 @@ interface MvSong {
   vod_name: string
   vod_pic?: string
   vod_remarks?: string
-}
-
-// MV播放时携带的音乐信息（用于获取歌词）
-interface MvMusicInfo {
-  id: string
-  name: string
-  singer: string
-  source: string
-  interval?: string | null
-  meta?: any
 }
 
 // 一级页面 Tab（男歌手/女歌手独立）
@@ -188,12 +105,8 @@ export default () => {
   const [menuVisible, setMenuVisible] = useState(false)
   // 视频分辨率（onLoad 时取 naturalSize，暂停时左上角展示）
   const [videoSize, setVideoSize] = useState<{ w: number, h: number } | null>(null)
-  // 歌词相关
-  const musicInfo = useRef<MvMusicInfo | null>(null)
-  const lrcLines = useLrcSet()
-  const wordLinesMap = useLrcWords()
-  const lrcInfo = useLrcPlay()
-  const activeLine = lrcInfo.line
+  // 当前 MV 对应的音乐信息（MvLrc 据此独立加载歌词，不污染全局歌词状态）
+  const [mvMusicInfo, setMvMusicInfo] = useState<MvLrcMusicInfo | null>(null)
 
   const searchInputRef = useRef<InputType>(null)
   const videoRef = useRef<VideoRef | null>(null)
@@ -341,21 +254,14 @@ export default () => {
       setPlayer({ url, name: item.vod_name, pic: item.vod_pic })
       setFullScreen(true)
       setShowControls(false)
-      // 加载歌词
+      // 歌词由 MvLrc 组件内部加载（基于 musicInfo 变化触发）
       const singerName = getSingerFromName(item.vod_name)
-      const info: MvMusicInfo = {
+      setMvMusicInfo({
         id: item.vod_id,
         name: item.vod_name,
         singer: singerName,
         source: 'kg',
-      }
-      musicInfo.current = info
-      void getLyricInfo({ musicInfo: info as any }).then((lyricInfo) => {
-        const lyric = lyricInfo.lyric ?? ''
-        const tlyric = lyricInfo.tlyric ?? ''
-        const lxlyric = lyricInfo.lxlyric ?? ''
-        setLyric(lyric, tlyric, '', lxlyric)
-      }).catch(() => {})
+      })
     } catch (err) {
       toast(`播放失败：${(err as Error).message ?? err}`)
     } finally {
@@ -383,7 +289,7 @@ export default () => {
   // 返回键：菜单 → 全屏 → 二级 → 退出 Ktv 回主页
   const handleBack = useCallback((): boolean => {
     if (menuVisible) { setMenuVisible(false); return true }
-    if (fullScreen) { setFullScreen(false); setPlayer(null); setShowControls(false); setVideoSize(null); return true }
+    if (fullScreen) { setFullScreen(false); setPlayer(null); setMvMusicInfo(null); setShowControls(false); setVideoSize(null); return true }
     if (playingSinger) { setPlayingSinger(''); setMvList([]); return true }
     setNavActiveId('nav_search')
     return true
@@ -494,11 +400,7 @@ export default () => {
           onError={(e: any) => { toast(`播放出错：${e?.error?.localizedDescription ?? e?.error ?? ''}`) }}
           onPlaybackStateChanged={(e: any) => {
             const isPlaying = e?.isPlaying
-            if (isPlaying !== undefined) {
-              setPaused(!isPlaying)
-              if (isPlaying) playLyric(progress.time)
-              else pauseLyric()
-            }
+            if (isPlaying !== undefined) setPaused(!isPlaying)
           }}
         />
       ) : (
@@ -533,13 +435,12 @@ export default () => {
         </TouchableOpacity>
       )}
 
-      {/* LRC歌词叠加层：卡拉OK风格，底部固定显示 */}
-      {fullScreen && lrcLines.length > 0 && (
-        <LrcOverlay
-          lines={lrcLines}
-          wordLinesMap={wordLinesMap}
-          activeLine={activeLine}
-          theme={theme}
+      {/* 卡拉OK歌词：底部双行，当前句逐字渐亮（独立组件，与音乐播放页歌词状态隔离） */}
+      {fullScreen && player && (
+        <MvLrc
+          musicInfo={mvMusicInfo}
+          playing={!paused}
+          currentTime={progress.time}
           showControls={showControls}
         />
       )}
@@ -1186,21 +1087,5 @@ const styles = createStyle({
   },
   menuRowDur: {
     marginRight: 8,
-  },
-  // LRC歌词叠加层样式
-  lrcOverlay: {
-    position: 'absolute',
-    bottom: 120,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  lrcLine: {
-    marginBottom: 4,
-    paddingHorizontal: 16,
-  },
-  lrcLineActive: {
-    marginBottom: 6,
   },
 })

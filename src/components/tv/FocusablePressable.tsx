@@ -19,9 +19,6 @@ export interface FocusablePressableProps extends PressableProps {
   nativeID?: string
 }
 
-/** JS 层自绘焦点样式的组件标记：原生侧（MainActivity）按前缀跳过前景焦点框，避免双重边框 */
-const TV_JS_FOCUS_NATIVE_ID = 'tv_no_focus_highlight_js_focus'
-
 const DEFAULT_SCALE = 1.06
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
@@ -51,8 +48,8 @@ const stripScale = (style?: ViewStyle): ViewStyle | undefined => {
 /**
  * TV 遥控器可聚焦的 Pressable（酷狗TV风格焦点效果）
  *
- * - 聚焦时：弹性放大 + 主题色发光描边 + 主题色淡填充
- * - 自动注入 tv_no_focus_highlight_ 前缀 nativeID，原生侧跳过焦点前景框，避免双重边框
+ * - 聚焦时：弹性放大 + 原生焦点前景框（tv_focus_selector 描边）+ 主题色淡填充
+ * - 边框由原生前景选择器绘制，JS 侧只负责缩放与淡填充，避免焦点框消失/叠加
  * - 完全兼容 Pressable API
  */
 const FocusablePressable = forwardRef<View, FocusablePressableProps>(({
@@ -96,9 +93,6 @@ const FocusablePressable = forwardRef<View, FocusablePressableProps>(({
     if (!isFocused) return null
     return {
       backgroundColor: theme['c-primary-light-100-alpha-800'],
-      borderColor: theme['c-primary'],
-      borderWidth: 2.5,
-      borderRadius: 8,
       elevation: 6,
       zIndex: 100,
       ...stripScale(focusStyle),
@@ -112,7 +106,7 @@ const FocusablePressable = forwardRef<View, FocusablePressableProps>(({
     <Comp
       ref={ref}
       hasTVPreferredFocus={hasTVPreferredFocus}
-      nativeID={nativeID ?? TV_JS_FOCUS_NATIVE_ID}
+      nativeID={nativeID}
       style={StyleSheet.compose(resolvedStyle, [
         { transform: [{ scale }] },
         focusedVisual,
