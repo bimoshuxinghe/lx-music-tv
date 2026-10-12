@@ -1,7 +1,6 @@
 package cn.toside.music.mobile;
 
 import android.app.Application;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -65,12 +64,12 @@ public class MainActivity extends NavigationActivity {
         return fullscreenKeyCapture;
     }
 
-    /** 用户选择的焦点框边框颜色（默认酷狗TV蓝） */
+    /** 用户选择的焦点高亮颜色（默认酷狗TV蓝），焦点态以其 25% 透明度填充背景 */
     private static final int DEFAULT_FOCUS_BORDER_COLOR = 0xFF2CA3F3;
     private static int focusBorderColor = DEFAULT_FOCUS_BORDER_COLOR;
 
     /**
-     * 动态设置焦点框颜色，由 JS 侧通过 UtilsModule 调用
+     * 动态设置焦点高亮颜色，由 JS 侧通过 UtilsModule 调用
      * @param colorStr 十六进制颜色字符串，如 "#2CA3F3" 或 "#FFFFFF"，空字符串则重置为默认蓝
      */
     public void setFocusBorderColor(String colorStr) {
@@ -303,21 +302,22 @@ public class MainActivity extends NavigationActivity {
     /**
      * 创建带用户自定义颜色的焦点选择器实例
      * 当颜色与默认白色不同时，通过 ShapeDrawable 动态生成
+     * 焦点态为「背景高亮」：用焦点色的半透明填充铺满整块背景，不再绘制描边
      */
     private Drawable createCustomFocusSelectorInstance() {
         try {
+            // 焦点色 25% 透明度作为背景高亮
+            int focusedColor = (focusBorderColor & 0x00FFFFFF) | (0x40 << 24);
+
             GradientDrawable focusedShape = new GradientDrawable();
             focusedShape.setShape(GradientDrawable.RECTANGLE);
             focusedShape.setCornerRadius(10f);
-            focusedShape.setColor(0x0DFFFFFF);
-            focusedShape.setStroke(2, focusBorderColor);
+            focusedShape.setColor(focusedColor);
 
             GradientDrawable pressedShape = new GradientDrawable();
             pressedShape.setShape(GradientDrawable.RECTANGLE);
             pressedShape.setCornerRadius(10f);
             pressedShape.setColor(0x24FFFFFF);
-
-            ColorStateList colorStateList = ColorStateList.valueOf(focusBorderColor);
 
             StateListDrawable sld = new StateListDrawable();
             sld.addState(new int[] { android.R.attr.state_focused }, focusedShape);

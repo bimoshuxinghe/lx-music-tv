@@ -8,7 +8,7 @@ import {
   type NativeSyntheticEvent,
   type TextInputSubmitEditingEventData,
 } from 'react-native'
-import Video, { type VideoRef } from 'react-native-video'
+import Video, { type VideoRef, SelectedTrackType } from 'react-native-video'
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 import Text from '@/components/common/Text'
 import { IconMaterial } from '@/components/common/Icon'
@@ -222,6 +222,12 @@ export default () => {
     return name.split(' ')[0]?.trim() ?? ''
   }, [])
 
+  // 从 "歌手 - 歌名" 标题中提取歌名（无分隔符时整串即歌名），用于搜索歌词
+  const getSongName = useCallback((title: string): string => {
+    const parts = title.split(' - ')
+    return (parts.length > 1 ? parts.slice(1).join(' - ') : title).trim()
+  }, [])
+
   // 点击歌手 → 进入二级（不自动播放）
   const openSinger = useCallback(async(singer: string) => {
     setPlayingSinger(singer)
@@ -254,20 +260,28 @@ export default () => {
       setPlayer({ url, name: item.vod_name, pic: item.vod_pic })
       setFullScreen(true)
       setShowControls(false)
-      // 歌词由 MvLrc 组件内部加载（基于 musicInfo 变化触发）
+      // 歌词由 MvLrc 组件内部加载（基于 musicInfo 变化触发）：
+      // 这里只提供「歌名 + 歌手」，MvLrc 会据此搜到音源真实歌曲后注入 LRC
       const singerName = getSingerFromName(item.vod_name)
       setMvMusicInfo({
         id: item.vod_id,
-        name: item.vod_name,
+        name: getSongName(item.vod_name),
         singer: singerName,
         source: 'kg',
+        meta: {
+          songId: item.vod_id,
+          albumName: '',
+          picUrl: item.vod_pic ?? '',
+          qualitys: [],
+          _qualitys: {},
+        },
       })
     } catch (err) {
       toast(`播放失败：${(err as Error).message ?? err}`)
     } finally {
       loadingRef.current = false
     }
-  }, [getSingerFromName])
+  }, [getSingerFromName, getSongName])
 
   // 点击 MV（二级列表或搜索/歌曲结果）→ 加载该歌手全部 MV 并播放
   const openMv = useCallback(async(song: MvSong) => {
@@ -389,6 +403,9 @@ export default () => {
           style={StyleSheet.absoluteFill}
           resizeMode="contain"
           controls={false}
+          // 关闭视频内嵌字幕轨：歌词统一由下方 MvLrc 注入的蓝色逐字扫过 LRC 呈现，
+          // 避免视频自带的红色卡拉OK字幕与叠加层重复/冲突
+          selectedTextTrack={{ type: SelectedTrackType.DISABLED }}
           paused={paused}
           onLoad={(e: any) => {
             setProgress({ time: 0, duration: e?.duration ?? 0 })
@@ -819,9 +836,8 @@ const styles = createStyle({
     padding: 6,
   },
   cardFocus: {
-    backgroundColor: 'transparent',
-    borderColor: '#2A6BE0',
-    borderWidth: 2.5,
+    // 焦点从「边框描线」改为「背景高亮」
+    backgroundColor: 'rgba(42,107,224,0.55)',
     borderRadius: 12,
     transform: [{ scale: 1.07 }],
   },
@@ -975,9 +991,8 @@ const styles = createStyle({
     borderColor: '#FFFFFF55',
   },
   fsCenterFocus: {
-    backgroundColor: 'rgba(42,107,224,0.85)',
-    borderColor: '#FFFFFF',
-    borderWidth: 3,
+    // 焦点从「白色描边」改为「背景高亮」
+    backgroundColor: 'rgba(42,107,224,0.9)',
     borderRadius: 45,
     transform: [{ scale: 1.1 }],
   },

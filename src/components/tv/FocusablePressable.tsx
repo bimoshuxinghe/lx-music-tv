@@ -46,10 +46,11 @@ const stripScale = (style?: ViewStyle): ViewStyle | undefined => {
 }
 
 /**
- * TV 遥控器可聚焦的 Pressable（酷狗TV风格焦点效果）
+ * TV 遥控器可聚焦的 Pressable（焦点背景高亮）
  *
- * - 聚焦时：弹性放大 + 原生焦点前景框（tv_focus_selector 描边）+ 主题色淡填充
- * - 边框由原生前景选择器绘制，JS 侧只负责缩放与淡填充，避免焦点框消失/叠加
+ * - 聚焦时：弹性放大 + 背景高亮填充（不再绘制边框描线）
+ * - 背景色：focusStyle 指定则用之，未指定用主题色淡填充；
+ *   显式传 'transparent' 表示该元素无需任何高亮
  * - 完全兼容 Pressable API
  */
 const FocusablePressable = forwardRef<View, FocusablePressableProps>(({
@@ -91,11 +92,17 @@ const FocusablePressable = forwardRef<View, FocusablePressableProps>(({
 
   const focusedVisual = useMemo<ViewStyle | null>(() => {
     if (!isFocused) return null
+    const fs = stripScale(focusStyle) ?? {}
+    // 焦点 = 背景高亮（不是边框）：focusStyle 未给背景时用主题色淡填充
+    const background = fs.backgroundColor === 'transparent'
+      ? 'transparent'
+      : (fs.backgroundColor ?? theme['c-primary-light-100-alpha-800'])
     return {
-      backgroundColor: theme['c-primary-light-100-alpha-800'],
       elevation: 6,
       zIndex: 100,
-      ...stripScale(focusStyle),
+      ...fs,
+      backgroundColor: background,
+      borderWidth: 0,
     }
   }, [isFocused, theme, focusStyle])
 

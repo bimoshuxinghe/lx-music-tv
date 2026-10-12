@@ -2,15 +2,20 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { Animated, Easing, StyleSheet, Text as RNText, View, useWindowDimensions } from 'react-native'
 import Lyric, { type Lines } from 'lrc-file-parser'
 import { getLyricInfo } from '@/core/music'
+import musicSdk, { findMusic } from '@/utils/musicSdk'
+import { toNewMusicInfo } from '@/utils'
 
 /**
- * MV 卡拉OK歌词（经典 KTV 双行样式）
+ * MV 卡拉OK歌词（经典 KTV 双行样式，逐字扫过）
  *
  * - 与音乐播放页歌词（plugins/lyric 全局状态）完全隔离：
  *   组件内部持有独立的 lrc-file-parser 实例与解析逻辑，
  *   MV 播放不会污染/覆盖音乐播放页的歌词状态。
+ * - 歌词注入：MV 的 vod_id 不是音源歌曲 id，直接取歌词必然失败，
+ *   因此先用「歌名 + 歌手」在酷狗搜到真实歌曲（拿到 hash 才能命中
+ *   KRC 逐字歌词），搜不到再跨音源 findMusic 兜底。
  * - 样式对齐 KTV 大屏：底部两行，上行白色（上一句），
- *   下行当前句逐字蓝色渐亮，大字号黑色描边。
+ *   下行当前句逐字蓝色渐亮（COLOR_SUNG，蓝色而非红色），大字号黑色描边。
  */
 
 export interface MvLrcMusicInfo {
@@ -28,6 +33,7 @@ interface Word {
   duration: number
 }
 
+/** 逐字扫过的颜色：蓝色（KTV 高亮色，非红色） */
 const COLOR_SUNG = '#4D9BFF'
 const COLOR_UNSONG = '#FFFFFF'
 
@@ -102,6 +108,34 @@ const strokeStyle = {
 } as const
 
 type WordStatus = 'unSong' | 'active' | 'sung'
+
+/**
+ * 把 MV 播放信息解析成可取歌词的真实音乐信息。
+ * MV 的 vod_id 不是音源歌曲 id：先用「歌名+歌手」在酷狗搜到真实歌曲
+ * （有 hash 才能命中 KRC 逐字歌词），搜不到再跨音源 findMusic 兜底，
+ * 最后退回原始 musicInfo（可能命中本地歌词缓存）。
+ */
+const resolveMusicInfo = async(musicInfo: MvLrcMusicInfo): Promise<LX.Music.MusicInfoOnline> => {
+  const keyword = `${musicInfo.name} ${musicInfo.singer}`.trim()
+  if (keyword) {
+    try {
+      const result = await musicSdk.kg.musicSearch.search(keyword, 1, 8)
+      const hit = result?.list?.[0]
+      if (hit) return toNewMusicInfo(hit) as LX.Music.MusicInfoOnline
+    } catch { /* 忽略，继续兜底 */ }
+    try {
+      const hit = (await findMusic({
+        name: musicInfo.name,
+        singer: musicInfo.singer,
+        albumName: '',
+        interval: '',
+        source: 'kg',
+      }))?.[0]
+      if (hit) return toNewMusicInfo(hit) as LX.Music.MusicInfoOnline
+    } catch { /* 忽略，退回原信息 */ }
+  }
+  return musicInfo as unknown as LX.Music.MusicInfoOnline
+}
 
 /**
  * 逐字组件：双层文字 + 宽度裁切。底层白色（未唱），顶层蓝色按字时长从左到右展开。
@@ -205,14 +239,19 @@ const MvLrc = memo(({ musicInfo, playing, currentTime, showControls }: {
     parserRef.current?.pause()
     if (!musicInfo) return
     let alive = true
-    getLyricInfo({ musicInfo: musicInfo as any }).then((lyricInfo) => {
+    const load = async() => {
+      // 注入 LRC：先把 MV 播放信息解析成音源上的真实歌曲，再取其歌词（含逐字 lxlyric）
+      const target = await resolveMusicInfo(musicInfo)
+      if (!alive) return
+      const lyricInfo = await getLyricInfo({ musicInfo: target })
       if (!alive) return
       const lyric = lyricInfo.lyric ?? ''
       if (!lyric) return
       setWordMap(parseWordLines(lyricInfo.lxlyric ?? ''))
       getParser().setLyric(lyric, [])
       getParser().pause()
-    }).catch(() => {})
+    }
+    void load().catch(() => {})
     return () => {
       alive = false
     }

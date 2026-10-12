@@ -45,7 +45,6 @@ const styles = createStyle({
     margin: 10,
   },
   focusStyle: {
-    backgroundColor: 'transparent',
     borderRadius: 14,
     transform: [{ scale: 1.07 }],
   },
