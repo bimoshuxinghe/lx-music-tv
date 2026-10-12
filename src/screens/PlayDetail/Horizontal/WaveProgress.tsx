@@ -100,10 +100,11 @@ const styles = createStyle({
   },
   knob: {
     position: 'absolute',
+    top: '50%',
     width: 13,
     height: 13,
     marginLeft: -6.5,
-    marginTop: -16,
+    marginTop: -6.5,
     borderRadius: 6.5,
     backgroundColor: '#FFFFFF',
     shadowColor: '#000000',

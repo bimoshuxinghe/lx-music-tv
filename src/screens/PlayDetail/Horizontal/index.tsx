@@ -7,7 +7,6 @@ import MoreBtn from './MoreBtn'
 import Header from './components/Header'
 import { setComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
-import PageContent from '@/components/PageContent'
 
 import Pic from './Pic'
 import Lyric from './Lyric'
@@ -20,6 +19,7 @@ import { useStatusbarHeight } from '@/store/common/hook'
 import { useSettingValue } from '@/store/setting/hook'
 import { usePlayerMusicInfo, useProgress } from '@/store/player/hook'
 import { useTheme } from '@/store/theme/hook'
+import { useWindowSize } from '@/utils/hooks'
 import { deriveGradient, getCoverGradient, mixHex } from '@/utils/coverColor'
 
 const GRADIENT_STEPS = 16
@@ -48,6 +48,9 @@ export default memo(({ componentId }: { componentId: string }) => {
   const theme = useTheme()
   const musicInfo = usePlayerMusicInfo()
   const { nowPlayTimeStr, maxPlayTimeStr } = useProgress()
+  const { height: winHeight } = useWindowSize()
+  // 左栏封面区实测尺寸：封面严格按实测值取正方形，杜绝溢出/塌陷
+  const [coverBox, setCoverBox] = useState({ width: 0, height: 0 })
 
   // 背景渐变：优先取封面主色，失败回退主题色
   const [gradient, setGradient] = useState<[string, string]>(() => deriveGradient(theme['c-primary'] ?? '#1B4B63'))
@@ -84,120 +87,133 @@ export default memo(({ componentId }: { componentId: string }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const coverSize = Math.floor(Math.min(coverBox.width * 0.94, coverBox.height * 0.94, winHeight * 0.52))
+
   return (
-    <PageContent>
+    <>
       <StatusBar />
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: statusBarHeight }]}>
         <GradientBg colors={gradient} />
 
-        {isLyricFullScreen ? (
-          <View style={[styles.fullScreenLyric, { paddingTop: statusBarHeight }]}>
-            <Lyric fullScreen />
-          </View>
-        ) : (
-          <>
-            {/* 顶栏：返回 + 更多操作 */}
-            <View style={[styles.topBar, { paddingTop: statusBarHeight }]}>
+        {!isLyricFullScreen && (
+          /* 左栏：顶栏（返回/更多）+ 封面 + 波形进度 */
+          <View style={styles.left}>
+            <View style={styles.topBar}>
               <Header />
               <View style={styles.spacer} />
               <MoreBtn />
             </View>
-
-            {/* 主体：左封面 / 右标题 + 歌词 */}
-            <View style={styles.body}>
-              <View style={styles.left}>
-                <Pic />
-              </View>
-              <View style={styles.right}>
-                <Text style={styles.title} size={32} numberOfLines={1} color="#FFFFFF">{musicInfo.name}</Text>
-                <Text style={styles.artist} size={16} numberOfLines={1} color="rgba(255,255,255,0.72)">{musicInfo.singer}</Text>
-                <View style={styles.lyricWrap}>
-                  <Lyric align="left" />
-                </View>
-              </View>
+            <View
+              style={styles.coverWrap}
+              onLayout={(e) => {
+                const { width, height } = e.nativeEvent.layout
+                setCoverBox(prev => (prev.width == width && prev.height == height) ? prev : { width, height })
+              }}
+            >
+              <Pic size={coverSize} />
             </View>
-
-            {/* 底部：波形进度条 + 时间 + 播控 */}
-            <View style={styles.bottomBar}>
+            <View style={styles.progressBlock}>
               <WaveProgress />
-              <View style={styles.bottomRow}>
-                <View style={styles.statusWrap}>
-                  <Status />
-                </View>
-                <View style={styles.spacer} />
-                <Text style={styles.timeText} size={14} color="rgba(255,255,255,0.85)">
-                  {nowPlayTimeStr} / {maxPlayTimeStr}
-                </Text>
-                <ControlBtn />
+              <View style={styles.progressInfo}>
+                <Status />
               </View>
             </View>
-          </>
+          </View>
         )}
+
+        {/* 右栏：歌名/歌手 + 歌词 + 播控 */}
+        <View style={[styles.right, isLyricFullScreen && styles.rightFullScreen]}>
+          {!isLyricFullScreen && (
+            <View style={styles.titleBlock}>
+              <Text style={styles.title} size={30} numberOfLines={1} color="#FFFFFF">{musicInfo.name}</Text>
+              <Text style={styles.artist} size={15} numberOfLines={1} color="rgba(255,255,255,0.7)">{musicInfo.singer}</Text>
+            </View>
+          )}
+          <View style={styles.lyricWrap}>
+            <Lyric fullScreen={isLyricFullScreen} align={isLyricFullScreen ? undefined : 'left'} />
+          </View>
+          {!isLyricFullScreen && (
+            <View style={styles.controlsRow}>
+              <Text style={styles.timeText} size={14} color="rgba(255,255,255,0.85)">
+                {nowPlayTimeStr} / {maxPlayTimeStr}
+              </Text>
+              <ControlBtn />
+            </View>
+          )}
+        </View>
       </View>
-    </PageContent>
+    </>
   )
 })
 
 const styles = createStyle({
   container: {
     flex: 1,
-    overflow: 'hidden',
+    flexDirection: 'row',
     backgroundColor: '#0A1B26',
   },
   gradient: {
     ...StyleSheet.absoluteFillObject,
   },
+  left: {
+    flex: 1,
+    width: '44%',
+    paddingLeft: 30,
+    paddingRight: 18,
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
   },
   spacer: {
     flex: 1,
   },
-  body: {
+  coverWrap: {
     flex: 1,
-    flexDirection: 'row',
-    paddingHorizontal: 30,
-  },
-  left: {
-    width: '42%',
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressBlock: {
+    paddingBottom: 18,
+  },
+  progressInfo: {
+    marginTop: 8,
+    paddingHorizontal: 8,
   },
   right: {
     flex: 1,
-    paddingLeft: 40,
+    width: '56%',
+    paddingRight: 40,
+    paddingLeft: 24,
     justifyContent: 'center',
+  },
+  rightFullScreen: {
+    width: '100%',
+    paddingLeft: 60,
+    paddingRight: 60,
+  },
+  titleBlock: {
+    marginBottom: 10,
   },
   title: {
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
   artist: {
-    marginTop: 8,
-    color: 'rgba(255,255,255,0.72)',
+    marginTop: 6,
+    color: 'rgba(255,255,255,0.7)',
   },
   lyricWrap: {
     flex: 1,
-    marginTop: 20,
+    maxHeight: 640,
   },
-  bottomBar: {
-    paddingHorizontal: 34,
-    paddingBottom: 26,
-  },
-  bottomRow: {
-    marginTop: 14,
+  controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 18,
-  },
-  statusWrap: {
-    flexShrink: 1,
+    gap: 24,
+    paddingTop: 10,
   },
   timeText: {
     color: 'rgba(255,255,255,0.85)',
-  },
-  fullScreenLyric: {
-    flex: 1,
   },
 })
