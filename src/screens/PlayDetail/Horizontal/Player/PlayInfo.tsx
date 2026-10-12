@@ -1,5 +1,4 @@
-import { memo } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { View } from 'react-native'
 
 import Progress from '@/components/player/Progress'
 import Status from './Status'
@@ -9,18 +8,6 @@ import { createStyle } from '@/utils/tools'
 import Text from '@/components/common/Text'
 import { useBufferProgress } from '@/plugins/player'
 
-// const FONT_SIZE = 13
-
-const PlayTimeCurrent = ({ timeStr }: { timeStr: string }) => {
-  const theme = useTheme()
-  return <Text color={theme['c-500']}>{timeStr}</Text>
-}
-
-const PlayTimeMax = memo(({ timeStr }: { timeStr: string }) => {
-  const theme = useTheme()
-  return <Text color={theme['c-500']}>{timeStr}</Text>
-})
-
 export default () => {
   const theme = useTheme()
   const { maxPlayTimeStr, nowPlayTimeStr, progress, maxPlayTime } = useProgress()
@@ -28,79 +15,41 @@ export default () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.status} >
-        <Status />
+      {/* 进度条独立成行：更厚、圆角，可聚焦并用左右键步进 */}
+      <View style={styles.progressWrap}>
+        <Progress progress={progress} duration={maxPlayTime} buffered={buffered} />
       </View>
-      <View style={{ flexGrow: 0, flexShrink: 0, flexDirection: 'row' }} >
-        <PlayTimeCurrent timeStr={nowPlayTimeStr} />
-        <Text color={theme['c-500']}> / </Text>
-        <PlayTimeMax timeStr={maxPlayTimeStr} />
+      {/* 时间与播放状态分列两端，信息层级更清晰 */}
+      <View style={styles.infoRow}>
+        <Text size={12} color={theme['c-500']}>{nowPlayTimeStr}</Text>
+        <View style={styles.status}>
+          <Status />
+        </View>
+        <Text size={12} color={theme['c-500']}>{maxPlayTimeStr}</Text>
       </View>
-      <View style={[StyleSheet.absoluteFill, styles.progress]}><Progress progress={progress} duration={maxPlayTime} buffered={buffered} /></View>
     </View>
   )
 }
 
-
 const styles = createStyle({
   container: {
-    // marginLeft: 15,
-    marginVertical: 5,
-    height: 26,
-    // flex: 1,
-    paddingVertical: 2,
-    paddingHorizontal: 5,
+    marginVertical: 6,
+  },
+  progressWrap: {
+    height: 10,
+    justifyContent: 'center',
+  },
+  infoRow: {
+    marginTop: 6,
+    paddingHorizontal: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  progress: {
-    flexGrow: 1,
-    flexShrink: 0,
-    flexDirection: 'column',
-    justifyContent: 'center',
-  },
-  info: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    // alignItems: 'center',
-    // backgroundColor: '#ccc',
-  },
   status: {
     flexGrow: 1,
     flexShrink: 1,
-    paddingRight: 5,
+    alignItems: 'center',
+    paddingHorizontal: 8,
   },
 })
-// const styles = createStyle({
-//   container: {
-//     flex: 1,
-//     // height: 16,
-//     // flexGrow: 0,
-//     // flexShrink: 0,
-//     // flexDirection: 'column',
-//     // justifyContent: 'center',
-//     // alignItems: 'center',
-//     // marginBottom: -1,
-//     // backgroundColor: '#ccc',
-//     // overflow: 'hidden',
-//     // height:
-//     // position: 'absolute',
-//     // width: '100%',
-//     // top: 0,
-//     paddingVertical: 2,
-//     paddingHorizontal: 5,
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     justifyContent: 'space-between',
-//   },
-//   progress: {
-//     paddingVertical: 2,
-//     zIndex: 100,
-//   },
-//   status: {
-//     flexGrow: 1,
-//     flexShrink: 1,
-//     paddingRight: 5,
-//   },
-// })

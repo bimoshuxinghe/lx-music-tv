@@ -58,16 +58,32 @@ export default memo(({ componentId }: { componentId: string }) => {
   imgWidth -= imgWidth * (global.lx.fontSize - 1) * 0.3
   let contentHeight = (winHeight - statusBarHeight - HEADER_HEIGHT) * 0.66
   contentHeight -= contentHeight * (global.lx.fontSize - 1) * 0.2
+  const discHoleSize = imgWidth * 0.13
 
   return (
     <View style={{ ...styles.container, height: contentHeight }}>
       <View style={styles.content}>
+        {/* 黑胶唱片造型：深色盘面 + 封面 + 中心轴孔，播放时整体旋转 */}
         <Animated.View style={{ width: imgWidth, height: imgWidth, transform: [{ rotate }] }}>
-          <Image url={pic} nativeID={NAV_SHEAR_NATIVE_IDS.playDetail_pic} style={{
-            width: imgWidth,
-            height: imgWidth,
-            borderRadius: imgWidth / 2,
-          }} />
+          <View style={{ ...styles.disc, width: imgWidth, height: imgWidth, borderRadius: imgWidth / 2 }}>
+            <Image
+              url={pic}
+              nativeID={NAV_SHEAR_NATIVE_IDS.playDetail_pic}
+              style={{
+                width: imgWidth * 0.9,
+                height: imgWidth * 0.9,
+                borderRadius: imgWidth * 0.45,
+              }}
+            />
+            <View style={{
+              ...styles.discHole,
+              width: discHoleSize,
+              height: discHoleSize,
+              borderRadius: discHoleSize / 2,
+              left: (imgWidth - discHoleSize) / 2,
+              top: (imgWidth - discHoleSize) / 2,
+            }} />
+          </View>
         </Animated.View>
       </View>
     </View>
@@ -80,12 +96,23 @@ const styles = createStyle({
     flexGrow: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    // backgroundColor: 'rgba(0,0,0,0.1)',
     overflow: 'hidden',
   },
   content: {
-    // elevation: 3,
     backgroundColor: 'rgba(0,0,0,0)',
     borderRadius: 4,
+  },
+  disc: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(20,22,28,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  discHole: {
+    position: 'absolute',
+    backgroundColor: 'rgba(10,12,16,0.92)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
 })

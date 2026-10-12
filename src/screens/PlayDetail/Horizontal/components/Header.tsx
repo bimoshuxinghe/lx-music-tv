@@ -20,8 +20,8 @@ const Title = () => {
 
   return (
     <View style={styles.titleContent}>
-      <Text numberOfLines={1} style={styles.title} size={14}>{musicInfo.name}</Text>
-      <Text numberOfLines={1} style={styles.title} size={12} color={theme['c-font-label']}>{musicInfo.singer}</Text>
+      <Text numberOfLines={1} style={styles.title} size={17}>{musicInfo.name}</Text>
+      <Text numberOfLines={1} style={styles.subTitle} size={12} color={theme['c-font-label']}>{musicInfo.singer}</Text>
     </View>
   )
 }
@@ -34,7 +34,7 @@ export default memo(() => {
   return (
     <View style={{ height: HEADER_HEIGHT }} nativeID={NAV_SHEAR_NATIVE_IDS.playDetail_header}>
       <View style={styles.container}>
-        <TouchableOpacity onPress={back} style={{ ...styles.button, width: HEADER_HEIGHT }}>
+        <TouchableOpacity onPress={back} style={{ ...styles.button, width: HEADER_HEIGHT }} focusStyle={styles.buttonFocus}>
           <Icon name="chevron-left" size={18} />
         </TouchableOpacity>
         <Title />
@@ -46,9 +46,7 @@ export default memo(() => {
 const styles = StyleSheet.create({
   container: {
     flex: 0,
-    // backgroundColor: '#ccc',
     flexDirection: 'row',
-    // justifyContent: 'center',
     height: '100%',
   },
   button: {
@@ -56,15 +54,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: '100%',
     flex: 0,
+    borderRadius: 18,
+  },
+  buttonFocus: {
+    borderWidth: 0,
+    transform: [{ scale: 1.08 }],
   },
   titleContent: {
     flex: 1,
-    // alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    // flex: 1,
-    // textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  subTitle: {
+    marginTop: 2,
   },
   icon: {
     paddingLeft: 4,

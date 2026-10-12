@@ -23,7 +23,7 @@ import { setNavActiveId } from '@/core/common'
 import { setFullscreenKeyCapture, adjustVolume } from '@/utils/nativeModules/utils'
 import { mvSingers, mvSongs, mvSearch, mvPlayer } from '@/utils/nativeModules/ktvSpider'
 import { getSingerAvatar, preloadSingerAvatars } from '@/utils/ktvAvatarCache'
-import MvLrc, { type MvLrcMusicInfo } from './MvLrc'
+import { useTvAdjustable } from '@/utils/hooks/useTvAdjustable'
 
 // ============ 类型 ============
 interface MvSong {
@@ -44,6 +44,15 @@ type MainTab = typeof MAIN_TABS[number]['id']
 
 const GOLD = '#F5BE59'
 const ACCENT_RED = '#FD3359'
+/** 控制栏主按钮（播放/暂停）底色 */
+const CTRL_PRIMARY = '#2D6EE5'
+
+// ============ 播放设置选项 ============
+type FitMode = 'contain' | 'cover' | 'stretch'
+const FIT_MODE_LABELS: Record<FitMode, string> = { contain: '适应', cover: '填充', stretch: '拉伸' }
+const FIT_MODE_OPTIONS = (Object.keys(FIT_MODE_LABELS) as FitMode[]).map(id => ({ value: id as string | number | boolean, label: FIT_MODE_LABELS[id] }))
+const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2].map(v => ({ value: v as string | number | boolean, label: `${v}x` }))
+const SUBTITLE_OPTIONS = [{ value: true as string | number | boolean, label: '开' }, { value: false as string | number | boolean, label: '关' }]
 
 // ============ 歌手头像 ============
 /**
@@ -103,10 +112,24 @@ export default () => {
   const [showControls, setShowControls] = useState(false)
   const [lastCtrlIndex, setLastCtrlIndex] = useState(1)
   const [menuVisible, setMenuVisible] = useState(false)
-  // 视频分辨率（onLoad 时取 naturalSize，暂停时左上角展示）
+  // 视频分辨率（onLoad 时取 naturalSize，控制条上展示）
   const [videoSize, setVideoSize] = useState<{ w: number, h: number } | null>(null)
-  // 当前 MV 对应的音乐信息（MvLrc 据此独立加载歌词，不污染全局歌词状态）
-  const [mvMusicInfo, setMvMusicInfo] = useState<MvLrcMusicInfo | null>(null)
+
+  // ===== MV 播放器设置（主流 MV 播放器必备的「选择菜单」） =====
+  // 画面比例：适应(等比) / 填充(裁切铺满) / 拉伸
+  const [fitMode, setFitMode] = useState<'contain' | 'cover' | 'stretch'>('contain')
+  // 倍速
+  const [playbackRate, setPlaybackRate] = useState(1)
+  // 字幕：MV 自带字幕与音画同步，交由播放器渲染（与外部歌曲 LRC 无关）
+  const [subtitleOn, setSubtitleOn] = useState(true)
+  // 音轨（MV 双音轨时可切换原唱/伴唱）
+  const [audioTracks, setAudioTracks] = useState<Array<{ index: number, title?: string, language?: string, selected?: boolean }>>([])
+  const [audioTrackIndex, setAudioTrackIndex] = useState(0)
+  const [settingsVisible, setSettingsVisible] = useState(false)
+  // 控制层唤醒时的默认焦点：seek 键唤醒 → 进度条；其它 → 按钮组
+  const [wakeFocus, setWakeFocus] = useState<'progress' | 'buttons'>('buttons')
+  // 进度条焦点态（原生不为 tv_adjustable_ 控件绘制前景，需 JS 自绘高亮）
+  const [progressFocused, setProgressFocused] = useState(false)
 
   const searchInputRef = useRef<InputType>(null)
   const videoRef = useRef<VideoRef | null>(null)
@@ -222,12 +245,6 @@ export default () => {
     return name.split(' ')[0]?.trim() ?? ''
   }, [])
 
-  // 从 "歌手 - 歌名" 标题中提取歌名（无分隔符时整串即歌名），用于搜索歌词
-  const getSongName = useCallback((title: string): string => {
-    const parts = title.split(' - ')
-    return (parts.length > 1 ? parts.slice(1).join(' - ') : title).trim()
-  }, [])
-
   // 点击歌手 → 进入二级（不自动播放）
   const openSinger = useCallback(async(singer: string) => {
     setPlayingSinger(singer)
@@ -259,29 +276,16 @@ export default () => {
       setProgress({ time: 0, duration: 0 })
       setPlayer({ url, name: item.vod_name, pic: item.vod_pic })
       setFullScreen(true)
-      setShowControls(false)
-      // 歌词由 MvLrc 组件内部加载（基于 musicInfo 变化触发）：
-      // 这里只提供「歌名 + 歌手」，MvLrc 会据此搜到音源真实歌曲后注入 LRC
-      const singerName = getSingerFromName(item.vod_name)
-      setMvMusicInfo({
-        id: item.vod_id,
-        name: getSongName(item.vod_name),
-        singer: singerName,
-        source: 'kg',
-        meta: {
-          songId: item.vod_id,
-          albumName: '',
-          picUrl: item.vod_pic ?? '',
-          qualitys: [],
-          _qualitys: {},
-        },
-      })
+      setShowControls(true)
+      setAudioTracks([])
+      setAudioTrackIndex(0)
+      // 歌词由 MV 视频自带字幕轨渲染（与歌曲 LRC 时间轴不一致，故不再注入外部歌词）
     } catch (err) {
       toast(`播放失败：${(err as Error).message ?? err}`)
     } finally {
       loadingRef.current = false
     }
-  }, [getSingerFromName, getSongName])
+  }, [])
 
   // 点击 MV（二级列表或搜索/歌曲结果）→ 加载该歌手全部 MV 并播放
   const openMv = useCallback(async(song: MvSong) => {
@@ -300,26 +304,66 @@ export default () => {
 
   const onEnd = useCallback(() => { playNext() }, [playNext])
 
-  // 返回键：菜单 → 全屏 → 二级 → 退出 Ktv 回主页
+  // 返回键：设置菜单 → 歌单菜单 → 收起控制条 → 全屏 → 二级 → 退出 Ktv 回主页
   const handleBack = useCallback((): boolean => {
+    if (settingsVisible) { setSettingsVisible(false); return true }
     if (menuVisible) { setMenuVisible(false); return true }
-    if (fullScreen) { setFullScreen(false); setPlayer(null); setMvMusicInfo(null); setShowControls(false); setVideoSize(null); return true }
+    if (showControls) { setShowControls(false); return true }
+    if (fullScreen) { setFullScreen(false); setPlayer(null); setShowControls(false); setVideoSize(null); return true }
     if (playingSinger) { setPlayingSinger(''); setMvList([]); return true }
     setNavActiveId('nav_search')
     return true
-  }, [menuVisible, fullScreen, playingSinger])
+  }, [settingsVisible, menuVisible, showControls, fullScreen, playingSinger])
 
   useBackHandler(useCallback(() => handleBack(), [handleBack]))
 
+  // ===== 控制层自动隐藏（菜单/设置打开时不隐藏） =====
+  const menuVisibleRef = useRef(menuVisible)
+  menuVisibleRef.current = menuVisible
+  const settingsVisibleRef = useRef(settingsVisible)
+  settingsVisibleRef.current = settingsVisible
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearHideTimer = useCallback(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current)
+      hideTimerRef.current = null
+    }
+  }, [])
+  const armControlsHide = useCallback(() => {
+    clearHideTimer()
+    hideTimerRef.current = setTimeout(() => {
+      hideTimerRef.current = null
+      if (menuVisibleRef.current || settingsVisibleRef.current) return
+      setShowControls(false)
+    }, 6000)
+  }, [clearHideTimer])
+
+  useEffect(() => {
+    if (showControls) armControlsHide()
+    else clearHideTimer()
+    return clearHideTimer
+  }, [showControls, menuVisible, settingsVisible, armControlsHide, clearHideTimer])
+
+  /** 唤出控制层：focus 决定初始焦点（seek 唤醒 → 进度条，其它 → 按钮组） */
+  const wakeControls = useCallback((focus: 'progress' | 'buttons' = 'buttons') => {
+    setWakeFocus(focus)
+    setShowControls(true)
+    armControlsHide()
+  }, [armControlsHide])
+
+  /** 进度条左右键步进（控制层显示时由原生转发） */
+  const seekNativeId = useTvAdjustable(useCallback((step: 1 | -1) => {
+    seekBy(step * SEEK_STEP)
+    armControlsHide()
+  }, [seekBy, armControlsHide]))
+
   // ===== 全屏播放遥控器按键拦截 =====
-  // 交互：
-  //   - OK/Enter → 暂停/播放（控制条隐藏时）
-  //   - 上键     → 上一曲（控制条隐藏时，有上一首才响应）
-  //   - 下键     → 下一曲（控制条隐藏时，有下一首才响应）
-  //   - 菜单键   → 呼出歌曲选择菜单
+  // 控制层隐藏时（keyCaptureOn）：
+  //   - 任意方向/OK 键 → 先唤出控制层，再执行对应动作（与主流 MV 播放器一致）
+  //   - 菜单键   → 播放列表
   //   - 音量键   → 调节系统音量
-  //   - 控制条显示时关闭拦截，恢复系统焦点导航
-  const keyCaptureOn = fullScreen && !menuVisible && !showControls
+  // 控制层显示时关闭拦截，恢复系统焦点导航（可在控制条内移动焦点）
+  const keyCaptureOn = fullScreen && !menuVisible && !settingsVisible && !showControls
   useEffect(() => {
     setFullscreenKeyCapture(keyCaptureOn)
     return () => { setFullscreenKeyCapture(false) }
@@ -331,35 +375,38 @@ export default () => {
       const event = typeof _event === 'object' ? _event : {}
       const code = event.keyCode
       if (code === 23 || code === 66) {
-        // OK / Enter → 暂停/播放（无论控制条是否显示）
+        // OK / Enter → 唤出控制层 + 暂停/播放
+        wakeControls('buttons')
         setPaused(p => !p)
       } else if (code === 82) {
-        // MENU → 切换歌曲选择菜单
-        setMenuVisible(v => !v)
+        // MENU → 播放列表
+        setMenuVisible(true)
       } else if (code === 19) {
-        // DPAD_UP → 上一曲（有上一首才响应）
+        // DPAD_UP → 唤出控制层 + 上一曲
+        wakeControls('buttons')
         if (currentIndex > 0) playPrev()
       } else if (code === 20) {
-        // DPAD_DOWN → 下一曲（有下一首才响应）
+        // DPAD_DOWN → 唤出控制层 + 下一曲
+        wakeControls('buttons')
         if (currentIndex < mvList.length - 1) playNext()
       } else if (code === 21) {
-        // DPAD_LEFT → 快退 10s
+        // DPAD_LEFT → 唤出控制层（焦点落到进度条）+ 快退
+        wakeControls('progress')
         seekBy(-SEEK_STEP)
       } else if (code === 22) {
-        // DPAD_RIGHT → 快进 10s
+        // DPAD_RIGHT → 唤出控制层（焦点落到进度条）+ 快进
+        wakeControls('progress')
         seekBy(SEEK_STEP)
       } else if (code === 24 || code === 25 || code === 164) {
         // 音量键：向上调大，向下调小，MUTE静音切换
+        wakeControls('buttons')
         if (code === 24) adjustVolume(1)
         else if (code === 25) adjustVolume(-1)
-        else {
-          // MUTE键：切换静音
-          adjustVolume(0)
-        }
+        else adjustVolume(0)
       }
     })
     return () => { listener.remove() }
-  }, [keyCaptureOn, currentIndex, mvList.length, playPrev, playNext, seekBy])
+  }, [keyCaptureOn, currentIndex, mvList.length, playPrev, playNext, seekBy, wakeControls])
 
   const videoSource = useMemo(() => {
     if (!player) return null
@@ -393,6 +440,48 @@ export default () => {
   }, [mvGridW, mvCols])
 
   // ============ 全屏播放页 ============
+
+  // 音轨显示名：优先取音轨自带标题/语言（如「原唱」「伴唱」），否则按序号命名
+  const audioTrackLabel = (t: { index: number, title?: string, language?: string }) => {
+    const raw = (t.title || t.language || '').trim()
+    if (raw && !/^\d+$/.test(raw)) return raw
+    return `音轨 ${t.index + 1}`
+  }
+
+  // 控制栏按钮（index 与 lastCtrlIndex 对应）
+  const fsButtons = [
+    { key: 'prev', icon: 'skip-previous', label: '上一曲', primary: false, right: false, disabled: currentIndex <= 0, onPress: () => { playPrev() } },
+    { key: 'play', icon: paused ? 'play-arrow' : 'pause', label: paused ? '播放' : '暂停', primary: true, right: false, disabled: false, onPress: () => { setPaused(p => !p) } },
+    { key: 'next', icon: 'skip-next', label: '下一曲', primary: false, right: false, disabled: currentIndex >= mvList.length - 1, onPress: () => { playNext() } },
+    { key: 'list', icon: 'queue-music', label: '播放列表', primary: false, right: true, disabled: false, onPress: () => { setMenuVisible(true) } },
+    { key: 'setting', icon: 'tune', label: '设置', primary: false, right: false, disabled: false, onPress: () => { setSettingsVisible(true) } },
+    { key: 'exit', icon: 'fullscreen-exit', label: '退出', primary: false, right: false, disabled: false, onPress: () => { setFullScreen(false); setPlayer(null); setShowControls(false); setVideoSize(null) } },
+  ]
+
+  // 设置菜单的一行选项（普通函数而非组件，避免重渲染时重建导致焦点丢失）
+  const renderSettingRow = (title: string, options: Array<{ value: string | number | boolean, label: string }>, value: string | number | boolean, onChange: (v: string | number | boolean) => void, autoFocus?: boolean) => (
+    <View style={styles.settingRow}>
+      <Text style={styles.settingLabel} size={13} color="#FFFFFF99">{title}</Text>
+      <View style={styles.settingOptions}>
+        {options.map((opt, i) => {
+          const active = opt.value === value
+          return (
+            <TouchableOpacity
+              key={String(opt.value)}
+              style={{ ...styles.settingChip, ...(active ? styles.settingChipActive : {}) }}
+              focusStyle={styles.settingChipFocus}
+              hasTVPreferredFocus={!!(autoFocus && i == 0)}
+              onPress={() => { onChange(opt.value); armControlsHide() }}
+              onFocus={armControlsHide}
+            >
+              <Text size={13} color={active ? '#FFFFFF' : '#FFFFFFCC'}>{opt.label}</Text>
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+    </View>
+  )
+
   const renderFullScreen = () => (
     <View style={styles.fullScreenContainer}>
       {player && videoSource ? (
@@ -401,12 +490,21 @@ export default () => {
           ref={videoRef}
           source={videoSource}
           style={StyleSheet.absoluteFill}
-          resizeMode="contain"
+          resizeMode={fitMode}
+          rate={playbackRate}
+          progressUpdateInterval={250}
           controls={false}
-          // 关闭视频内嵌字幕轨：歌词统一由下方 MvLrc 注入的蓝色逐字扫过 LRC 呈现，
-          // 避免视频自带的红色卡拉OK字幕与叠加层重复/冲突
-          selectedTextTrack={{ type: SelectedTrackType.DISABLED }}
           paused={paused}
+          // 字幕：使用 MV 自带字幕轨（与音画同步），可在设置菜单中关闭
+          selectedTextTrack={{ type: subtitleOn ? SelectedTrackType.SYSTEM : SelectedTrackType.DISABLED }}
+          // 音轨：双音轨 MV（原唱/伴唱）可切换
+          selectedAudioTrack={audioTracks.length > 1 ? { type: SelectedTrackType.INDEX, value: `${audioTrackIndex}` } : undefined}
+          onAudioTracks={(e: any) => {
+            const tracks: typeof audioTracks = Array.isArray(e?.audioTracks) ? e.audioTracks : []
+            setAudioTracks(tracks)
+            const sel = tracks.find(t => t.selected)
+            if (sel) setAudioTrackIndex(sel.index)
+          }}
           onLoad={(e: any) => {
             setProgress({ time: 0, duration: e?.duration ?? 0 })
             const ns = e?.naturalSize
@@ -429,92 +527,115 @@ export default () => {
         </View>
       )}
 
-      {/* 全屏透明焦点锚点：播放时承载焦点，无任何视觉；OK 键切换暂停
-          nativeID 标记后原生侧(MainActivity)跳过为其设置白色焦点前景框 */}
+      {/* 控制层遮罩：轻微压暗画面，保证控件与文字可读 */}
+      {showControls && <View style={styles.fsDim} pointerEvents="none" />}
+
+      {/* 全屏透明焦点锚点：控制层隐藏时承接焦点（无任何视觉）；触摸点击唤出控制层
+          nativeID 标记后原生侧(MainActivity)跳过为其设置前景框 */}
       <TouchableOpacity
         style={StyleSheet.absoluteFill}
         nativeID="tv_no_focus_highlight_fs_anchor"
         focusStyle={styles.fsAnchorFocus}
-        onPress={() => { setPaused(p => !p); setShowControls(false) }}
+        focusable={!showControls}
+        onPress={() => { wakeControls('buttons'); setPaused(p => !p) }}
         onFocus={() => { setShowControls(false) }}
       />
 
-      {/* 暂停时居中播放按钮：控制条隐藏时作唯一焦点目标 */}
-      {paused && (
+      {/* 暂停时居中播放按钮：控制层隐藏时作焦点目标 */}
+      {paused && !showControls && (
         <TouchableOpacity
           style={styles.fsCenterBtn}
           focusStyle={styles.fsCenterFocus}
-          hasTVPreferredFocus={!showControls}
-          onPress={() => { setPaused(false); setShowControls(false) }}
-          onFocus={() => { setShowControls(false) }}
+          hasTVPreferredFocus
+          onPress={() => { setPaused(false); wakeControls('buttons') }}
         >
           <IconMaterial name="play-arrow" size={72} color="#FFFFFF" />
         </TouchableOpacity>
       )}
 
-      {/* 卡拉OK歌词：底部双行，当前句逐字渐亮（独立组件，与音乐播放页歌词状态隔离） */}
-      {fullScreen && player && (
-        <MvLrc
-          musicInfo={mvMusicInfo}
-          playing={!paused}
-          currentTime={progress.time}
-          showControls={showControls}
-        />
-      )}
-
-      {/* 暂停时左上角显示视频分辨率 */}
-      {paused && videoSize && (
-        <View style={styles.fsInfoTag}>
-          <IconMaterial name="fullscreen" size={13} color="#FFFFFFBB" />
-          <Text style={styles.fsInfoText} size={12} color="#FFFFFF">{videoSize.w}×{videoSize.h}</Text>
-        </View>
-      )}
-
-      {/* 顶栏：控制条显示时出现 */}
+      {/* 顶部信息栏：返回 + 歌手/歌名 + 当前播放设置 */}
       {showControls && (
         <View style={styles.fsTopBar}>
-          <IconMaterial name="person" size={18} color={ACCENT_RED} />
-          <Text style={styles.fsSinger} size={15} color="#FFFFFFCC" numberOfLines={1}>{playingSinger}</Text>
-          <Text style={styles.fsTitle} size={15} color="#FFFFFF" numberOfLines={1}>{player?.name}</Text>
-        </View>
-      )}
-
-      {/* 进度条：控制条显示时出现 */}
-      {showControls && player && (
-        <View style={styles.progressTrack}>
-          <View style={{ ...styles.progressFill, width: `${progressPct}%` }} />
-        </View>
-      )}
-
-      {/* 控制条：始终渲染（opacity 控制显隐），保持布局稳定避免跳变 */}
-      <View style={[styles.fsControls, { opacity: showControls ? 1 : 0 }]}>
-        {[
-          { key: 'prev', icon: 'skip-previous', label: '上一首', onPress: () => { playPrev() } },
-          {
-            key: 'pause',
-            icon: paused ? 'play-arrow' : 'pause',
-            label: paused ? '播放' : '暂停',
-            onPress: () => { setPaused(p => !p) },
-          },
-          { key: 'next', icon: 'skip-next', label: '下一首', onPress: () => { playNext() } },
-          { key: 'menu', icon: 'queue-music', label: '菜单', onPress: () => { setMenuVisible(true); setShowControls(false) }, menu: true },
-        ].map((btn, index) => (
           <TouchableOpacity
-            key={btn.key}
-            style={{ ...styles.ctrlBtn, ...(btn.menu ? styles.ctrlBtnMenu : {}) }}
-            onPress={btn.onPress}
-            onFocus={() => { setShowControls(true); setLastCtrlIndex(index) }}
-            onBlur={() => { setShowControls(false) }}
-            hasTVPreferredFocus={showControls && index == lastCtrlIndex}
-            focusable={showControls}
-            focusStyle={styles.ctrlFocus}
+            style={styles.fsBackBtn}
+            focusStyle={styles.fsBackFocus}
+            onPress={() => { setFullScreen(false); setPlayer(null); setShowControls(false); setVideoSize(null) }}
           >
-            <IconMaterial name={btn.icon as any} size={index == 1 ? 30 : 24} color="#FFFFFF" />
-            <Text style={styles.ctrlText} size={13}>{btn.label}</Text>
+            <IconMaterial name="arrow-back" size={20} color="#FFFFFF" />
           </TouchableOpacity>
-        ))}
-        <Text style={styles.ctrlTime} size={13} color="#FFFFFFAA">{fmt(progress.time)}{progress.duration > 0 ? ` / ${fmt(progress.duration)}` : ''}</Text>
+          <IconMaterial name="person" size={18} color={ACCENT_RED} />
+          <Text style={styles.fsSinger} size={15} color="#FFFFFFAA" numberOfLines={1}>{playingSinger}</Text>
+          <Text style={styles.fsTitle} size={16} color="#FFFFFF" numberOfLines={1}>{player?.name}</Text>
+          <View style={styles.fsTopRight}>
+            <View style={styles.fsChip}><Text size={12} color="#FFFFFFCC">{playbackRate}x</Text></View>
+            <View style={styles.fsChip}><Text size={12} color="#FFFFFFCC">{FIT_MODE_LABELS[fitMode]}</Text></View>
+            <View style={styles.fsChip}><Text size={12} color="#FFFFFFCC">{subtitleOn ? '字幕开' : '字幕关'}</Text></View>
+            {videoSize ? <Text style={styles.fsRes} size={12} color="#FFFFFF77">{videoSize.w}×{videoSize.h}</Text> : null}
+          </View>
+        </View>
+      )}
+
+      {/* 底部控制栏：进度条（左右键可步进） + 播控 / 列表 / 设置 / 退出 */}
+      <View style={[styles.fsControls, { opacity: showControls ? 1 : 0 }]} pointerEvents={showControls ? 'auto' : 'none'}>
+        <View style={styles.fsProgressRow}>
+          <Text style={styles.fsTime} size={12} color="#FFFFFFCC">{fmt(progress.time)}</Text>
+          <View
+            style={[styles.fsProgressWrap, progressFocused && styles.fsProgressFocus]}
+            nativeID={seekNativeId}
+            focusable={showControls}
+            hasTVPreferredFocus={showControls && wakeFocus == 'progress'}
+            onFocus={() => { setProgressFocused(true); armControlsHide() }}
+            onBlur={() => { setProgressFocused(false) }}
+          >
+            <View style={[styles.fsProgressTrack, progressFocused && styles.fsProgressTrackFocus]}>
+              <View style={{ ...styles.fsProgressFill, width: `${progressPct}%` }} />
+            </View>
+          </View>
+          <Text style={styles.fsTime} size={12} color="#FFFFFFCC">{fmt(progress.duration)}</Text>
+        </View>
+        <View style={styles.fsBtnRow}>
+          {fsButtons.map((btn, index) => (
+            <TouchableOpacity
+              key={btn.key}
+              style={{
+                ...styles.fsBtn,
+                ...(btn.primary ? styles.fsBtnPrimary : {}),
+                ...(btn.right ? styles.fsBtnRight : {}),
+                ...(btn.disabled ? styles.fsBtnDisabled : {}),
+              }}
+              focusStyle={btn.primary ? styles.fsBtnPrimaryFocus : styles.fsBtnFocus}
+              onPress={() => { if (btn.disabled) return; btn.onPress(); armControlsHide() }}
+              onFocus={() => { setLastCtrlIndex(index); armControlsHide() }}
+              hasTVPreferredFocus={showControls && wakeFocus == 'buttons' && index == lastCtrlIndex}
+              focusable={showControls}
+            >
+              <IconMaterial name={btn.icon as any} size={btn.primary ? 30 : 22} color="#FFFFFF" />
+              <Text style={styles.fsBtnLabel} size={11} color="#FFFFFFCC">{btn.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
+
+      {/* 设置菜单：画面比例 / 播放速度 / 音轨 / 字幕（主流 MV 播放器的「选择菜单」） */}
+      {settingsVisible && (
+        <View style={styles.settingsMask}>
+          <View style={styles.settingsPanel}>
+            <View style={styles.settingsHeader}>
+              <IconMaterial name="tune" size={18} color={GOLD} />
+              <Text style={styles.settingsTitle} size={16} color="#FFFFFF">播放设置</Text>
+              <Text style={styles.settingsHint} size={12} color="#FFFFFF77">返回键关闭</Text>
+            </View>
+            <View style={styles.settingsBody}>
+              {renderSettingRow('画面比例', FIT_MODE_OPTIONS, fitMode, (v) => { setFitMode(v as FitMode) }, true)}
+              {renderSettingRow('播放速度', SPEED_OPTIONS, playbackRate, (v) => { setPlaybackRate(v as number) })}
+              {audioTracks.length > 1
+                ? renderSettingRow('音轨', audioTracks.map(t => ({ value: t.index as string | number | boolean, label: audioTrackLabel(t) })), audioTrackIndex, (v) => { setAudioTrackIndex(v as number) })
+                : null}
+              {renderSettingRow('字幕', SUBTITLE_OPTIONS, subtitleOn, (v) => { setSubtitleOn(v as boolean) })}
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* 歌曲选择菜单：全屏覆盖，显示当前歌手全部 MV，高亮正在播放的 */}
       {menuVisible && (
@@ -943,6 +1064,10 @@ const styles = createStyle({
   videoPlaceholderText: {
     marginTop: 12,
   },
+  fsDim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
   fsTopBar: {
     position: 'absolute',
     top: 0,
@@ -950,24 +1075,24 @@ const styles = createStyle({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingTop: 14,
-    paddingBottom: 10,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingBottom: 14,
+    backgroundColor: 'rgba(8,10,14,0.72)',
   },
-  fsInfoTag: {
-    position: 'absolute',
-    top: 14,
-    left: 18,
-    flexDirection: 'row',
+  fsBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  fsInfoText: {
-    marginLeft: 6,
+  fsBackFocus: {
+    backgroundColor: CTRL_PRIMARY,
+    borderWidth: 0,
+    transform: [{ scale: 1.08 }],
   },
   fsSinger: {
     marginLeft: 8,
@@ -976,6 +1101,21 @@ const styles = createStyle({
   fsTitle: {
     flexShrink: 1,
     fontWeight: 'bold',
+  },
+  fsTopRight: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fsChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  fsRes: {
+    marginLeft: 4,
   },
   fsCenterBtn: {
     position: 'absolute',
@@ -1003,52 +1143,143 @@ const styles = createStyle({
     elevation: 0,
     transform: [{ scale: 1 }],
   },
-  progressTrack: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 58,
-    height: 3,
-    backgroundColor: '#FFFFFF33',
-  },
-  progressFill: {
-    height: 3,
-    backgroundColor: GOLD,
-  },
   fsControls: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    paddingHorizontal: 26,
+    paddingTop: 12,
+    paddingBottom: 18,
+    backgroundColor: 'rgba(8,10,14,0.82)',
+  },
+  fsProgressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    marginBottom: 10,
   },
-  ctrlBtn: {
+  fsTime: {
+    width: 48,
+    textAlign: 'center',
+  },
+  fsProgressWrap: {
+    flex: 1,
+    height: 26,
+    marginHorizontal: 6,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+  },
+  fsProgressFocus: {
+    backgroundColor: CTRL_PRIMARY,
+  },
+  fsProgressTrack: {
+    height: 5,
+    borderRadius: 3,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  fsProgressTrackFocus: {
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  fsProgressFill: {
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: GOLD,
+  },
+  fsBtnRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginRight: 10,
-    backgroundColor: '#161F2A',
+    gap: 8,
   },
-  ctrlBtnMenu: {
+  fsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  fsBtnPrimary: {
+    backgroundColor: CTRL_PRIMARY,
+    paddingHorizontal: 20,
+  },
+  fsBtnRight: {
     marginLeft: 'auto',
   },
-  ctrlFocus: {
-    backgroundColor: '#2A6BE0',
+  fsBtnDisabled: {
+    opacity: 0.35,
+  },
+  fsBtnFocus: {
+    backgroundColor: 'rgba(255,255,255,0.24)',
     borderWidth: 0,
     transform: [{ scale: 1.06 }],
   },
-  ctrlText: {
-    marginLeft: 6,
-    color: '#FFFFFF',
+  fsBtnPrimaryFocus: {
+    backgroundColor: '#3E82FF',
+    borderWidth: 0,
+    transform: [{ scale: 1.06 }],
   },
-  ctrlTime: {
-    marginLeft: 8,
+  fsBtnLabel: {},
+  settingsMask: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 12,
+    backgroundColor: 'rgba(6,8,12,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsPanel: {
+    width: '52%',
+    borderRadius: 14,
+    backgroundColor: 'rgba(16,19,26,0.97)',
+    overflow: 'hidden',
+  },
+  settingsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 15,
+    borderBottomWidth: BorderWidths.normal,
+    borderBottomColor: '#FFFFFF14',
+  },
+  settingsTitle: {
+    flexGrow: 1,
+    marginLeft: 10,
+    fontWeight: 'bold',
+  },
+  settingsHint: {},
+  settingsBody: {
+    paddingHorizontal: 22,
+    paddingVertical: 16,
+    gap: 12,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingLabel: {
+    width: 72,
+  },
+  settingOptions: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  settingChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 15,
+    backgroundColor: '#20242E',
+  },
+  settingChipActive: {
+    backgroundColor: CTRL_PRIMARY,
+  },
+  settingChipFocus: {
+    backgroundColor: '#3E82FF',
+    borderWidth: 0,
+    transform: [{ scale: 1.06 }],
   },
   menuFullPanel: {
     ...StyleSheet.absoluteFillObject,
