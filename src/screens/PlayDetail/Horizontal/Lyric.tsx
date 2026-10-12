@@ -67,14 +67,16 @@ interface LineProps {
   activeLine: number
   fullScreen?: boolean
   words?: Word[]
+  alignOverride?: 'left' | 'center' | 'right'
   onLayout: (lineNum: number, height: number, width: number) => void
 }
 const ACTIVE_FONT_SCALE = 1.4
 const INACTIVE_FONT_SCALE = 1
-const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, onLayout }: LineProps) => {
+const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, alignOverride, onLayout }: LineProps) => {
   const theme = useTheme()
   const lrcFontSize = useSettingValue('playDetail.horizontal.style.lrcFontSize')
-  const textAlign = useSettingValue('playDetail.style.align')
+  const settingAlign = useSettingValue('playDetail.style.align')
+  const textAlign = alignOverride ?? settingAlign
   const animatedStyle = useSettingValue('playDetail.style.lrcAnimatedStyle')
   const lrcColor = useSettingValue('playDetail.style.lrcColor')
   // 全屏歌词：逐字歌词保持原字号，其他歌词（普通歌词、翻译）放大
@@ -186,12 +188,13 @@ const LrcLine = memo(({ line, lineNum, activeLine, fullScreen = false, words, on
 }, (prevProps, nextProps) => {
   return prevProps.line === nextProps.line &&
     prevProps.words === nextProps.words &&
+    prevProps.alignOverride === nextProps.alignOverride &&
     prevProps.activeLine != nextProps.lineNum &&
     nextProps.activeLine != nextProps.lineNum
 })
 const wait = async() => new Promise(resolve => setTimeout(resolve, 100))
 
-export default ({ fullScreen = false }: { fullScreen?: boolean }) => {
+export default ({ fullScreen = false, align }: { fullScreen?: boolean, align?: 'left' | 'center' | 'right' }) => {
   const lyricLines = useLrcSet()
   const wordLinesMap = useLrcWords()
   const { line } = useLrcPlay()
@@ -376,7 +379,7 @@ export default ({ fullScreen = false }: { fullScreen?: boolean }) => {
 
   const renderItem: FlatListType['renderItem'] = ({ item, index }) => {
     return (
-      <LrcLine line={item} lineNum={index} activeLine={line} fullScreen={fullScreen} words={wordLinesMap.get(item.time)} onLayout={handleLineLayout} />
+      <LrcLine line={item} lineNum={index} activeLine={line} fullScreen={fullScreen} alignOverride={align} words={wordLinesMap.get(item.time)} onLayout={handleLineLayout} />
     )
   }
   const getkey: FlatListType['keyExtractor'] = (item, index) => `${index}${item.text}`
