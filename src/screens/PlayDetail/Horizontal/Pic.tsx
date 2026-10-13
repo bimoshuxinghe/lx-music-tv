@@ -1,37 +1,91 @@
-import { memo } from 'react'
-import { View } from 'react-native'
-import { usePlayerMusicInfo } from '@/store/player/hook'
+import { memo, useEffect, useRef, useState } from 'react'
+import { Animated, Easing, View } from 'react-native'
+// import { useLayout } from '@/utils/hooks'
+import { usePlayerMusicInfo, useIsPlay } from '@/store/player/hook'
+import { useWindowSize } from '@/utils/hooks'
+import { useNavigationComponentDidAppear } from '@/navigation'
 import { NAV_SHEAR_NATIVE_IDS } from '@/config/constant'
 import { createStyle } from '@/utils/tools'
+import { HEADER_HEIGHT } from './components/Header'
+import { BTN_WIDTH } from './MoreBtn/Btn'
+import { marginLeft } from './constant'
 import Image from '@/components/common/Image'
+import { useStatusbarHeight } from '@/store/common/hook'
+import commonState from '@/store/common/state'
 
-/**
- * 播放页封面：大尺寸圆角方图（参考主流播放器封面版式）
- * @param size 正方形边长，由父级容器实测后传入，保证永不溢出容器
- */
-export default memo(({ size }: { size: number }) => {
+
+export default memo(({ componentId }: { componentId: string }) => {
   const musicInfo = usePlayerMusicInfo()
-  if (size <= 0) return null
+  const isPlay = useIsPlay()
+  const { width: winWidth, height: winHeight } = useWindowSize()
+  const statusBarHeight = useStatusbarHeight()
+
+  const [animated, setAnimated] = useState(!!commonState.componentIds.playDetail)
+  const [pic, setPic] = useState(musicInfo.pic)
+  useEffect(() => {
+    if (animated) setPic(musicInfo.pic)
+  }, [musicInfo.pic, animated])
+
+  useNavigationComponentDidAppear(componentId, () => {
+    setAnimated(true)
+  })
+
+  // 旋转动画：播放时旋转，暂停时停止
+  const rotateAnim = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    if (!isPlay) return
+    rotateAnim.setValue(0)
+    const animation = Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    )
+    animation.start()
+    return () => {
+      animation.stop()
+    }
+  }, [isPlay, rotateAnim])
+
+  const rotate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  })
+
+  let imgWidth = Math.min((winWidth * 0.45 - marginLeft - BTN_WIDTH) * 0.76, (winHeight - statusBarHeight - HEADER_HEIGHT) * 0.62)
+  imgWidth -= imgWidth * (global.lx.fontSize - 1) * 0.3
+  let contentHeight = (winHeight - statusBarHeight - HEADER_HEIGHT) * 0.66
+  contentHeight -= contentHeight * (global.lx.fontSize - 1) * 0.2
 
   return (
-    <View style={{ ...styles.cover, width: size, height: size, borderRadius: size * 0.07 }}>
-      <Image
-        url={musicInfo.pic}
-        nativeID={NAV_SHEAR_NATIVE_IDS.playDetail_pic}
-        style={{ width: '100%', height: '100%', borderRadius: size * 0.07 }}
-      />
+    <View style={{ ...styles.container, height: contentHeight }}>
+      <View style={styles.content}>
+        <Animated.View style={{ width: imgWidth, height: imgWidth, transform: [{ rotate }] }}>
+          <Image url={pic} nativeID={NAV_SHEAR_NATIVE_IDS.playDetail_pic} style={{
+            width: imgWidth,
+            height: imgWidth,
+            borderRadius: imgWidth / 2,
+          }} />
+        </Animated.View>
+      </View>
     </View>
   )
 })
 
 const styles = createStyle({
-  cover: {
+  container: {
+    flexShrink: 1,
+    flexGrow: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    // backgroundColor: 'rgba(0,0,0,0.1)',
     overflow: 'hidden',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    shadowColor: '#000000',
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
+  },
+  content: {
+    // elevation: 3,
+    backgroundColor: 'rgba(0,0,0,0)',
+    borderRadius: 4,
   },
 })

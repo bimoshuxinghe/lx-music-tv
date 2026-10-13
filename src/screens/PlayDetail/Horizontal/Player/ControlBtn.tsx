@@ -1,6 +1,7 @@
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 import { StyleSheet, View } from 'react-native'
 import { Icon } from '@/components/common/Icon'
+import { useTheme } from '@/store/theme/hook'
 import { playNext, playPrev, togglePlay } from '@/core/player/player'
 import { useIsPlay } from '@/store/player/hook'
 import { useLayout } from '@/utils/hooks'
@@ -8,35 +9,46 @@ import { marginLeft } from '../constant'
 import { BTN_WIDTH } from '../MoreBtn/Btn'
 
 /**
- * 底部播控按钮：白色裸图标（参考主流播放器），播放键更大；
- * 聚焦时为圆角胶囊背景高亮
+ * 圆形控制按钮：淡底圆钮 + 主题色实心播放键，聚焦为背景高亮
  */
-const CtrlBtn = ({ size, icon, onPress }: {
+const CtrlBtn = ({ size, icon, primary, onPress }: {
   size: number
   icon: 'prevMusic' | 'play' | 'pause' | 'nextMusic'
+  primary?: boolean
   onPress: () => void
 }) => {
+  const theme = useTheme()
   return (
     <TouchableOpacity
       activeOpacity={0.5}
       onPress={onPress}
-      style={{ ...styles.btn, width: size * 1.3, height: size, borderRadius: size * 0.5 }}
+      style={{
+        ...styles.btn,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        ...(primary ? { backgroundColor: theme['c-primary'] } : {}),
+      }}
       focusStyle={styles.btnFocus}
     >
-      <Icon name={icon} color="#FFFFFF" rawSize={size * 0.62} />
+      <Icon
+        name={icon}
+        color={primary ? '#FFFFFF' : theme['c-button-font']}
+        rawSize={size * (primary ? 0.5 : 0.46)}
+      />
     </TouchableOpacity>
   )
 }
 
-const MIN_SIZE = BTN_WIDTH * 1.5
+const MIN_SIZE = BTN_WIDTH * 1.35
 export default () => {
   const { onLayout, height, width } = useLayout()
   const isPlay = useIsPlay()
-  const size = Math.max(Math.min(height * 0.9, (width - marginLeft) * 0.5) * global.lx.fontSize, MIN_SIZE)
+  const size = Math.max(Math.min(height * 0.72, (width - marginLeft) * 0.52 * 0.32) * global.lx.fontSize, MIN_SIZE)
   return (
-    <View style={{ ...styles.content, gap: size * 0.35 }} onLayout={onLayout}>
+    <View style={{ ...styles.content, gap: size * 0.45 }} onLayout={onLayout}>
       <CtrlBtn size={size} icon="prevMusic" onPress={() => { void playPrev() }} />
-      <CtrlBtn size={size * 1.35} icon={isPlay ? 'pause' : 'play'} onPress={() => { void togglePlay() }} />
+      <CtrlBtn size={size * 1.22} icon={isPlay ? 'pause' : 'play'} primary onPress={() => { void togglePlay() }} />
       <CtrlBtn size={size} icon="nextMusic" onPress={() => { void playNext() }} />
     </View>
   )
@@ -44,8 +56,8 @@ export default () => {
 
 const styles = StyleSheet.create({
   content: {
-    flexGrow: 0,
-    flexShrink: 0,
+    flexGrow: 1,
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -53,10 +65,10 @@ const styles = StyleSheet.create({
   btn: {
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(127,127,127,0.14)',
   },
   btnFocus: {
     borderWidth: 0,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    transform: [{ scale: 1.08 }],
+    transform: [{ scale: 1.1 }],
   },
 })
