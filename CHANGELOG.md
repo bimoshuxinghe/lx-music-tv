@@ -2,9 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-Project versioning adheres to [Semantic Versioning](http://semver.org/).
+Project versioning adheres to [Semantic Versioning](http://semver.org).
 Commit convention is based on [Conventional Commits](http://conventionalcommits.org).
-Change log format is based on [Keep a Changelog](http://keepachangelog.com/).
+Change log format is based on [Keep a Changelog](http://keepachangelog.com).
+
+## [2.2.0] - 2026-10-09
+
+### 新增
+
+- MV 播放器新增卡拉OK式 LRC 歌词叠加层：底部固定显示当前播放的歌词，当前行放大高亮 + 逐字渐亮动画，上下文行缩小灰色
+- 遥控器按键增强：全屏播放时音量键（KEYCODE_VOLUME_UP/DOWN/MUTE）转发到 JS 处理，支持音量调节和静音切换
+- 遥控器焦点框全面改造：默认色改为酷狗TV风格蓝色 #2CA3F3，圆角/描边柔化；支持 JS 弹性缩放动画（Animated.spring）和主题色跟随模式
+- 焦点边框设置面板新增"跟随主题"选项
+
+### 修复
+
+- 修复原生焦点前景框与 JS focusStyle 叠加导致的双层边框问题：tv_no_focus_highlight_ 前缀跳过原生前景，tv_adjustable_ 前缀跳过滑块/进度条
+- 旧粉色焦点框默认值迁移：启动时自动将 '#FF69B4' 重置为跟随主题
+- 主题切换时自动同步推送焦点框颜色到原生层
 
 ## [2.1.1] - 2026-09-26
 

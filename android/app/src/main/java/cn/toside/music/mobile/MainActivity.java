@@ -1,7 +1,6 @@
 package cn.toside.music.mobile;
 
 import android.app.Application;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -65,22 +64,23 @@ public class MainActivity extends NavigationActivity {
         return fullscreenKeyCapture;
     }
 
-    /** 用户选择的焦点框边框颜色（默认粉红） */
-    private static int focusBorderColor = 0xFFFF69B4;
+    /** 用户选择的焦点高亮颜色（默认酷狗TV蓝），焦点态以其 25% 透明度填充背景 */
+    private static final int DEFAULT_FOCUS_BORDER_COLOR = 0xFF2CA3F3;
+    private static int focusBorderColor = DEFAULT_FOCUS_BORDER_COLOR;
 
     /**
-     * 动态设置焦点框颜色，由 JS 侧通过 UtilsModule 调用
-     * @param colorStr 十六进制颜色字符串，如 "#FF69B4" 或 "#FFFFFF"，空字符串则重置为粉红
+     * 动态设置焦点高亮颜色，由 JS 侧通过 UtilsModule 调用
+     * @param colorStr 十六进制颜色字符串，如 "#2CA3F3" 或 "#FFFFFF"，空字符串则重置为默认蓝
      */
     public void setFocusBorderColor(String colorStr) {
         if (colorStr == null || colorStr.isEmpty()) {
-            focusBorderColor = 0xFFFF69B4;
+            focusBorderColor = DEFAULT_FOCUS_BORDER_COLOR;
         } else {
             try {
                 String hex = colorStr.startsWith("#") ? colorStr.substring(1) : colorStr;
                 focusBorderColor = Color.parseColor("#" + hex);
             } catch (NumberFormatException e) {
-                focusBorderColor = 0xFFFF69B4;
+                focusBorderColor = DEFAULT_FOCUS_BORDER_COLOR;
             }
         }
         // 应用新颜色到所有已设置焦点的 View
@@ -257,15 +257,22 @@ public class MainActivity extends NavigationActivity {
 
     /**
      * 判断 View 是否无需系统焦点高亮前景。
-     * 沿祖先链查找带 `tv_no_focus_highlight_` 前缀 nativeID 的 View
-     * （如 KTV 全屏播放的透明焦点锚点），命中则跳过应用白色焦点框。
+     * 沿祖先链查找带以下前缀 nativeID 的 View：
+     *  - `tv_no_focus_highlight_`：无需任何焦点高亮（如 KTV 全屏播放的透明焦点锚点）
+     *  - `tv_adjustable_`：滑块/进度条等可调节控件，JS 侧自绘焦点高亮，
+     *    原生不再叠加前景框，避免出现双重边框
+     * 命中则跳过应用焦点前景。
      */
     private boolean isNoFocusHighlightView(View view) {
         View v = view;
         while (v != null) {
             Object tag = v.getTag(com.facebook.react.R.id.view_tag_native_id);
-            if (tag instanceof String && ((String) tag).startsWith(TV_NO_FOCUS_HIGHLIGHT_PREFIX)) {
-                return true;
+            if (tag instanceof String) {
+                String nativeId = (String) tag;
+                if (nativeId.startsWith(TV_NO_FOCUS_HIGHLIGHT_PREFIX)
+                        || nativeId.startsWith(TV_ADJUSTABLE_PREFIX)) {
+                    return true;
+                }
             }
             Object parent = v.getParent();
             if (!(parent instanceof View)) break;
@@ -295,21 +302,22 @@ public class MainActivity extends NavigationActivity {
     /**
      * 创建带用户自定义颜色的焦点选择器实例
      * 当颜色与默认白色不同时，通过 ShapeDrawable 动态生成
+     * 焦点态为「背景高亮」：用焦点色的半透明填充铺满整块背景，不再绘制描边
      */
     private Drawable createCustomFocusSelectorInstance() {
         try {
+            // 焦点色 25% 透明度作为背景高亮
+            int focusedColor = (focusBorderColor & 0x00FFFFFF) | (0x40 << 24);
+
             GradientDrawable focusedShape = new GradientDrawable();
             focusedShape.setShape(GradientDrawable.RECTANGLE);
-            focusedShape.setCornerRadius(6f);
-            focusedShape.setColor(0x26FFFFFF);
-            focusedShape.setStroke(3, focusBorderColor);
+            focusedShape.setCornerRadius(10f);
+            focusedShape.setColor(focusedColor);
 
             GradientDrawable pressedShape = new GradientDrawable();
             pressedShape.setShape(GradientDrawable.RECTANGLE);
-            pressedShape.setCornerRadius(6f);
-            pressedShape.setColor(0x44FFFFFF);
-
-            ColorStateList colorStateList = ColorStateList.valueOf(focusBorderColor);
+            pressedShape.setCornerRadius(10f);
+            pressedShape.setColor(0x24FFFFFF);
 
             StateListDrawable sld = new StateListDrawable();
             sld.addState(new int[] { android.R.attr.state_focused }, focusedShape);
@@ -462,6 +470,11 @@ public class MainActivity extends NavigationActivity {
             sendKeyToJS(keyCode, event);
             return true;
         }
+        // KTV 全屏播放：音量键转发 JS 调节音量，不参与系统音量调节
+        if (fullscreenKeyCapture && isVolumeKey(keyCode)) {
+            sendKeyToJS(keyCode, event);
+            return true;
+        }
         // 菜单键：开发模式下弹出 RN DevServer 菜单
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             ReactInstanceManager rim = getReactInstanceManager();
@@ -550,6 +563,20 @@ public class MainActivity extends NavigationActivity {
             case KeyEvent.KEYCODE_ENTER:
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
             case KeyEvent.KEYCODE_MENU:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * 判断是否是音量键
+     */
+    private boolean isVolumeKey(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_VOLUME_UP:
+            case KeyEvent.KEYCODE_VOLUME_DOWN:
+            case KeyEvent.KEYCODE_VOLUME_MUTE:
                 return true;
             default:
                 return false;

@@ -1,6 +1,6 @@
 import { FocusableTouchableOpacity as TouchableOpacity } from '@/components/tv/FocusableTouchableOpacity'
 import { memo } from 'react'
-import { ScrollView, View } from 'react-native'
+import { View } from 'react-native'
 import { useNavActiveId, useStatusbarHeight } from '@/store/common/hook'
 import { useTheme } from '@/store/theme/hook'
 import { Icon } from '@/components/common/Icon'
@@ -21,20 +21,25 @@ const NavItem = ({ id, icon, onPress, isFirst }: {
   isFirst?: boolean
 }) => {
   const t = useI18n()
-  const activeId = useNavActiveId()
   const theme = useTheme()
+  const activeId = useNavActiveId()
   const active = activeId == id
 
   return (
     <TouchableOpacity
-      style={{ ...styles.navItem, ...(active ? { backgroundColor: theme['c-primary'], borderRadius: 6 } : {}) }}
+      style={styles.navItem}
+      focusStyle={{ ...styles.navItemFocus, backgroundColor: theme['c-primary-alpha-900'] }}
       onPress={() => { onPress(id) }}
       hasTVPreferredFocus={isFirst}
     >
       <View style={styles.iconContent}>
-        <Icon name={icon} size={20} color={active ? '#FFFFFF' : theme['c-font-label']} />
+        <Icon name={icon} size={18} color={active ? theme['c-primary'] : theme['c-font-label']} />
       </View>
-      <Text style={styles.text} size={16} color={active ? '#FFFFFF' : theme['c-font-label']}>{t(id)}</Text>
+      <Text style={styles.text} size={14} color={active ? theme['c-primary'] : theme['c-font-label']}>{t(id)}</Text>
+      {/* 酷狗TV风格：激活项底部主题色指示条 */}
+      <View style={styles.indicatorWrap}>
+        <View style={{ ...styles.indicator, backgroundColor: active ? theme['c-primary'] : 'transparent' }} />
+      </View>
     </TouchableOpacity>
   )
 }
@@ -47,14 +52,18 @@ const SettingBtn = () => {
 
   return (
     <TouchableOpacity
-      style={{ ...styles.navItem, ...(active ? { backgroundColor: theme['c-primary'], borderRadius: 6 } : {}) }}
+      style={styles.navItem}
+      focusStyle={{ ...styles.navItemFocus, backgroundColor: theme['c-primary-alpha-900'] }}
       onPress={() => { setNavActiveId('nav_setting') }}
       activeOpacity={0.5}
     >
       <View style={styles.iconContent}>
-        <Icon name="setting" size={20} color={active ? '#FFFFFF' : theme['c-font-label']} />
+        <Icon name="setting" size={18} color={active ? theme['c-primary'] : theme['c-font-label']} />
       </View>
-      <Text style={styles.text} size={16} color={active ? '#FFFFFF' : theme['c-font-label']}>{t('nav_setting')}</Text>
+      <Text style={styles.text} size={14} color={active ? theme['c-primary'] : theme['c-font-label']}>{t('nav_setting')}</Text>
+      <View style={styles.indicatorWrap}>
+        <View style={{ ...styles.indicator, backgroundColor: active ? theme['c-primary'] : 'transparent' }} />
+      </View>
     </TouchableOpacity>
   )
 }
@@ -76,18 +85,17 @@ export default memo(() => {
       }}
     >
       <View style={styles.header}>
-        <Icon name="logo" color={theme['c-primary-dark-100-alpha-300']} size={24} />
+        <Icon name="logo" color={theme['c-primary-dark-100-alpha-300']} size={22} />
         <Text style={styles.headerText} size={15} color={theme['c-primary-dark-100-alpha-300']}>星河音乐</Text>
       </View>
       <View style={styles.right}>
-        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps={'always'} style={styles.navScroll}>
-          <View style={styles.navList}>
-            {NAV_MENUS.filter(m => m.id != 'nav_setting').map((menu, i) => (
-              <NavItem key={menu.id} id={menu.id as IdType} icon={menu.icon} onPress={handlePress} isFirst={i === 0} />
-            ))}
-            <SettingBtn />
-          </View>
-        </ScrollView>
+        {/* 导航按钮单行排布（已缩小，无需横向滚动） */}
+        <View style={styles.navList}>
+          {NAV_MENUS.filter(m => m.id != 'nav_setting').map((menu, i) => (
+            <NavItem key={menu.id} id={menu.id} icon={menu.icon} onPress={handlePress} isFirst={i === 0} />
+          ))}
+          <SettingBtn />
+        </View>
       </View>
     </View>
   )
@@ -101,17 +109,17 @@ const styles = createStyle({
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: BorderWidths.normal,
-    paddingBottom: 4,
+    paddingBottom: 2,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: 12,
-    paddingRight: 6,
+    paddingLeft: 16,
+    paddingRight: 10,
   },
   headerText: {
     textAlign: 'center',
-    marginLeft: 8,
+    marginLeft: 7,
   },
   right: {
     flexGrow: 1,
@@ -120,29 +128,42 @@ const styles = createStyle({
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
-  navScroll: {
-    flexGrow: 0,
-    flexShrink: 1,
-  },
   navList: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
   },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 8,
-    paddingLeft: 14,
-    paddingRight: 14,
-    marginRight: 10,
+    paddingTop: 7,
+    paddingBottom: 7,
+    paddingLeft: 11,
+    paddingRight: 11,
+    marginRight: 4,
+    borderRadius: 8,
+  },
+  navItemFocus: {
+    borderWidth: 0,
+    borderRadius: 8,
   },
   iconContent: {
-    width: 22,
+    width: 20,
     alignItems: 'center',
   },
   text: {
-    paddingLeft: 6,
+    paddingLeft: 5,
+  },
+  indicatorWrap: {
+    position: 'absolute',
+    bottom: 1,
+    left: 11,
+    right: 11,
+    alignItems: 'center',
+  },
+  indicator: {
+    width: 18,
+    height: 2.5,
+    borderRadius: 2,
   },
 })

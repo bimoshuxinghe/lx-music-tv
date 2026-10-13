@@ -1,20 +1,64 @@
-import { forwardRef, useState, useMemo } from 'react'
-import { Pressable, type PressableProps, type ViewStyle, type View, StyleSheet, type NativeSyntheticEvent, type TargetedEvent } from 'react-native'
+import { forwardRef, useState, useMemo, useRef, useEffect } from 'react'
+import {
+  Pressable,
+  Animated,
+  type PressableProps,
+  type ViewStyle,
+  type View,
+  StyleSheet,
+} from 'react-native'
 import { useTheme } from '@/store/theme/hook'
 
 export interface FocusablePressableProps extends PressableProps {
   hasTVPreferredFocus?: boolean
+  /** 聚焦时附加的样式（覆盖默认高亮；其中 transform scale 会被并入缩放动画） */
   focusStyle?: ViewStyle
+  /** 是否允许通过 D-pad 导航聚焦（默认 true） */
+  focusable?: boolean
+  /** 原生视图 ID */
+  nativeID?: string
 }
+
+const DEFAULT_SCALE = 1.06
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+
+const extractScale = (style?: ViewStyle): number => {
+  if (!style?.transform) return 1
+  let scale = 1
+  for (const t of style.transform as unknown as Array<Record<string, unknown>>) {
+    if (typeof t.scale == 'number') scale = t.scale
+  }
+  return scale
+}
+
+const stripScale = (style?: ViewStyle): ViewStyle | undefined => {
+  if (!style) return undefined
+  if (!style.transform) return style
+  const rest = (style.transform as unknown as Array<Record<string, unknown>>).filter(t => !('scale' in t))
+  const next = { ...style }
+  if (rest.length > 0) {
+    next.transform = rest as unknown as ViewStyle['transform']
+  } else {
+    delete next.transform
+  }
+  return next
+}
+
 /**
- * TV 遥控器可聚焦的 Pressable
- * 聚焦时自动应用高亮背景，完全兼容 Pressable API
+ * TV 遥控器可聚焦的 Pressable（焦点背景高亮）
+ *
+ * - 聚焦时：弹性放大 + 背景高亮填充（不再绘制边框描线）
+ * - 背景色：focusStyle 指定则用之，未指定用主题色淡填充；
+ *   显式传 'transparent' 表示该元素无需任何高亮
+ * - 完全兼容 Pressable API
  */
 const FocusablePressable = forwardRef<View, FocusablePressableProps>(({
   style,
   focusStyle,
   hasTVPreferredFocus,
   focusable = true,
+  nativeID,
   onFocus,
   onBlur,
   children,
@@ -22,43 +66,65 @@ const FocusablePressable = forwardRef<View, FocusablePressableProps>(({
 }, ref) => {
   const [isFocused, setIsFocused] = useState(false)
   const theme = useTheme()
+  const scale = useRef(new Animated.Value(1)).current
 
-  const handleFocus = (e: NativeSyntheticEvent<TargetedEvent>) => {
+  const focusScale = useMemo(() => extractScale(focusStyle), [focusStyle])
+
+  useEffect(() => {
+    Animated.spring(scale, {
+      toValue: isFocused ? focusScale || DEFAULT_SCALE : 1,
+      useNativeDriver: true,
+      speed: 28,
+      bounciness: 5,
+    }).start()
+  }, [isFocused, focusScale, scale])
+
+  const handleFocus = (e: any) => {
     setIsFocused(true)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     onFocus?.(e)
   }
-  const handleBlur = (e: NativeSyntheticEvent<TargetedEvent>) => {
+  const handleBlur = (e: any) => {
     setIsFocused(false)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     onBlur?.(e)
   }
 
-  const focusedStyle = useMemo<ViewStyle | null>(() => {
+  const focusedVisual = useMemo<ViewStyle | null>(() => {
     if (!isFocused) return null
+    const fs = stripScale(focusStyle) ?? {}
+    // 焦点 = 背景高亮（不是边框）：focusStyle 未给背景时用主题色淡填充
+    const background = fs.backgroundColor === 'transparent'
+      ? 'transparent'
+      : (fs.backgroundColor ?? theme['c-primary-light-100-alpha-800'])
     return {
-      // 醒目焦点高亮：粗白边框 + 实色绿背景 + 缩放放大 + 阴影
-      backgroundColor: theme['c-primary'],
-      borderColor: '#FF69B4',
-      borderWidth: 3,
-      borderRadius: 6,
-      elevation: 8,
-      zIndex: 999,
-      transform: [{ scale: 1.08 }],
-      ...focusStyle,
+      elevation: 6,
+      zIndex: 100,
+      ...fs,
+      backgroundColor: background,
+      borderWidth: 0,
     }
   }, [isFocused, theme, focusStyle])
 
+  const Comp = AnimatedPressable as any
+  // Pressable style 可以是函数，需要先解析
+  const resolvedStyle = typeof style === 'function' ? style({pressed: false}) : style
   return (
-    <Pressable
+    <Comp
       ref={ref}
       hasTVPreferredFocus={hasTVPreferredFocus}
-      style={StyleSheet.compose(style as ViewStyle, focusedStyle)}
+      nativeID={nativeID}
+      style={StyleSheet.compose(resolvedStyle, [
+        { transform: [{ scale }] },
+        focusedVisual,
+      ])}
       onFocus={handleFocus as any}
       onBlur={handleBlur as any}
       {...props}
       focusable={focusable}
     >
       {children}
-    </Pressable>
+    </Comp>
   )
 })
 
